@@ -2,6 +2,7 @@ package com.insectopia.seeders;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,6 +68,12 @@ public class DatabaseSeeder implements CommandLineRunner {
             "[DEMO-036-MENSAJE-";
     private static final String MARCA_EVENTO =
             "[DEMO-037-";
+
+    private static final int TOTAL_EVENTOS_DEMO = 15;
+    private static final int PARTICIPACIONES_POR_EVENTO_APROBADO = 6;
+    private static final int DIAS_INSCRIPCION_LEGACY = 2;
+    private static final int DIAS_INSCRIPCION_NUEVA = 3;
+
     private static final String MARCA_REPORTE =
             "[DEMO-038-REPORTE-";
     private static final String MARCA_NOTIFICACION =
@@ -577,7 +584,9 @@ public class DatabaseSeeder implements CommandLineRunner {
 
     private void crearEventosYParticipantes(List<Usuario> usuarios) {
 
-        for (int i = 0; i < 15; i++) {
+        List<Evento> eventos = new ArrayList<>();
+
+        for (int i = 0; i < TOTAL_EVENTOS_DEMO; i++) {
 
             int indice = i;
             String marca = MARCA_EVENTO + numero(i + 1) + "]";
@@ -592,8 +601,10 @@ public class DatabaseSeeder implements CommandLineRunner {
                     .findFirst()
                     .orElseGet(() -> crearEvento(indice, titulo, usuarios));
 
-            crearParticipantesEvento(evento, i, usuarios);
+            eventos.add(evento);
         }
+
+        sincronizarParticipantesDemo(eventos, usuarios);
     }
 
     private Evento crearEvento(
@@ -636,38 +647,259 @@ public class DatabaseSeeder implements CommandLineRunner {
         return eventoRepository.save(evento);
     }
 
-    private void crearParticipantesEvento(
-            Evento evento, int indice, List<Usuario> usuarios) {
+    /**
+     * Sincroniza las participaciones demo. Solo se crean inscripciones en
+     * eventos APROBADOS y se eliminan, de forma individual y dentro de la
+     * transacción del seeder, las inscripciones generadas por versiones
+     * anteriores del seeder que quedaron en eventos PENDIENTE o RECHAZADO.
+     *
+     * Una inscripción se considera "legacy" únicamente cuando coincide con
+     * los tres criterios siguientes: evento marcado como demo, usuario de la
+     * lista demo y fecha_inscripcion == fecha_creacion + 2 días (firma del
+     * seeder anterior). Las inscripciones de usuarios reales nunca se tocan.
+     */
+    private void sincronizarParticipantesDemo(
+            List<Evento> eventos, List<Usuario> usuarios) {
 
-        for (int j = 0; j < 2; j++) {
+        Set<Long> idsUsuariosDemo = usuarios.stream()
+                .map(Usuario::getIdUsuario)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
-            Usuario usuario = usuarios.get((indice + 5 + j) % 15);
+        List<Evento> aprobados = eventos.stream()
+                .filter(evento -> evento.getEstado() == EstadoEvento.APROBADO)
+                .toList();
 
-            if (participanteEventoRepository
-                    .existsByEvento_IdEventoAndUsuario_IdUsuario(
-                            evento.getIdEvento(),
-                            usuario.getIdUsuario())) {
+        if (aprobados.size() != 5) {
+            throw new IllegalStateException(
+                    "Se esperaban 5 eventos APROBADOS, pero hay "
+                            + aprobados.size());
+        }
+
+        int eliminadas = eliminarParticipacionesLegacyInvalidas(
+                eventos, idsUsuariosDemo);
+
+        Map<Long, Set<Long>> usuariosPorEvento = new LinkedHashMap<>();
+        for (Evento evento : aprobados) {
+            usuariosPorEvento.put(
+                    evento.getIdEvento(),
+                    participantesDemoDelEvento(evento, idsUsuariosDemo)
+                            .stream()
+                            .map(ParticipanteEvento::getUsuario)
+                            .map(Usuario::getIdUsuario)
+                            .collect(Collectors.toCollection(HashSet::new)));
+        }
+
+        int creadas = 0;
+
+        for (int indiceAprobado = 0;
+                indiceAprobado < aprobados.size();
+                indiceAprobado++) {
+
+            Evento evento = aprobados.get(indiceAprobado);
+            Set<Long> usuariosDelEvento =
+                    usuariosPorEvento.get(evento.getIdEvento());
+            int faltan = PARTICIPACIONES_POR_EVENTO_APROBADO
+                    - usuariosDelEvento.size();
+
+            if (faltan <= 0) {
                 continue;
             }
 
-            ParticipanteEvento participante = new ParticipanteEvento();
-            participante.setId(new ParticipanteEventoId(
-                    evento.getIdEvento(), usuario.getIdUsuario()));
-            participante.setEvento(evento);
-            participante.setUsuario(usuario);
-            participante.setFechaInscripcion(
-                    evento.getFechaCreacion().plusDays(2));
+            long inscritosActuales = participanteEventoRepository
+                    .countByEvento_IdEventoAndEstado(
+                            evento.getIdEvento(),
+                            EstadoParticipanteEvento.INSCRITO);
 
-            if (indice % 5 == 0 && j == 1) {
-                participante.setEstado(EstadoParticipanteEvento.CANCELADO);
-                participante.setFechaCancelacion(
-                        participante.getFechaInscripcion().plusDays(1));
-            } else {
-                participante.setEstado(EstadoParticipanteEvento.INSCRITO);
+            if (inscritosActuales + faltan > evento.getCupoMaximo()) {
+                throw new IllegalStateException(
+                        "El evento demo " + evento.getIdEvento()
+                                + " no tiene cupo para "
+                                + faltan + " participaciones");
             }
 
-            participanteEventoRepository.save(participante);
+            int anadidas = 0;
+
+            for (int offset = 0;
+                    offset < usuarios.size() && anadidas < faltan;
+                    offset++) {
+
+                Usuario usuario = usuarios.get(
+                        (indiceAprobado * 3 + offset) % usuarios.size());
+
+                if (usuariosDelEvento.contains(usuario.getIdUsuario())) {
+                    continue;
+                }
+
+                ParticipanteEvento participante = new ParticipanteEvento();
+                participante.setId(new ParticipanteEventoId(
+                        evento.getIdEvento(), usuario.getIdUsuario()));
+                participante.setEvento(evento);
+                participante.setUsuario(usuario);
+                participante.setFechaInscripcion(
+                        fechaInscripcionDemo(evento));
+
+                if (anadidas == 1) {
+                    participante.setEstado(
+                            EstadoParticipanteEvento.CANCELADO);
+                    participante.setFechaCancelacion(
+                            participante.getFechaInscripcion().plusDays(1));
+                } else {
+                    participante.setEstado(
+                            EstadoParticipanteEvento.INSCRITO);
+                }
+
+                participanteEventoRepository.save(participante);
+                usuariosDelEvento.add(usuario.getIdUsuario());
+                anadidas++;
+                creadas++;
+            }
+
+            if (anadidas < faltan) {
+                throw new IllegalStateException(
+                        "No hay usuarios demo suficientes para completar "
+                                + "el evento " + evento.getIdEvento());
+            }
         }
+
+        verificarParticipacionesDemo(
+                aprobados, idsUsuariosDemo, eliminadas, creadas);
+    }
+
+    private int eliminarParticipacionesLegacyInvalidas(
+            List<Evento> eventos, Set<Long> idsUsuariosDemo) {
+
+        int eliminadas = 0;
+
+        for (Evento evento : eventos) {
+
+            if (evento.getEstado() == EstadoEvento.APROBADO) {
+                continue;
+            }
+
+            for (ParticipanteEvento participante
+                    : participantesDelEvento(evento)) {
+
+                if (participante.getUsuario() == null
+                        || !idsUsuariosDemo.contains(
+                                participante.getUsuario().getIdUsuario())) {
+                    continue;
+                }
+
+                if (!esParticipacionLegacy(participante, evento)) {
+                    continue;
+                }
+
+                participanteEventoRepository.delete(participante);
+                eliminadas++;
+            }
+        }
+
+        if (eliminadas > 0) {
+            System.out.println(
+                    "[DEMO] Participaciones demo invalidas eliminadas: "
+                            + eliminadas);
+        }
+
+        return eliminadas;
+    }
+
+    private List<ParticipanteEvento> participantesDelEvento(Evento evento) {
+
+        if (evento.getIdEvento() == null) {
+            return List.of();
+        }
+
+        return participanteEventoRepository
+                .findByEvento_IdEvento(
+                        evento.getIdEvento(), PageRequest.of(0, 100))
+                .getContent();
+    }
+
+    private List<ParticipanteEvento> participantesDemoDelEvento(
+            Evento evento, Set<Long> idsUsuariosDemo) {
+
+        return participantesDelEvento(evento).stream()
+                .filter(participante -> participante.getUsuario() != null)
+                .filter(participante -> idsUsuariosDemo.contains(
+                        participante.getUsuario().getIdUsuario()))
+                .toList();
+    }
+
+    private boolean esParticipacionLegacy(
+            ParticipanteEvento participante, Evento evento) {
+
+        LocalDateTime inscripcion = participante.getFechaInscripcion();
+        LocalDateTime creacion = evento.getFechaCreacion();
+
+        return inscripcion != null
+                && creacion != null
+                && inscripcion.withNano(0).equals(
+                        creacion.plusDays(DIAS_INSCRIPCION_LEGACY)
+                                .withNano(0));
+    }
+
+    private LocalDateTime fechaInscripcionDemo(Evento evento) {
+
+        LocalDateTime creacion = evento.getFechaCreacion();
+
+        return creacion != null
+                ? creacion.plusDays(DIAS_INSCRIPCION_NUEVA)
+                : LocalDateTime.now().plusDays(1L);
+    }
+
+    private void verificarParticipacionesDemo(
+            List<Evento> aprobados,
+            Set<Long> idsUsuariosDemo,
+            int eliminadas,
+            int creadas) {
+
+        Set<ParticipanteEventoId> claves = new HashSet<>();
+        long total = 0L;
+
+        for (Evento evento : aprobados) {
+
+            List<ParticipanteEvento> participantes =
+                    participantesDemoDelEvento(evento, idsUsuariosDemo);
+
+            if (participantes.size()
+                    != PARTICIPACIONES_POR_EVENTO_APROBADO) {
+                throw new IllegalStateException(
+                        "El evento aprobado " + evento.getIdEvento()
+                                + " tiene " + participantes.size()
+                                + " participaciones demo; se esperaban "
+                                + PARTICIPACIONES_POR_EVENTO_APROBADO);
+            }
+
+            for (ParticipanteEvento participante : participantes) {
+                claves.add(participante.getId());
+            }
+
+            total += participantes.size();
+
+            long inscritos = participanteEventoRepository
+                    .countByEvento_IdEventoAndEstado(
+                            evento.getIdEvento(),
+                            EstadoParticipanteEvento.INSCRITO);
+
+            if (inscritos > evento.getCupoMaximo()) {
+                throw new IllegalStateException(
+                        "El evento " + evento.getIdEvento()
+                                + " supera su cupo máximo");
+            }
+        }
+
+        if (total != 30L || claves.size() != 30) {
+            throw new IllegalStateException(
+                    "Se esperaban 30 participaciones demo únicas y hay "
+                            + total + " (claves únicas: " + claves.size()
+                            + ")");
+        }
+
+        System.out.println(
+                "[DEMO] Participaciones en eventos aprobados: " + total
+                        + " (eliminadas=" + eliminadas
+                        + ", creadas=" + creadas + ")");
     }
 
     private void crearSeguidoresNotificacionesYReportes(

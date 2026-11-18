@@ -130,15 +130,17 @@ Si se necesita almacenar las dependencias de Maven en otra unidad, por ejemplo D
 
 ## 6. Ejecutar el backend
 
-Una vez configurada la base de datos y las migraciones Flyway:
+Crea una base de datos MySQL vacía (codificación `utf8mb4`) y configura su conexión en `backend/.env` según la sección 3. No es necesario crear las tablas manualmente: **Flyway ejecuta automáticamente las migraciones `V1` a `V10` antes de que arranque la aplicación** y Hibernate valida el esquema con `spring.jpa.hibernate.ddl-auto=validate`.
+
+Modo normal, sin datos ficticios:
 
 ```powershell
 .\mvnw.cmd spring-boot:run
 ```
 
-El backend utilizará el puerto `8080` de forma predeterminada.
+El backend utilizará el puerto `8080` de forma predeterminada. En este modo se aplican las migraciones, pero `DatabaseSeeder` no se activa porque está anotado con `@Profile("demo")`.
 
-**Nota:** la aplicación aún requiere la creación del esquema MySQL y las migraciones correspondientes para iniciar completamente.
+Modo con datos de demostración (sección "Datos de demostración"): se añade el perfil `demo` y el seeder genera los 288 registros ficticios después de Flyway.
 
 ## 7. Seguridad
 
@@ -175,20 +177,50 @@ La tabla `flyway_schema_history` conserva el historial de ejecución.
 
 ### Datos de demostración
 
-El backend incorpora `DatabaseSeeder`, un componente que genera datos ficticios cuando se activa el perfil `demo`.
-
-Para ejecutarlo desde `backend`, primero deben cargarse las variables de entorno locales y después iniciarse Spring Boot:
+El backend incorpora `DatabaseSeeder`, un componente que solo se activa con el perfil `demo` (`@Profile("demo")`). Flyway ejecuta primero `V1`–`V10` y, a continuación, el seeder genera los datos ficticios. No dependas de scripts externos de carga: **reutiliza el bloque de carga de variables de la sección 4** (`Get-Content .\backend\.env | ForEach-Object { ... }`), ejecutado desde la raíz del repositorio. Después, entra en `backend` y ejecuta el backend con Maven Wrapper:
 
 ```powershell
-. .\cargar-env.ps1
+cd backend
+.\mvnw.cmd "-Dspring-boot.run.profiles=demo" spring-boot:run
+```
+
+Si necesitas ubicar el repositorio de Maven en otra unidad, conserva el argumento que ya se usa en la sección 5:
+
+```powershell
 .\mvnw.cmd "-Dmaven.repo.local=D:\maven-repository" "-Dspring-boot.run.profiles=demo" spring-boot:run
 ```
 
-La carga es idempotente: las ejecuciones posteriores no deben duplicar los registros existentes.
+Diferencia entre ambos modos:
 
-El conjunto inicial de demostración contiene 288 registros, distribuidos entre usuarios, roles, publicaciones, comentarios, reacciones, conversaciones, mensajes, eventos, participaciones, seguidores, notificaciones y reportes.
+- `.\mvnw.cmd spring-boot:run`: arranca sin perfil `demo`; Flyway migra, pero no se cargan datos ficticios.
+- `.\mvnw.cmd "-Dspring-boot.run.profiles=demo" spring-boot:run`: además de migrar, activa `DatabaseSeeder` y puebla la base con los datos de evaluación.
 
-Las contraseñas de los usuarios ficticios se almacenan mediante BCrypt.
+La carga es idempotente: ejecutarla varias veces no duplica usuarios, eventos ni participaciones. Si la base ya contuviera datos de una versión anterior del seeder, la reparación demo está limitada al perfil `demo`, se ejecuta en una transacción y solo elimina de forma individual las participaciones ficticias en eventos no aprobados que coinciden con la firma antigua (`fecha_inscripcion = fecha_creacion + 2 días`). Nunca elimina participaciones de usuarios reales ni aplica borrados masivos.
+
+Conteos esperados tras la carga (288 registros de aplicación, incluidos los 3 roles de Flyway):
+
+| Tabla | Registros |
+|---|---:|
+| roles | 3 |
+| usuarios | 15 |
+| publicaciones | 15 |
+| comentarios | 30 |
+| reacciones | 30 |
+| conversaciones | 15 |
+| participantes_conversacion | 30 |
+| mensajes | 50 |
+| eventos | 15 (5 APROBADOS, 5 PENDIENTES, 5 RECHAZADOS) |
+| participantes_evento | 30 |
+| seguidores | 20 |
+| notificaciones | 20 |
+| reportes | 15 |
+| tokens_recuperacion | 0 |
+| tokens_revocados | 0 |
+| auditoria_roles | 0 |
+
+Reglas de integridad de la actividad 037: las 30 participaciones demo pertenecen **exclusivamente a los 5 eventos APROBADOS**, se reparten 6 por evento sin superar el cupo máximo, no se repite la pareja `(id_evento, id_usuario)` y toda cancelación tiene `fecha_cancelacion >= fecha_inscripcion`.
+
+Las contraseñas de los usuarios ficticios se almacenan mediante BCrypt. **Las cuentas y contraseñas demo son únicamente para desarrollo y evaluación local; no deben desplegarse ni reutilizarse en producción.**
 
 ### Validación de integridad
 
@@ -196,7 +228,16 @@ Las consultas utilizadas para verificar los registros y las relaciones se encuen
 
 `database/validaciones/039_validacion_integridad.sql`
 
-La validación realizada en DBeaver confirmó los 288 registros esperados y no detectó inconsistencias en las 30 comprobaciones de integridad ejecutadas.
+El script es de solo lectura y **no contiene `USE insectopia;`**: muestra primero `DATABASE()` para que compruebes el esquema activo seleccionado en DBeaver antes de interpretar resultados. Conserva las comprobaciones de relaciones originales (incluidas conversaciones con dos participantes y remitentes que pertenecen a la conversación) y añade:
+
+- participaciones en eventos no aprobados;
+- eventos con inscritos que superan el cupo máximo;
+- participaciones duplicadas por `(id_evento, id_usuario)`;
+- canceladas sin fecha de cancelación y cancelaciones anteriores a la inscripción;
+- diferencias entre los conteos esperados y los reales, incluidas las tres tablas que deben estar vacías;
+- un resumen de participaciones agrupadas por estado del evento.
+
+En una base nueva correctamente poblada con Flyway + perfil `demo`, todas las comprobaciones devuelven 0 errores.
 
 ### Respaldo SQL
 
@@ -207,6 +248,8 @@ Archivo:
 `database/insectopia_backup.sql`
 
 El respaldo incluye la estructura, los datos ficticios y el historial de las diez migraciones Flyway.
+
+**Este archivo es una instantánea anterior a la corrección de la actividad 037**: contiene participaciones en eventos PENDIENTES y RECHAZADOS, por lo que **no** debe considerarse una fuente con las participaciones corregidas. No se modifica ni se reemplaza automáticamente; conserva la evidencia histórica de la actividad 042. Para obtener los datos corregidos, crea una base nueva y ejecuta Flyway (`V1`–`V10`) junto con el perfil `demo`, tal como se indica en "Datos de demostración".
 
 Para generar un respaldo equivalente se debe utilizar la opción **Tools → Dump database** de DBeaver, seleccionando estructura y datos, e incluyendo el argumento:
 

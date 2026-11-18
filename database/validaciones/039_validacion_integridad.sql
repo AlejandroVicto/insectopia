@@ -1,15 +1,31 @@
 -- ============================================================================
 -- INSECTOPIA | Actividad 039: Validacion de integridad de la base de datos
 -- Motor: MySQL 8.4 | Herramienta: DBeaver
--- Objetivo: verificar cantidades, usuarios, seguridad e integridad referencial.
--- Este script es de SOLO LECTURA: no modifica ninguna tabla.
--- Base de referencia: 288 registros (incluye los 3 roles de Flyway).
--- Las consultas pueden ejecutarse todas juntas o por secciones.
+-- Objetivo: verificar cantidades, roles, seguridad, integridad referencial
+--           y reglas de negocio de participaciones en eventos.
+--
+-- SCRIPT 100% DE SOLO LECTURA: unicamente consultas SELECT; no modifica
+-- ningun dato ni la estructura del esquema.
+--
+-- IMPORTANTE: este script NO ejecuta "USE". Antes de ejecutarlo, selecciona
+-- explÃ­citamente en DBeaver la conexion/esquema que se desea validar.
+-- Todas las consultas usan nombres de tabla sin calificar, por lo que se
+-- resuelven contra el esquema activo de la conexion. La primera consulta
+-- muestra ese esquema para evitar validar accidentalmente la base original.
+--
+-- Base de referencia: 288 registros de aplicacion + 3 roles incluidos.
 -- ============================================================================
 
-USE insectopia;
+-- 00. Esquema activo (comprobar ANTES de interpretar los resultados).
+SELECT
+    DATABASE() AS esquema_activo,
+    CASE
+        WHEN DATABASE() IS NULL
+            THEN 'SIN ESQUEMA ACTIVO: selecciona la base de destino en DBeaver'
+        ELSE CONCAT('Validando el esquema: ', DATABASE())
+    END AS estado_validacion;
 
--- 01. Conteo de registros por tabla (288 en total; tres tablas vacias)
+-- 01. Conteo de registros por tabla (288 en total; tres tablas vacias).
 SELECT 'roles' AS tabla, COUNT(*) AS registros FROM roles
 UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
 UNION ALL SELECT 'publicaciones', COUNT(*) FROM publicaciones
@@ -27,26 +43,102 @@ UNION ALL SELECT 'tokens_recuperacion', COUNT(*) FROM tokens_recuperacion
 UNION ALL SELECT 'tokens_revocados', COUNT(*) FROM tokens_revocados
 UNION ALL SELECT 'auditoria_roles', COUNT(*) FROM auditoria_roles;
 
--- Suma global para comprobar los 288 registros esperados.
+-- 01b. Diferencias entre conteos esperados y conteos reales.
+-- Una base nueva, creada con Flyway V1-V10 y cargada con el perfil demo,
+-- debe devolver diferencia = 0 en las 16 filas.
+WITH esperadas AS (
+    SELECT 'roles' AS tabla, 3 AS esperado
+    UNION ALL SELECT 'usuarios', 15
+    UNION ALL SELECT 'publicaciones', 15
+    UNION ALL SELECT 'comentarios', 30
+    UNION ALL SELECT 'reacciones', 30
+    UNION ALL SELECT 'conversaciones', 15
+    UNION ALL SELECT 'participantes_conversacion', 30
+    UNION ALL SELECT 'mensajes', 50
+    UNION ALL SELECT 'eventos', 15
+    UNION ALL SELECT 'participantes_evento', 30
+    UNION ALL SELECT 'seguidores', 20
+    UNION ALL SELECT 'notificaciones', 20
+    UNION ALL SELECT 'reportes', 15
+    UNION ALL SELECT 'tokens_recuperacion', 0
+    UNION ALL SELECT 'tokens_revocados', 0
+    UNION ALL SELECT 'auditoria_roles', 0
+), actuales AS (
+    SELECT 'roles' AS tabla, COUNT(*) AS registros FROM roles
+    UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
+    UNION ALL SELECT 'publicaciones', COUNT(*) FROM publicaciones
+    UNION ALL SELECT 'comentarios', COUNT(*) FROM comentarios
+    UNION ALL SELECT 'reacciones', COUNT(*) FROM reacciones
+    UNION ALL SELECT 'conversaciones', COUNT(*) FROM conversaciones
+    UNION ALL SELECT 'participantes_conversacion', COUNT(*) FROM participantes_conversacion
+    UNION ALL SELECT 'mensajes', COUNT(*) FROM mensajes
+    UNION ALL SELECT 'eventos', COUNT(*) FROM eventos
+    UNION ALL SELECT 'participantes_evento', COUNT(*) FROM participantes_evento
+    UNION ALL SELECT 'seguidores', COUNT(*) FROM seguidores
+    UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
+    UNION ALL SELECT 'reportes', COUNT(*) FROM reportes
+    UNION ALL SELECT 'tokens_recuperacion', COUNT(*) FROM tokens_recuperacion
+    UNION ALL SELECT 'tokens_revocados', COUNT(*) FROM tokens_revocados
+    UNION ALL SELECT 'auditoria_roles', COUNT(*) FROM auditoria_roles
+)
 SELECT
-    (SELECT COUNT(*) FROM roles)
-  + (SELECT COUNT(*) FROM usuarios)
-  + (SELECT COUNT(*) FROM publicaciones)
-  + (SELECT COUNT(*) FROM comentarios)
-  + (SELECT COUNT(*) FROM reacciones)
-  + (SELECT COUNT(*) FROM conversaciones)
-  + (SELECT COUNT(*) FROM participantes_conversacion)
-  + (SELECT COUNT(*) FROM mensajes)
-  + (SELECT COUNT(*) FROM eventos)
-  + (SELECT COUNT(*) FROM participantes_evento)
-  + (SELECT COUNT(*) FROM seguidores)
-  + (SELECT COUNT(*) FROM notificaciones)
-  + (SELECT COUNT(*) FROM reportes)
-  + (SELECT COUNT(*) FROM tokens_recuperacion)
-  + (SELECT COUNT(*) FROM tokens_revocados)
-  + (SELECT COUNT(*) FROM auditoria_roles) AS total_registros;
+    esperadas.tabla,
+    esperadas.esperado,
+    actuales.registros AS actual,
+    actuales.registros - esperadas.esperado AS diferencia
+FROM esperadas
+JOIN actuales ON actuales.tabla = esperadas.tabla
+ORDER BY esperadas.tabla;
 
--- 02. Usuarios: 15 totales, 15 correos unicos, 15 hashes BCrypt, 0 en claro
+-- 01c. Diferencia global: debe ser 0.
+WITH esperadas AS (
+    SELECT 'roles' AS tabla, 3 AS esperado
+    UNION ALL SELECT 'usuarios', 15
+    UNION ALL SELECT 'publicaciones', 15
+    UNION ALL SELECT 'comentarios', 30
+    UNION ALL SELECT 'reacciones', 30
+    UNION ALL SELECT 'conversaciones', 15
+    UNION ALL SELECT 'participantes_conversacion', 30
+    UNION ALL SELECT 'mensajes', 50
+    UNION ALL SELECT 'eventos', 15
+    UNION ALL SELECT 'participantes_evento', 30
+    UNION ALL SELECT 'seguidores', 20
+    UNION ALL SELECT 'notificaciones', 20
+    UNION ALL SELECT 'reportes', 15
+    UNION ALL SELECT 'tokens_recuperacion', 0
+    UNION ALL SELECT 'tokens_revocados', 0
+    UNION ALL SELECT 'auditoria_roles', 0
+), actuales AS (
+    SELECT 'roles' AS tabla, COUNT(*) AS registros FROM roles
+    UNION ALL SELECT 'usuarios', COUNT(*) FROM usuarios
+    UNION ALL SELECT 'publicaciones', COUNT(*) FROM publicaciones
+    UNION ALL SELECT 'comentarios', COUNT(*) FROM comentarios
+    UNION ALL SELECT 'reacciones', COUNT(*) FROM reacciones
+    UNION ALL SELECT 'conversaciones', COUNT(*) FROM conversaciones
+    UNION ALL SELECT 'participantes_conversacion', COUNT(*) FROM participantes_conversacion
+    UNION ALL SELECT 'mensajes', COUNT(*) FROM mensajes
+    UNION ALL SELECT 'eventos', COUNT(*) FROM eventos
+    UNION ALL SELECT 'participantes_evento', COUNT(*) FROM participantes_evento
+    UNION ALL SELECT 'seguidores', COUNT(*) FROM seguidores
+    UNION ALL SELECT 'notificaciones', COUNT(*) FROM notificaciones
+    UNION ALL SELECT 'reportes', COUNT(*) FROM reportes
+    UNION ALL SELECT 'tokens_recuperacion', COUNT(*) FROM tokens_recuperacion
+    UNION ALL SELECT 'tokens_revocados', COUNT(*) FROM tokens_revocados
+    UNION ALL SELECT 'auditoria_roles', COUNT(*) FROM auditoria_roles
+)
+SELECT
+    SUM(esperadas.esperado) AS esperado_total,
+    SUM(actuales.registros) AS actual_total,
+    SUM(actuales.registros - esperadas.esperado) AS diferencia_total
+FROM esperadas
+JOIN actuales ON actuales.tabla = esperadas.tabla;
+
+-- 01d. Tablas que deben quedar vacias en la carga demo inicial.
+SELECT 'tokens_recuperacion' AS tabla, COUNT(*) AS registros FROM tokens_recuperacion
+UNION ALL SELECT 'tokens_revocados', COUNT(*) FROM tokens_revocados
+UNION ALL SELECT 'auditoria_roles', COUNT(*) FROM auditoria_roles;
+
+-- 02. Usuarios: 15 totales, 15 correos unicos, 15 hashes BCrypt, 0 en claro.
 -- Nota: el patron confirma FORMATO BCrypt; no comprueba por si solo que
 -- el hash corresponda a una contrasena especifica.
 SELECT
@@ -95,6 +187,9 @@ LEFT JOIN usuarios u ON r.id_usuario = u.id_usuario
 WHERE u.id_usuario IS NULL;
 
 -- 04. Conversaciones y mensajes: 6 verificaciones; 0 errores.
+-- Se conservan las dos comprobaciones originales: conversaciones con un
+-- numero de participantes distinto de dos y mensajes cuyo remitente no
+-- pertenece a la conversacion.
 SELECT 'Participantes sin conversacion' AS validacion, COUNT(*) AS errores
 FROM participantes_conversacion pc
 LEFT JOIN conversaciones c ON pc.id_conversacion = c.id_conversacion
@@ -132,7 +227,9 @@ FROM (
     HAVING COUNT(pc.id_usuario) <> 2
 ) AS conversaciones_invalidas;
 
--- 05. Eventos y participaciones: 7 verificaciones; 0 errores.
+-- 05. Eventos y participaciones: 12 verificaciones; 0 errores.
+-- Las siete primeras son las comprobaciones originales; se anaden cinco
+-- reglas de negocio sobre estados, cupos, duplicados y cancelaciones.
 SELECT 'Eventos sin proponente valido' AS validacion, COUNT(*) AS errores
 FROM eventos e
 LEFT JOIN usuarios u ON e.id_proponente = u.id_usuario
@@ -164,7 +261,70 @@ UNION ALL
 SELECT 'Cancelaciones con fechas incorrectas', COUNT(*)
 FROM participantes_evento
 WHERE fecha_cancelacion IS NOT NULL
+  AND fecha_cancelacion < fecha_inscripcion
+UNION ALL
+SELECT 'Participaciones en eventos no aprobados', COUNT(*)
+FROM participantes_evento pe
+JOIN eventos e ON pe.id_evento = e.id_evento
+WHERE e.estado <> 'APROBADO'
+UNION ALL
+SELECT 'Eventos con sobrecupo de INSCRITOS', COUNT(*)
+FROM (
+    SELECT e.id_evento
+    FROM eventos e
+    LEFT JOIN participantes_evento pe
+        ON pe.id_evento = e.id_evento
+       AND pe.estado = 'INSCRITO'
+    GROUP BY e.id_evento, e.cupo_maximo
+    HAVING COUNT(pe.id_usuario) > e.cupo_maximo
+) AS eventos_sobrecupados
+UNION ALL
+SELECT 'Participaciones duplicadas (evento, usuario)', COUNT(*)
+FROM (
+    SELECT id_evento, id_usuario
+    FROM participantes_evento
+    GROUP BY id_evento, id_usuario
+    HAVING COUNT(*) > 1
+) AS participaciones_duplicadas
+UNION ALL
+SELECT 'Participaciones CANCELADAS sin fecha de cancelacion', COUNT(*)
+FROM participantes_evento
+WHERE estado = 'CANCELADO'
+  AND fecha_cancelacion IS NULL
+UNION ALL
+SELECT 'Participaciones con cancelacion anterior a la inscripcion', COUNT(*)
+FROM participantes_evento
+WHERE estado = 'CANCELADO'
+  AND fecha_cancelacion IS NOT NULL
   AND fecha_cancelacion < fecha_inscripcion;
+
+-- 05b. Resumen: participaciones agrupadas por estado del evento.
+-- En la carga demo corregida: APROBADO = 30, PENDIENTE = 0, RECHAZADO = 0.
+SELECT
+    e.estado AS estado_evento,
+    COUNT(DISTINCT e.id_evento) AS eventos,
+    COUNT(pe.id_usuario) AS participaciones
+FROM eventos e
+LEFT JOIN participantes_evento pe ON pe.id_evento = e.id_evento
+GROUP BY e.estado
+ORDER BY e.estado;
+
+-- 05c. Resumen en una fila, util para comprobar la regla de la actividad 037.
+SELECT
+    SUM(CASE WHEN e.estado = 'APROBADO' THEN 1 ELSE 0 END)
+        AS eventos_aprobados,
+    SUM(CASE WHEN e.estado = 'APROBADO'
+             THEN COALESCE(p.participaciones, 0) ELSE 0 END)
+        AS participaciones_en_aprobados,
+    SUM(CASE WHEN e.estado IN ('PENDIENTE', 'RECHAZADO', 'CANCELADO')
+             THEN COALESCE(p.participaciones, 0) ELSE 0 END)
+        AS participaciones_en_no_aprobados
+FROM eventos e
+LEFT JOIN (
+    SELECT id_evento, COUNT(*) AS participaciones
+    FROM participantes_evento
+    GROUP BY id_evento
+) p ON p.id_evento = e.id_evento;
 
 -- 06. Seguidores, notificaciones y reportes: 12 verificaciones; 0 errores.
 SELECT 'Seguidores sin usuario seguidor' AS validacion, COUNT(*) AS errores
@@ -226,8 +386,14 @@ FROM reportes r
 LEFT JOIN usuarios u ON r.id_moderador = u.id_usuario
 WHERE r.id_moderador IS NOT NULL AND u.id_usuario IS NULL;
 
--- Resultado observado en DBeaver durante la actividad 039:
--- 288 registros, 15 usuarios con formato BCrypt, 0 usuarios sin rol,
--- y 30 de 30 comprobaciones de integridad sin errores.
--- Estas cifras son evidencia de aquella ejecucion, no valores garantizados
--- si la base de datos cambia posteriormente.
+-- Resultado esperado en una base nueva, creada con Flyway V1-V10 y poblada
+-- con el perfil demo: 16 tablas de aplicacion, 288 registros, 3 roles,
+-- 15 usuarios, 15 publicaciones, 30 comentarios, 30 reacciones,
+-- 15 conversaciones, 30 participantes de conversacion, 50 mensajes,
+-- 15 eventos (5 APROBADOS / 5 PENDIENTES / 5 RECHAZADOS),
+-- 30 participantes de evento (todos en eventos APROBADOS),
+-- 20 seguidores, 20 notificaciones, 15 reportes,
+-- tokens_recuperacion / tokens_revocados / auditoria_roles vacias
+-- y 0 errores en todas las comprobaciones de integridad y reglas de negocio.
+-- Estas cifras son el objetivo de la validacion, no evidencia de una
+-- ejecucion previa: comprueba siempre primero el esquema_activo.

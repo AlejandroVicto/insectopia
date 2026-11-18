@@ -7,6 +7,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,14 +19,19 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Collectors;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -67,6 +76,7 @@ import com.insectopia.repository.SeguidorRepository;
 import com.insectopia.repository.UsuarioRepository;
 
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
 class DatabaseSeederTests {
 
     private static final String CLAVE_DEMO = "Demo1234!";
@@ -343,6 +353,48 @@ class DatabaseSeederTests {
                     return participante;
                 });
 
+        when(participanteEventoRepository
+                .findByEvento_IdEvento(any(), any(Pageable.class)))
+                .thenAnswer(invocacion -> {
+                    Long idEvento = invocacion.getArgument(0);
+                    List<ParticipanteEvento> encontrados =
+                            participantesEventoPorClave.values().stream()
+                                    .filter(participante -> participante
+                                            .getEvento() != null)
+                                    .filter(participante -> Objects.equals(
+                                            participante.getEvento()
+                                                    .getIdEvento(),
+                                            idEvento))
+                                    .toList();
+                    return new PageImpl<>(encontrados);
+                });
+
+        when(participanteEventoRepository
+                .countByEvento_IdEventoAndEstado(any(), any()))
+                .thenAnswer(invocacion -> {
+                    Long idEvento = invocacion.getArgument(0);
+                    EstadoParticipanteEvento estado =
+                            invocacion.getArgument(1);
+                    return participantesEventoPorClave.values().stream()
+                            .filter(participante -> participante
+                                    .getEvento() != null)
+                            .filter(participante -> Objects.equals(
+                                    participante.getEvento().getIdEvento(),
+                                    idEvento))
+                            .filter(participante ->
+                                    participante.getEstado() == estado)
+                            .count();
+                });
+
+        doAnswer(invocacion -> {
+            ParticipanteEvento participante = invocacion.getArgument(0);
+            participantesEventoPorClave.remove(claveParticipante(
+                    participante.getEvento().getIdEvento(),
+                    participante.getUsuario().getIdUsuario()));
+            return null;
+        }).when(participanteEventoRepository)
+                .delete(any(ParticipanteEvento.class));
+
         when(mensajeRepository.findAll())
                 .thenAnswer(invocacion -> mensajesPorConversacion.values()
                         .stream()
@@ -540,6 +592,8 @@ class DatabaseSeederTests {
         verify(eventoRepository, times(15)).save(any(Evento.class));
         verify(participanteEventoRepository, times(30))
                 .save(any(ParticipanteEvento.class));
+        verify(participanteEventoRepository, never())
+                .delete(any(ParticipanteEvento.class));
 
         assertEquals(5, contarEventosPorEstado(EstadoEvento.APROBADO));
         assertEquals(5, contarEventosPorEstado(EstadoEvento.PENDIENTE));
@@ -557,14 +611,63 @@ class DatabaseSeederTests {
             }
         }
 
+        List<Evento> aprobados = eventosAprobados();
+        assertEquals(5, aprobados.size());
+
+        for (Evento evento : aprobados) {
+            List<ParticipanteEvento> participantes =
+                    participacionesDemoDelEvento(evento);
+
+            assertEquals(6, participantes.size());
+            assertTrue(participantes.stream().allMatch(participante ->
+                    participante.getEvento().getEstado()
+                            == EstadoEvento.APROBADO));
+            assertTrue(participantes.stream().allMatch(this::esUsuarioDemo));
+
+            Set<Long> usuariosUnicos = participantes.stream()
+                    .map(participante -> participante.getUsuario().getIdUsuario())
+                    .collect(Collectors.toSet());
+            assertEquals(participantes.size(), usuariosUnicos.size());
+
+            long inscritos = participantes.stream()
+                    .filter(participante -> participante.getEstado()
+                            == EstadoParticipanteEvento.INSCRITO)
+                    .count();
+            assertTrue(inscritos <= evento.getCupoMaximo());
+            assertEquals(1L, participantes.stream()
+                    .filter(participante -> participante.getEstado()
+                            == EstadoParticipanteEvento.CANCELADO)
+                    .count());
+        }
+
+        assertEquals(0L, participantesEventoPorClave.values().stream()
+                .filter(participante -> participante.getEvento() != null
+                        && participante.getEvento().getEstado()
+                                != EstadoEvento.APROBADO)
+                .count());
+
         for (ParticipanteEvento participante
                 : participantesEventoPorClave.values()) {
+            assertNotNull(participante.getId());
             assertNotNull(participante.getEvento());
             assertNotNull(participante.getUsuario());
+            assertEquals(
+                    participante.getId().getIdEvento(),
+                    participante.getEvento().getIdEvento());
+            assertEquals(
+                    participante.getId().getIdUsuario(),
+                    participante.getUsuario().getIdUsuario());
+            assertTrue(List.of(
+                    EstadoParticipanteEvento.INSCRITO,
+                    EstadoParticipanteEvento.CANCELADO)
+                    .contains(participante.getEstado()));
             if (participante.getEstado()
                     == EstadoParticipanteEvento.CANCELADO) {
+                assertNotNull(participante.getFechaCancelacion());
                 assertTrue(!participante.getFechaCancelacion()
                         .isBefore(participante.getFechaInscripcion()));
+            } else {
+                assertTrue(participante.getFechaCancelacion() == null);
             }
         }
     }
@@ -575,6 +678,7 @@ class DatabaseSeederTests {
         configurarRepositorios();
         seeder.run();
         seeder.run();
+        seeder.run();
 
         assertEquals(15, eventosPorMarca.size());
         assertEquals(30, participantesEventoPorClave.size());
@@ -582,6 +686,76 @@ class DatabaseSeederTests {
         verify(eventoRepository, times(15)).save(any(Evento.class));
         verify(participanteEventoRepository, times(30))
                 .save(any(ParticipanteEvento.class));
+        verify(participanteEventoRepository, never())
+                .delete(any(ParticipanteEvento.class));
+    }
+
+    @Test
+    void corrigeParticipacionesDemoAnterioresSinTocarRegistrosAjenos() {
+
+        configurarRepositorios();
+        seeder.run();
+
+        cargarEstadoLegacy();
+
+        Evento pendiente = eventosPorMarca.values().stream()
+                .filter(evento -> evento.getEstado()
+                        == EstadoEvento.PENDIENTE)
+                .findFirst()
+                .orElseThrow();
+
+        Usuario usuarioReal = new Usuario();
+        usuarioReal.setIdUsuario(999L);
+        usuarioReal.setCorreo("usuario.real@example.com");
+        ParticipanteEvento participacionReal = new ParticipanteEvento();
+        participacionReal.setId(new ParticipanteEventoId(
+                pendiente.getIdEvento(), usuarioReal.getIdUsuario()));
+        participacionReal.setEvento(pendiente);
+        participacionReal.setUsuario(usuarioReal);
+        participacionReal.setFechaInscripcion(
+                pendiente.getFechaCreacion().plusDays(2));
+        participacionReal.setEstado(EstadoParticipanteEvento.INSCRITO);
+        participantesEventoPorClave.put(
+                claveParticipante(
+                        pendiente.getIdEvento(), usuarioReal.getIdUsuario()),
+                participacionReal);
+
+        clearInvocations(participanteEventoRepository);
+
+        seeder.run();
+
+        verify(participanteEventoRepository, times(20))
+                .delete(any(ParticipanteEvento.class));
+        verify(participanteEventoRepository, never())
+                .delete(argThat(participante -> participante.getUsuario() != null
+                        && Long.valueOf(999L).equals(
+                                participante.getUsuario().getIdUsuario())));
+
+        assertTrue(participantesEventoPorClave.containsKey(claveParticipante(
+                pendiente.getIdEvento(), usuarioReal.getIdUsuario())));
+
+        List<ParticipanteEvento> demo = participantesEventoPorClave.values()
+                .stream()
+                .filter(this::esUsuarioDemo)
+                .toList();
+        assertEquals(30, demo.size());
+        assertTrue(demo.stream().allMatch(participante ->
+                participante.getEvento().getEstado()
+                        == EstadoEvento.APROBADO));
+
+        for (Evento evento : eventosAprobados()) {
+            assertEquals(6, participacionesDemoDelEvento(evento).size());
+        }
+
+        clearInvocations(participanteEventoRepository);
+
+        seeder.run();
+
+        verify(participanteEventoRepository, never())
+                .save(any(ParticipanteEvento.class));
+        verify(participanteEventoRepository, never())
+                .delete(any(ParticipanteEvento.class));
+        assertEquals(31, participantesEventoPorClave.size());
     }
 
     @Test
@@ -668,6 +842,77 @@ class DatabaseSeederTests {
 
         assertNotNull(perfil);
         assertArrayEquals(new String[] { "demo" }, perfil.value());
+    }
+
+    private List<Evento> eventosAprobados() {
+        return eventosPorMarca.values().stream()
+                .filter(evento -> evento.getEstado()
+                        == EstadoEvento.APROBADO)
+                .toList();
+    }
+
+    private List<ParticipanteEvento> participacionesDemoDelEvento(
+            Evento evento) {
+        return participantesEventoPorClave.values().stream()
+                .filter(participante -> participante.getEvento() != null)
+                .filter(participante -> Objects.equals(
+                        participante.getEvento().getIdEvento(),
+                        evento.getIdEvento()))
+                .filter(this::esUsuarioDemo)
+                .toList();
+    }
+
+    private boolean esUsuarioDemo(ParticipanteEvento participante) {
+        return participante.getUsuario() != null
+                && participante.getUsuario().getCorreo() != null
+                && participante.getUsuario().getCorreo().startsWith("demo.")
+                && participante.getUsuario().getCorreo()
+                        .endsWith("@insectopia.invalid");
+    }
+
+    /**
+     * Recrea el estado de una base poblada por la versión anterior del
+     * seeder: dos participaciones por evento, con fecha de inscripción
+     * igual a fecha_creacion + 2 días.
+     */
+    private void cargarEstadoLegacy() {
+
+        participantesEventoPorClave.clear();
+
+        List<Evento> eventos = new ArrayList<>(eventosPorMarca.values());
+        List<Usuario> usuarios = new ArrayList<>(usuariosPorCorreo.values());
+
+        for (int i = 0; i < eventos.size(); i++) {
+
+            Evento evento = eventos.get(i);
+
+            for (int j = 0; j < 2; j++) {
+
+                Usuario usuario = usuarios.get((i + 5 + j) % usuarios.size());
+                ParticipanteEvento participante = new ParticipanteEvento();
+                participante.setId(new ParticipanteEventoId(
+                        evento.getIdEvento(), usuario.getIdUsuario()));
+                participante.setEvento(evento);
+                participante.setUsuario(usuario);
+                participante.setFechaInscripcion(
+                        evento.getFechaCreacion().plusDays(2));
+
+                if (i % 5 == 0 && j == 1) {
+                    participante.setEstado(
+                            EstadoParticipanteEvento.CANCELADO);
+                    participante.setFechaCancelacion(
+                            participante.getFechaInscripcion().plusDays(1));
+                } else {
+                    participante.setEstado(
+                            EstadoParticipanteEvento.INSCRITO);
+                }
+
+                participantesEventoPorClave.put(
+                        claveParticipante(
+                                evento.getIdEvento(), usuario.getIdUsuario()),
+                        participante);
+            }
+        }
     }
 
     private long contarPorRol(String nombreRol) {
