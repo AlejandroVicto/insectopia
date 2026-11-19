@@ -5,6 +5,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import { ROUTE_ROLES } from './auth/roles'
 import LoginPlaceholder from './pages/LoginPlaceholder'
 import SectionPlaceholder from './pages/SectionPlaceholder'
+import PrivateLayout from './layout/PrivateLayout'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -131,13 +132,20 @@ export default function App() {
       <Route path="/health" element={<ConnectionCheck />} />
       <Route path="/login" element={<LoginPlaceholder />} />
       <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
-        <Route path="/app" element={<SectionPlaceholder title="Área general" />} />
-      </Route>
-      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />}>
-        <Route path="/moderacion" element={<SectionPlaceholder title="Moderación" />} />
-      </Route>
-      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />}>
-        <Route path="/administracion" element={<SectionPlaceholder title="Administración" />} />
+        <Route element={<PrivateLayout />}>
+          <Route path="/app" element={<SectionPlaceholder title="Área general" />} />
+          <Route path="/app/mensajes" element={<SectionPlaceholder title="Mensajes" />} />
+          <Route path="/app/notificaciones" element={<SectionPlaceholder title="Notificaciones" />} />
+          <Route path="/app/eventos" element={<SectionPlaceholder title="Eventos" />} />
+          <Route path="/app/perfil" element={<SectionPlaceholder title="Mi perfil" />} />
+          <Route path="/app/configuracion" element={<SectionPlaceholder title="Configuración" />} />
+          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />}>
+            <Route path="/moderacion" element={<SectionPlaceholder title="Moderación" />} />
+          </Route>
+          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />}>
+            <Route path="/administracion" element={<SectionPlaceholder title="Administración" />} />
+          </Route>
+        </Route>
       </Route>
       <Route path="*" element={<main className="p-6">Página no encontrada.</main>} />
     </Routes>

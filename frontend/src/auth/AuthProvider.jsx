@@ -20,7 +20,10 @@ export function AuthProvider({ children }) {
     if (typeof token !== 'string' || !token.trim() || !user || !Object.values(ROLES).includes(user.role)) {
       throw new Error('La respuesta de sesión no es válida')
     }
-    const next = { token: token.trim(), user: { id: user.id, role: user.role, name: user.name } }
+    const next = {
+      token: token.trim(),
+      user: { id: user.id, role: user.role, name: user.name, email: user.email, avatarUrl: user.avatarUrl },
+    }
     sessionRef.current = next
     setSessionState(next)
   }, [])

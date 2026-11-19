@@ -138,8 +138,8 @@ it('un 401 del token actual limpia el contexto y redirige al login con destino',
   )
   fireEvent.click(screen.getByText('Sesión'))
   fireEvent.click(screen.getByText('Solicitar'))
-  await waitFor(() => expect(screen.getByText('Token: ninguno')).toBeTruthy())
-  expect(screen.getByText('Login')).toBeTruthy()
+  await waitFor(() => expect(screen.getByText('Login')).toBeTruthy())
+  expect(screen.getByText('Token: ninguno')).toBeTruthy()
   expect(screen.getByText('Destino: /privado?pagina=2')).toBeTruthy()
 })
 

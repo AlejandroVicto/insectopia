@@ -15,6 +15,22 @@ ese token, 403 conserva la sesión. Las peticiones públicas pueden usar `skipAu
 
 Ejecutar `npm run lint`, `npm run build` y `npm test`.
 
+## Actividad 050: navegación de escritorio
+
+Las rutas privadas comparten `PrivateLayout` (`Navbar`, `Sidebar`, `UserAccount` y
+`LogoutConfirmModal`). Las rutas públicas permanecen fuera del layout. Las secciones nuevas
+(`mensajes`, `notificaciones`, `eventos`, `perfil`, `configuración`) son solo placeholders;
+moderación y administración conservan los permisos de 047. El logo oficial está en
+`src/assets/logo.png`; los exportados locales de Figma están ignorados por Git.
+
+La cuenta muestra `name`, `email` y opcionalmente `avatarUrl` cuando estén presentes en la
+sesión; si faltan, se muestra un estado neutro o un avatar predeterminado. No hay sesión real
+hasta integrar el login. `notificationCount` es opcional: sin un dato de la API no se muestra
+ninguna cifra. Búsqueda y creación de publicaciones siguen deshabilitadas; no existe todavía
+su funcionalidad. Confirmar «Cerrar sesión» solo limpia el estado local y navega a `/login`:
+**no revoca el JWT en el servidor ni llama a un endpoint de logout**. Esa integración queda
+pendiente para las actividades 057–058.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:

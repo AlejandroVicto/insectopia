@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local Figma exports for activity 050 (not application assets)
+/Figma 050/
+/_figma_050/

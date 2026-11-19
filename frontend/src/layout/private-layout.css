@@ -1,0 +1,30 @@
+.private-shell {
+  --nav-header: #161e19;
+  --nav-sidebar: #223127;
+  --nav-active: #354b3a;
+  --nav-lime: #a8e223;
+  --nav-ink: #161e19;
+  --nav-light: #f3f8ef;
+  --nav-muted: #a5b7a7;
+  font-family: Mulish, Arial, sans-serif;
+}
+
+.private-shell .font-display { font-family: 'Plus Jakarta Sans', Mulish, Arial, sans-serif; }
+
+.private-shell .nav-entry {
+  display: flex;
+  width: 100%;
+  height: 44px;
+  align-items: center;
+  gap: 12px;
+  border-radius: 12px;
+  padding: 0 12px 0 16px;
+  color: var(--nav-light);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.private-shell .nav-entry:hover, .private-shell .nav-entry-active { background: var(--nav-active); }
+.private-shell .nav-entry:focus-visible { outline: 2px solid var(--nav-lime); outline-offset: 2px; }
+.private-shell .nav-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--nav-muted); }
+.private-shell .nav-entry-active .nav-dot { background: var(--nav-lime); }
