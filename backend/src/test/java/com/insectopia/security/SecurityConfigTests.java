@@ -23,15 +23,14 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +38,7 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import com.insectopia.controllers.HealthController;
+import com.insectopia.repository.TokenRevocadoRepository;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -46,7 +46,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Import({
 		HealthController.class,
 		SecurityConfig.class,
-		SecurityConfigTests.MethodSecurityConfig.class,
+		JwtAuthenticationFilter.class,
 		SecurityConfigTests.SecurityProbeController.class
 })
 class SecurityConfigTests {
@@ -56,6 +56,15 @@ class SecurityConfigTests {
 
 	@Autowired
 	private JsonMapper jsonMapper;
+
+	@MockitoBean
+	private JwtService jwtService;
+
+	@MockitoBean
+	private CustomUserDetailsService users;
+
+	@MockitoBean
+	private TokenRevocadoRepository revoked;
 
 	@Test
 	void healthEsPublico() throws Exception {
@@ -180,11 +189,6 @@ class SecurityConfigTests {
 		String hash = encoder.encode("Demo1234!");
 		assertTrue(encoder.matches("Demo1234!", hash));
 		assertTrue(!hash.equals("Demo1234!"));
-	}
-
-	@Configuration
-	@EnableMethodSecurity
-	static class MethodSecurityConfig {
 	}
 
 	@RestController

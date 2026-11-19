@@ -6,12 +6,14 @@ import java.util.Arrays;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -19,6 +21,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
@@ -29,6 +32,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import tools.jackson.databind.json.JsonMapper;
 
 @Configuration
+@EnableMethodSecurity
 public class SecurityConfig {
 
 	private static final String DEFAULT_ALLOWED_ORIGINS = "http://localhost:5173";
@@ -44,7 +48,7 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
 		http
 				.cors(Customizer.withDefaults())
 				.csrf(csrf -> csrf.disable())
@@ -66,7 +70,8 @@ public class SecurityConfig {
 								"/api/auth/register",
 								"/api/auth/forgot-password",
 								"/api/auth/reset-password").permitAll()
-						.anyRequest().authenticated());
+				.anyRequest().authenticated())
+				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 
 		return http.build();
 	}
@@ -84,6 +89,14 @@ public class SecurityConfig {
 		return source;
 	}
 
+	@Bean
+	public FilterRegistrationBean<JwtAuthenticationFilter> jwtFilterRegistration(JwtAuthenticationFilter filter) {
+		FilterRegistrationBean<JwtAuthenticationFilter> registration = new FilterRegistrationBean<>(filter);
+		registration.setEnabled(false); // The filter must run only inside the SecurityFilterChain.
+		return registration;
+	}
+
+	@Bean
 	public AuthenticationEntryPoint authenticationEntryPoint() {
 		return (request, response, exception) -> writeJsonError(
 				response,
@@ -92,6 +105,7 @@ public class SecurityConfig {
 				request.getRequestURI());
 	}
 
+	@Bean
 	public AccessDeniedHandler accessDeniedHandler() {
 		return (request, response, exception) -> writeJsonError(
 				response,

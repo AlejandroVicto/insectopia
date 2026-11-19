@@ -10,6 +10,8 @@ import com.insectopia.models.enums.EstadoPublicacion;
 public interface PublicacionRepository
         extends JpaRepository<Publicacion, Long> {
 
+    boolean existsByIdPublicacionAndUsuario_IdUsuario(Long idPublicacion, Long idUsuario);
+
     // Publicaciones por estado, ordenadas de más reciente a más antigua
     Page<Publicacion> findByEstadoOrderByFechaPublicacionDesc(
             EstadoPublicacion estado,

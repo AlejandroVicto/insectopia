@@ -1,5 +1,10 @@
 import { useEffect, useState } from 'react'
+import { Route, Routes } from 'react-router-dom'
 import api from './services/api'
+import ProtectedRoute from './auth/ProtectedRoute'
+import { ROUTE_ROLES } from './auth/roles'
+import LoginPlaceholder from './pages/LoginPlaceholder'
+import SectionPlaceholder from './pages/SectionPlaceholder'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -21,7 +26,7 @@ const ESTADOS = {
   },
 }
 
-function App() {
+function ConnectionCheck() {
   const [estado, setEstado] = useState('cargando')
   const [mensaje, setMensaje] = useState(MENSAJE_INICIAL)
   const [intento, setIntento] = useState(0)
@@ -48,7 +53,9 @@ function App() {
 
         setEstado('error')
 
-        if (error.response) {
+        if (error.userMessage) {
+          setMensaje(error.userMessage)
+        } else if (error.response) {
           setMensaje(`El backend respondió con estado HTTP ${error.response.status}.`)
         } else if (error.code === 'ECONNABORTED') {
           setMensaje('La solicitud al backend agotó el tiempo de espera.')
@@ -117,4 +124,22 @@ function App() {
   )
 }
 
-export default App
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/" element={<ConnectionCheck />} />
+      <Route path="/health" element={<ConnectionCheck />} />
+      <Route path="/login" element={<LoginPlaceholder />} />
+      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
+        <Route path="/app" element={<SectionPlaceholder title="Área general" />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />}>
+        <Route path="/moderacion" element={<SectionPlaceholder title="Moderación" />} />
+      </Route>
+      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />}>
+        <Route path="/administracion" element={<SectionPlaceholder title="Administración" />} />
+      </Route>
+      <Route path="*" element={<main className="p-6">Página no encontrada.</main>} />
+    </Routes>
+  )
+}
