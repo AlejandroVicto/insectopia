@@ -122,19 +122,19 @@ describe('layout de escritorio', () => {
     fireEvent.click(logout)
     fireEvent.click(screen.getByRole('dialog').querySelectorAll('button')[1])
     expect(screen.getByTestId('session').textContent).toBe('sin sesión')
-    expect(screen.getByRole('heading', { name: 'Acceso a Insectopia' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Bienvenido' })).toBeTruthy()
     expect(screen.queryByRole('banner')).toBeNull()
   })
 
   it('las rutas privadas siguen protegidas sin sesión y las públicas no muestran layout', () => {
     render(<MemoryRouter initialEntries={['/administracion']}><AuthProvider><App /></AuthProvider></MemoryRouter>)
-    expect(screen.getByRole('heading', { name: 'Acceso a Insectopia' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Bienvenido' })).toBeTruthy()
     expect(screen.queryByRole('banner')).toBeNull()
   })
 
   it('el login público no monta el layout privado', () => {
     render(<MemoryRouter initialEntries={['/login']}><AuthProvider><App /></AuthProvider></MemoryRouter>)
-    expect(screen.getByRole('heading', { name: 'Acceso a Insectopia' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Bienvenido' })).toBeTruthy()
     expect(screen.queryByRole('navigation', { name: 'Navegación principal' })).toBeNull()
   })
 

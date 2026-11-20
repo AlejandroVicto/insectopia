@@ -1,0 +1,32 @@
+/* Estilos visuales del login. No afectan validación, sesión ni llamadas API. */
+.login-shell {
+  color-scheme: dark;
+}
+
+.login-shell .login-campo {
+  background-color: #f3f4f6;
+  color: #18181b;
+}
+
+.login-shell .login-campo::placeholder {
+  color: #6b7280;
+  font-weight: 700;
+  opacity: 1;
+}
+
+/* Chrome pinta el autocompletado con otro color; se conserva el gris claro de Figma. */
+.login-shell .login-campo:-webkit-autofill,
+.login-shell .login-campo:-webkit-autofill:hover,
+.login-shell .login-campo:-webkit-autofill:focus,
+.login-shell .login-campo:-webkit-autofill:active {
+  -webkit-text-fill-color: #18181b !important;
+  -webkit-box-shadow: 0 0 0 1000px #f3f4f6 inset !important;
+  box-shadow: 0 0 0 1000px #f3f4f6 inset !important;
+  caret-color: #18181b;
+  transition: background-color 9999s ease-out 0s;
+}
+
+.login-shell .login-campo:autofill {
+  background-color: #f3f4f6 !important;
+  color: #18181b !important;
+}

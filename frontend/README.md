@@ -31,6 +31,28 @@ su funcionalidad. Confirmar «Cerrar sesión» solo limpia el estado local y nav
 **no revoca el JWT en el servidor ni llama a un endpoint de logout**. Esa integración queda
 pendiente para las actividades 057–058.
 
+## Actividad 053: login (frontend)
+
+Ruta pública `/login` con el diseño de Figma: panel institucional izquierdo (~55 %) y
+formulario derecho (~45 %), una sola columna en móvil. El acceso usa **correo**
+(`autoComplete="email"`), no nombre de usuario; la contraseña solo valida presencia y
+puede mostrarse/ocultarse con un botón accesible. Los enlaces a `/registro` y
+`/recuperar-contrasena` quedan listos; la pantalla 055 todavía no existe.
+
+`src/services/loginService.js` prepara `POST /api/auth/login` con Axios
+(`skipAuth: true`) y adapta la respuesta a `setSession({ token, user })` de
+`AuthProvider`, que es el único dueño de la sesión. Tras iniciar sesión se respeta
+`location.state.from` cuando es una ruta interna segura; si no, se redirige por rol
+(`/app`, `/moderacion` o `/administracion`). No se decodifica el JWT ni se guarda en
+localStorage. Google es el único proveedor externo previsto y aparece deshabilitado
+hasta que exista OAuth real.
+
+**Bloqueo verificado:** `SecurityConfig` marca `/api/auth/login` como `permitAll`, pero
+no hay controlador ni DTO que implemente el endpoint. Por eso la pantalla muestra
+«Inicio de sesión no disponible» y no crea sesiones ficticias. Cuando el backend 054
+exponga el endpoint, definir `VITE_LOGIN_DISPONIBLE=true` y confirmar los nombres
+exactos del cuerpo y de la respuesta.
+
 ## Actividad 051: registro (frontend)
 
 Ruta pública `/registro`. Conserva el diseño exportado de Figma: panel institucional izquierdo,
