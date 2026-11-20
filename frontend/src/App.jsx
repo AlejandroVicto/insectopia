@@ -4,6 +4,7 @@ import api from './services/api'
 import ProtectedRoute from './auth/ProtectedRoute'
 import { ROUTE_ROLES } from './auth/roles'
 import LoginPlaceholder from './pages/LoginPlaceholder'
+import Registro from './pages/Registro'
 import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
 
@@ -131,6 +132,7 @@ export default function App() {
       <Route path="/" element={<ConnectionCheck />} />
       <Route path="/health" element={<ConnectionCheck />} />
       <Route path="/login" element={<LoginPlaceholder />} />
+      <Route path="/registro" element={<Registro />} />
       <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
         <Route element={<PrivateLayout />}>
           <Route path="/app" element={<SectionPlaceholder title="Área general" />} />

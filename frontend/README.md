@@ -31,6 +31,24 @@ su funcionalidad. Confirmar «Cerrar sesión» solo limpia el estado local y nav
 **no revoca el JWT en el servidor ni llama a un endpoint de logout**. Esa integración queda
 pendiente para las actividades 057–058.
 
+## Actividad 051: registro (frontend)
+
+Ruta pública `/registro`. Conserva el diseño exportado de Figma: panel institucional izquierdo,
+formulario derecho sobre fondo oscuro y acentos verde lima. El logo oficial se reutiliza desde
+`src/assets/logo.png`.
+
+El formulario valida al escribir, al salir del campo y al enviar, con mensajes asociados mediante
+`aria-describedby`. `src/utils/validacionRegistro.js` concentra las reglas y
+`src/services/authService.js` prepara `POST /api/auth/register` con Axios (`skipAuth: true`) y
+normaliza respuestas 400/422 por campo, conflictos 409, 404 y errores de conexión. La
+confirmación y la aceptación de términos no se envían al backend.
+
+**Bloqueo verificado:** en este repositorio solo existe `GET /api/health`; no hay controlador que
+implemente `/api/auth/register` ni catálogo de países/regiones acordado. Por eso la pantalla se
+muestra en estado «Registro no disponible» y no simula guardados. Para habilitarla una vez que el
+backend 052 exponga el endpoint y el catálogo, definir `VITE_REGISTRO_DISPONIBLE=true` y sustituir
+los campos libres de código ISO/región por los selectores del catálogo acordado.
+
 This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
 
 Currently, two official plugins are available:
