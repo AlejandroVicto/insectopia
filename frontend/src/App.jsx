@@ -3,7 +3,7 @@ import { Route, Routes } from 'react-router-dom'
 import api from './services/api'
 import ProtectedRoute from './auth/ProtectedRoute'
 import { ROUTE_ROLES } from './auth/roles'
-import LoginPlaceholder from './pages/LoginPlaceholder'
+import Login from './pages/Login'
 import Registro from './pages/Registro'
 import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
@@ -131,7 +131,7 @@ export default function App() {
     <Routes>
       <Route path="/" element={<ConnectionCheck />} />
       <Route path="/health" element={<ConnectionCheck />} />
-      <Route path="/login" element={<LoginPlaceholder />} />
+      <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
       <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
         <Route element={<PrivateLayout />}>
