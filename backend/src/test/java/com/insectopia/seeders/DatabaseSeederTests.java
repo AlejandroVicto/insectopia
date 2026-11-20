@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -15,6 +16,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -474,6 +476,8 @@ class DatabaseSeederTests {
         assertEquals(1, contarPorRol("ADMINISTRADOR"));
         assertEquals(2, contarPorRol("MODERADOR"));
         assertEquals(12, contarPorRol("USUARIO"));
+        assertEquals(15, usuariosPorCorreo.values().stream()
+                .map(Usuario::getNombreUsuario).collect(Collectors.toSet()).size());
 
         for (Usuario usuario : usuariosPorCorreo.values()) {
             assertNotNull(usuario.getRol());
@@ -483,6 +487,13 @@ class DatabaseSeederTests {
                     usuario.getContrasena()));
             assertTrue(usuario.getCorreo().startsWith("demo."));
             assertTrue(usuario.getCorreo().endsWith("@insectopia.invalid"));
+            assertEquals(usuario.getCorreo().split("@")[0], usuario.getNombreUsuario());
+            assertTrue(usuario.getNombreUsuario().matches("[a-z0-9._]{3,30}"));
+            assertTrue(!usuario.getFechaNacimiento().isAfter(LocalDate.now()));
+            assertEquals("ES", usuario.getPaisCodigo());
+            assertNotNull(usuario.getEstadoRegion());
+            assertNull(usuario.getGenero());
+            assertNull(usuario.getFotoPerfil());
         }
     }
 
@@ -522,6 +533,8 @@ class DatabaseSeederTests {
         seeder.run();
 
         assertEquals(15, usuariosPorCorreo.size());
+        assertEquals(15, usuariosPorCorreo.values().stream()
+                .map(Usuario::getNombreUsuario).collect(Collectors.toSet()).size());
         assertEquals(15, publicacionesPorMarca.size());
         assertEquals(30, totalComentarios());
         assertEquals(30, reaccionesPorClave.size());
@@ -707,6 +720,10 @@ class DatabaseSeederTests {
         Usuario usuarioReal = new Usuario();
         usuarioReal.setIdUsuario(999L);
         usuarioReal.setCorreo("usuario.real@example.com");
+        usuarioReal.setNombreUsuario("usuario.real");
+        usuarioReal.setFechaNacimiento(LocalDate.of(1990, 1, 1));
+        usuarioReal.setPaisCodigo("ES");
+        usuarioReal.setEstadoRegion("Madrid");
         ParticipanteEvento participacionReal = new ParticipanteEvento();
         participacionReal.setId(new ParticipanteEventoId(
                 pendiente.getIdEvento(), usuarioReal.getIdUsuario()));

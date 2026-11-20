@@ -36,8 +36,8 @@ Esta ruta corresponde a la configuración de Spring Boot:
 1. Utilizar nombres únicos y consecutivos para las versiones.
 2. Separar el número de versión y la descripción mediante dos guiones bajos (`__`).
 3. Crear cada archivo SQL únicamente cuando se desarrolle su actividad correspondiente.
-4. No modificar migraciones que ya hayan sido ejecutadas en una base de datos compartida.
-5. Para cambios posteriores a V10, crear nuevas migraciones a partir de V11.
+4. No modificar migraciones que ya hayan sido ejecutadas en una base de datos compartida. La revisión excepcional de V1 para el modelo definitivo de usuarios requiere reconstruir los entornos de desarrollo sobre una base nueva y vacía; su checksum cambia. Para bases compartidas, desplegadas o con datos a conservar, usar una migración incremental compatible en ese entorno, sin reparar el historial anterior.
+5. Para cambios futuros posteriores a V10, crear nuevas migraciones a partir de V11; la revisión de V1 no introduce V11.
 6. Ejecutar las migraciones automáticamente mediante Spring Boot y Flyway.
 7. Utilizar DBeaver para consultar, verificar y visualizar las tablas, sin crearlas manualmente.
 8. Mantener las migraciones en GitHub mediante ramas y Pull Requests.
@@ -51,7 +51,7 @@ Una vez implementadas las diez migraciones:
 - Confirmar que Flyway las haya aplicado correctamente.
 - Verificar las 16 tablas de aplicación en MySQL.
 - Revisar `flyway_schema_history` desde DBeaver.
-- Exportar el diagrama entidad-relación a `database/diagrama_ER.png`.
-- Generar el respaldo `database/insectopia_backup.sql`.
+- Exportar un nuevo diagrama desde el esquema reconstruido; `database/ER/insectopia.png` es una imagen histórica sin fuente editable y todavía no refleja los nuevos campos de usuario ni la eliminación de la foto de portada.
+- Generar un respaldo nuevo con otro nombre solo desde un esquema reconstruido y validado; no sobrescribir `database/insectopia_backup.sql` (histórico).
 
 **Nota:** La tabla `flyway_schema_history` es administrada por Flyway y no forma parte de las 16 tablas de aplicación.

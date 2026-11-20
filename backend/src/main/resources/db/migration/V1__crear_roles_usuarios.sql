@@ -29,13 +29,17 @@ CREATE TABLE usuarios (
     id_rol BIGINT NOT NULL,
 
     nombre VARCHAR(100) NOT NULL,
+    nombre_usuario VARCHAR(30) NOT NULL,
     correo VARCHAR(150) NOT NULL,
     contrasena VARCHAR(255) NOT NULL,
+    fecha_nacimiento DATE NOT NULL,
+    genero VARCHAR(30) NULL,
+    pais_codigo CHAR(2) NOT NULL,
+    estado_region VARCHAR(100) NOT NULL,
 
     telefono VARCHAR(20) NULL,
     biografia VARCHAR(500) NULL,
     foto_perfil VARCHAR(500) NULL,
-    foto_portada VARCHAR(500) NULL,
 
     estado ENUM(
         'ACTIVO',
@@ -56,6 +60,9 @@ CREATE TABLE usuarios (
 
     CONSTRAINT pk_usuarios
         PRIMARY KEY (id_usuario),
+
+    CONSTRAINT uk_usuarios_nombre_usuario
+        UNIQUE (nombre_usuario),
 
     CONSTRAINT uk_usuarios_correo
         UNIQUE (correo),

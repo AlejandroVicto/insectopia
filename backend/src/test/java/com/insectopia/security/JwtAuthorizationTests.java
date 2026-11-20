@@ -11,6 +11,7 @@ import java.util.Base64;
 import java.util.Optional;
 import java.util.Date;
 import java.time.Instant;
+import java.time.LocalDate;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -75,6 +76,10 @@ class JwtAuthorizationTests {
 		user = new Usuario();
 		user.setIdUsuario(42L);
 		user.setCorreo("persona@example.test");
+		user.setNombreUsuario("persona");
+		user.setFechaNacimiento(LocalDate.of(1990, 1, 1));
+		user.setPaisCodigo("ES");
+		user.setEstadoRegion("Madrid");
 		user.setContrasena("hash");
 		user.setEstado(EstadoUsuario.ACTIVO);
 		user.setVersionToken(0);

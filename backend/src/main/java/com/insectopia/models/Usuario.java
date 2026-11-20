@@ -1,6 +1,8 @@
 package com.insectopia.models;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.Locale;
 
 import com.insectopia.models.enums.EstadoUsuario;
 
@@ -17,9 +19,13 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "usuarios")
+@Table(name = "usuarios", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_usuarios_nombre_usuario", columnNames = "nombre_usuario"),
+        @UniqueConstraint(name = "uk_usuarios_correo", columnNames = "correo")
+})
 public class Usuario {
 
     @Id
@@ -34,11 +40,26 @@ public class Usuario {
     @Column(name = "nombre", nullable = false, length = 100)
     private String nombre;
 
-    @Column(name = "correo", nullable = false, length = 150, unique = true)
+    @Column(name = "nombre_usuario", nullable = false, length = 30)
+    private String nombreUsuario;
+
+    @Column(name = "correo", nullable = false, length = 150)
     private String correo;
 
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
+
+    @Column(name = "fecha_nacimiento", nullable = false)
+    private LocalDate fechaNacimiento;
+
+    @Column(name = "genero", length = 30)
+    private String genero;
+
+    @Column(name = "pais_codigo", nullable = false, length = 2, columnDefinition = "CHAR(2)")
+    private String paisCodigo;
+
+    @Column(name = "estado_region", nullable = false, length = 100)
+    private String estadoRegion;
 
     @Column(name = "telefono", length = 20)
     private String telefono;
@@ -48,9 +69,6 @@ public class Usuario {
 
     @Column(name = "foto_perfil", length = 500)
     private String fotoPerfil;
-
-    @Column(name = "foto_portada", length = 500)
-    private String fotoPortada;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "estado", nullable = false)
@@ -76,6 +94,7 @@ public class Usuario {
 
     @PrePersist
     private void prepararInsercion() {
+        normalizarNombreUsuario();
         LocalDateTime ahora = LocalDateTime.now();
         if (fechaRegistro == null) {
             fechaRegistro = ahora;
@@ -99,7 +118,14 @@ public class Usuario {
 
     @PreUpdate
     private void prepararActualizacion() {
+        normalizarNombreUsuario();
         fechaActualizacion = LocalDateTime.now();
+    }
+
+    private void normalizarNombreUsuario() {
+        if (nombreUsuario != null) {
+            nombreUsuario = nombreUsuario.toLowerCase(Locale.ROOT);
+        }
     }
 
     public Long getIdUsuario() {
@@ -126,6 +152,15 @@ public class Usuario {
         this.nombre = nombre;
     }
 
+    public String getNombreUsuario() {
+        return nombreUsuario;
+    }
+
+    public void setNombreUsuario(String nombreUsuario) {
+        this.nombreUsuario = nombreUsuario == null
+                ? null : nombreUsuario.toLowerCase(Locale.ROOT);
+    }
+
     public String getCorreo() {
         return correo;
     }
@@ -140,6 +175,38 @@ public class Usuario {
 
     public void setContrasena(String contrasena) {
         this.contrasena = contrasena;
+    }
+
+    public LocalDate getFechaNacimiento() {
+        return fechaNacimiento;
+    }
+
+    public void setFechaNacimiento(LocalDate fechaNacimiento) {
+        this.fechaNacimiento = fechaNacimiento;
+    }
+
+    public String getGenero() {
+        return genero;
+    }
+
+    public void setGenero(String genero) {
+        this.genero = genero;
+    }
+
+    public String getPaisCodigo() {
+        return paisCodigo;
+    }
+
+    public void setPaisCodigo(String paisCodigo) {
+        this.paisCodigo = paisCodigo;
+    }
+
+    public String getEstadoRegion() {
+        return estadoRegion;
+    }
+
+    public void setEstadoRegion(String estadoRegion) {
+        this.estadoRegion = estadoRegion;
     }
 
     public String getTelefono() {
@@ -164,14 +231,6 @@ public class Usuario {
 
     public void setFotoPerfil(String fotoPerfil) {
         this.fotoPerfil = fotoPerfil;
-    }
-
-    public String getFotoPortada() {
-        return fotoPortada;
-    }
-
-    public void setFotoPortada(String fotoPortada) {
-        this.fotoPortada = fotoPortada;
     }
 
     public EstadoUsuario getEstado() {

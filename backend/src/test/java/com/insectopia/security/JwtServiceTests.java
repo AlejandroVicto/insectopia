@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Base64;
 import java.util.Date;
@@ -38,6 +39,10 @@ class JwtServiceTests {
 		service = new JwtService(secret, 60_000, Clock.fixed(NOW, ZoneOffset.UTC));
 		user = new Usuario();
 		user.setIdUsuario(42L);
+		user.setNombreUsuario("persona");
+		user.setFechaNacimiento(LocalDate.of(1990, 1, 1));
+		user.setPaisCodigo("ES");
+		user.setEstadoRegion("Madrid");
 		user.setVersionToken(3);
 		user.setEstado(EstadoUsuario.ACTIVO);
 		Rol role = new Rol();

@@ -1,5 +1,6 @@
 package com.insectopia.seeders;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -147,90 +148,105 @@ public class DatabaseSeeder implements CommandLineRunner {
     private static final List<UsuarioDemo> USUARIOS_DEMO = List.of(
             new UsuarioDemo(
                     "Demo Marina Vega",
+                    "demo.marina.vega", LocalDate.of(1990, 4, 12), "ES", "Madrid",
                     "demo.marina.vega@insectopia.invalid",
                     "ADMINISTRADOR",
                     "+34600000001",
                     "Administradora ficticia del ecosistema de demostración."),
             new UsuarioDemo(
                     "Demo Iker Salas",
+                    "demo.iker.salas", LocalDate.of(1988, 9, 3), "ES", "Madrid",
                     "demo.iker.salas@insectopia.invalid",
                     "MODERADOR",
                     "+34600000002",
                     "Moderador ficticio de eventos y reportes de insectos."),
             new UsuarioDemo(
                     "Demo Lucia Ferrer",
+                    "demo.lucia.ferrer", LocalDate.of(1995, 2, 21), "ES", "Valencia",
                     "demo.lucia.ferrer@insectopia.invalid",
                     "MODERADOR",
                     "+34600000003",
                     "Moderadora ficticia dedicada a la observación de mariposas."),
             new UsuarioDemo(
                     "Demo Andres Mora",
+                    "demo.andres.mora", LocalDate.of(1992, 7, 8), "ES", "Sevilla",
                     "demo.andres.mora@insectopia.invalid",
                     "USUARIO",
                     "+34600000004",
                     "Aficionado ficticio a los escarabajos del bosque."),
             new UsuarioDemo(
                     "Demo Clara Rios",
+                    "demo.clara.rios", LocalDate.of(1998, 11, 16), "ES", "Madrid",
                     "demo.clara.rios@insectopia.invalid",
                     "USUARIO",
                     "+34600000005",
                     "Observadora ficticia de libélulas en humedales."),
             new UsuarioDemo(
                     "Demo Bruno Gil",
+                    "demo.bruno.gil", LocalDate.of(1987, 3, 4), "ES", "Barcelona",
                     "demo.bruno.gil@insectopia.invalid",
                     "USUARIO",
                     "+34600000006",
                     "Explorador ficticio de hormigas y sus caminos."),
             new UsuarioDemo(
                     "Demo Elena Pardo",
+                    "demo.elena.pardo", LocalDate.of(1993, 6, 27), "ES", "Madrid",
                     "demo.elena.pardo@insectopia.invalid",
                     "USUARIO",
                     "+34600000007",
                     "Naturalista ficticia interesada en las abejas solitarias."),
             new UsuarioDemo(
                     "Demo Hector Ruiz",
+                    "demo.hector.ruiz", LocalDate.of(1991, 1, 30), "ES", "Valencia",
                     "demo.hector.ruiz@insectopia.invalid",
                     "USUARIO",
                     "+34600000008",
                     "Fotógrafo ficticio de chinches y coloridos coleópteros."),
             new UsuarioDemo(
                     "Demo Nora Vidal",
+                    "demo.nora.vidal", LocalDate.of(2001, 8, 19), "ES", "Madrid",
                     "demo.nora.vidal@insectopia.invalid",
                     "USUARIO",
                     "+34600000009",
                     "Estudiante ficticia de metamorfosis de insectos."),
             new UsuarioDemo(
                     "Demo Oscar Lemos",
+                    "demo.oscar.lemos", LocalDate.of(1985, 12, 5), "ES", "Galicia",
                     "demo.oscar.lemos@insectopia.invalid",
                     "USUARIO",
                     "+34600000010",
                     "Cuidador ficticio de un jardín de mariposas."),
             new UsuarioDemo(
                     "Demo Sara Quintero",
+                    "demo.sara.quintero", LocalDate.of(1996, 5, 14), "ES", "Madrid",
                     "demo.sara.quintero@insectopia.invalid",
                     "USUARIO",
                     "+34600000011",
                     "Investigadora ficticia de grasas y flores silvestres."),
             new UsuarioDemo(
                     "Demo Mateo Cano",
+                    "demo.mateo.cano", LocalDate.of(1994, 10, 2), "ES", "Madrid",
                     "demo.mateo.cano@insectopia.invalid",
                     "USUARIO",
                     "+34600000012",
                     "Excursionista ficticio que cataloga saltamontes."),
             new UsuarioDemo(
                     "Demo Iris Beltran",
+                    "demo.iris.beltran", LocalDate.of(1999, 7, 23), "ES", "Madrid",
                     "demo.iris.beltran@insectopia.invalid",
                     "USUARIO",
                     "+34600000013",
                     "Ilustradora ficticia de insectos de la Luna de Miel."),
             new UsuarioDemo(
                     "Demo Pablo Cedeno",
+                    "demo.pablo.cedeno", LocalDate.of(1989, 11, 11), "ES", "Madrid",
                     "demo.pablo.cedeno@insectopia.invalid",
                     "USUARIO",
                     "+34600000014",
                     "Guía ficticio de rutas de observación nocturna."),
             new UsuarioDemo(
                     "Demo Alma Trujillo",
+                    "demo.alma.trujillo", LocalDate.of(1997, 4, 6), "ES", "Madrid",
                     "demo.alma.trujillo@insectopia.invalid",
                     "USUARIO",
                     "+34600000015",
@@ -238,6 +254,10 @@ public class DatabaseSeeder implements CommandLineRunner {
 
     private record UsuarioDemo(
             String nombre,
+            String nombreUsuario,
+            LocalDate fechaNacimiento,
+            String paisCodigo,
+            String estadoRegion,
             String correo,
             String rol,
             String telefono,
@@ -363,8 +383,12 @@ public class DatabaseSeeder implements CommandLineRunner {
 
         usuario.setRol(rol);
         usuario.setNombre(datos.nombre());
+        usuario.setNombreUsuario(datos.nombreUsuario());
         usuario.setCorreo(datos.correo());
         usuario.setContrasena(passwordEncoder.encode(CLAVE_DEMO));
+        usuario.setFechaNacimiento(datos.fechaNacimiento());
+        usuario.setPaisCodigo(datos.paisCodigo());
+        usuario.setEstadoRegion(datos.estadoRegion());
         usuario.setTelefono(datos.telefono());
         usuario.setBiografia(datos.biografia());
         usuario.setEstado(EstadoUsuario.ACTIVO);

@@ -138,15 +138,35 @@ SELECT 'tokens_recuperacion' AS tabla, COUNT(*) AS registros FROM tokens_recuper
 UNION ALL SELECT 'tokens_revocados', COUNT(*) FROM tokens_revocados
 UNION ALL SELECT 'auditoria_roles', COUNT(*) FROM auditoria_roles;
 
--- 02. Usuarios: 15 totales, 15 correos unicos, 15 hashes BCrypt, 0 en claro.
+-- 02. Usuarios: 15 totales, 15 identificadores y correos unicos,
+-- 15 hashes BCrypt, 0 en claro. Los nuevos campos obligatorios no son nulos.
 -- Nota: el patron confirma FORMATO BCrypt; no comprueba por si solo que
 -- el hash corresponda a una contrasena especifica.
 SELECT
     COUNT(*) AS total_usuarios,
+    COUNT(DISTINCT nombre_usuario) AS nombres_usuario_unicos,
     COUNT(DISTINCT correo) AS correos_unicos,
+    COALESCE(SUM(nombre_usuario IS NULL OR fecha_nacimiento IS NULL
+        OR pais_codigo IS NULL OR estado_region IS NULL), 0) AS campos_obligatorios_faltantes,
+    COALESCE(SUM(BINARY nombre_usuario <> BINARY LOWER(nombre_usuario)
+        OR nombre_usuario NOT REGEXP '^[a-z0-9._]{3,30}$'), 0) AS nombres_usuario_invalidos,
+    COALESCE(SUM(fecha_nacimiento > CURRENT_DATE()), 0) AS nacimientos_futuros,
     COALESCE(SUM(contrasena REGEXP '^\\$2[aby]\\$[0-9]{2}\\$'), 0) AS contrasenas_bcrypt,
     COALESCE(SUM(contrasena = 'Demo1234!'), 0) AS contrasenas_texto_plano
 FROM usuarios;
+
+-- La estructura de usuarios debe contener los campos nuevos y solo foto_perfil.
+-- genero y foto_perfil pueden ser nulos. La columna estado de la cuenta sigue vigente.
+SELECT column_name, column_type, is_nullable
+FROM information_schema.columns
+WHERE table_schema = DATABASE() AND table_name = 'usuarios'
+ORDER BY ordinal_position;
+
+SELECT index_name, column_name, non_unique
+FROM information_schema.statistics
+WHERE table_schema = DATABASE() AND table_name = 'usuarios'
+  AND index_name IN ('uk_usuarios_nombre_usuario', 'uk_usuarios_correo')
+ORDER BY index_name;
 
 -- Distribucion esperada: ADMINISTRADOR 1, MODERADOR 2, USUARIO 12.
 SELECT r.nombre AS rol, COUNT(*) AS cantidad

@@ -167,6 +167,12 @@ El modelo consta de 16 tablas de aplicación:
 
 El diagrama entidad-relación se encuentra en [database/ER/insectopia.png](database/ER/insectopia.png).
 
+**Modelo vigente de `usuarios` (V1 revisada):** `nombre_usuario VARCHAR(30) NOT NULL` tiene una restricción única explícita y es el identificador público (se almacena sin `@`, en minúsculas; `@` solo se muestra en pantalla). `correo VARCHAR(150) NOT NULL` conserva su unicidad y sigue siendo el identificador de autenticación. `fecha_nacimiento DATE NOT NULL` se representa con `LocalDate`; `genero VARCHAR(30)` es opcional; `pais_codigo CHAR(2) NOT NULL` guarda el código ISO 3166-1 alfa-2, y `estado_region VARCHAR(100) NOT NULL` guarda el estado, provincia o región (distinto de `estado`, que indica el estado de la cuenta). Solo existe `foto_perfil VARCHAR(500) NULL`: no hay fotografía de portada. Fecha de nacimiento y género son privados y no deben incluirse automáticamente en perfiles públicos.
+
+El registro futuro validará nombres de usuario de 3–30 caracteres (`[a-z0-9._]`, sin `@`), normalizará a minúsculas y rechazará fechas de nacimiento posteriores a hoy; no se ha definido una edad mínima. El formulario mostrará el nombre del país y almacenará el código; la correspondencia país/región se validará al desarrollar el registro. No se cambia el login ni se agrega autenticación por nombre de usuario en esta etapa.
+
+**Diagrama ER pendiente:** `database/ER/insectopia.png` es solo una imagen histórica; no hay fuente editable en el repositorio. No se ha regenerado. Al reconstruir el esquema, exportar una nueva imagen desde la base nueva que incluya los cinco campos anteriores, las dos restricciones únicas y solo la foto de perfil, sin alterar el archivo histórico sin comprobar el resultado.
+
 ### Migraciones de Flyway
 
 Se implementaron diez migraciones SQL, ubicadas en `backend/src/main/resources/db/migration/`, desde `V1` hasta `V10`.
@@ -174,6 +180,19 @@ Se implementaron diez migraciones SQL, ubicadas en `backend/src/main/resources/d
 Estas crean el esquema, sus relaciones y restricciones, e insertan los tres roles iniciales: `ADMINISTRADOR`, `MODERADOR` y `USUARIO`.
 
 La tabla `flyway_schema_history` conserva el historial de ejecución.
+
+#### Reconstrucción aislada tras la revisión de V1
+
+La V1 original cambió de contenido y de checksum. **Modificar el archivo no altera las tablas ya creadas.** Esta reescritura solo es adecuada si todos los entornos que aplicaron V1 se pueden reconstruir de forma controlada y sin datos que conservar. Si existe una base compartida, desplegada o con datos reales, se requiere para ese entorno una migración incremental compatible; no se debe sustituir su historial por la V1 revisada.
+
+Para comprobar el esquema nuevo sin tocar la base actual:
+
+1. Con una cuenta administradora de MySQL, crear **otra** base vacía (por ejemplo, `CREATE DATABASE insectopia_dev_v2 CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;`). Verificar que el nombre elegido no exista antes de crearla; no borrar ni reutilizar bases existentes. Conceder al usuario de desarrollo permisos sobre **esa base nueva**, si todavía no los tiene; `DB_USER` podría no tener permiso para crear bases.
+2. Cargar las variables locales como en la sección 4 y, en esa terminal PowerShell, ejecutar `$env:DB_NAME = 'insectopia_dev_v2'`. Confirmar que `DB_HOST`, `DB_PORT`, `DB_USER` y `DB_PASSWORD` apuntan a la instancia de desarrollo.
+3. Desde `backend/`, ejecutar `.\mvnw.cmd test` y `.\mvnw.cmd -DskipTests compile`. Las pruebas de integración usan la base indicada por `DB_NAME`; no ejecutarlas contra una base con V1 anterior. Después, ejecutar `.\mvnw.cmd "-Dspring-boot.run.profiles=demo" spring-boot:run` para cargar los datos demo y detener el proceso con Ctrl+C.
+4. Comprobar en DBeaver que se usa **esa** base, que `flyway_schema_history` contiene V1–V10 con éxito, que Hibernate arrancó con `spring.jpa.hibernate.ddl-auto=validate`, y ejecutar `database/validaciones/039_validacion_integridad.sql` para verificar esquema, conteos y relaciones. Volver a configurar `DB_NAME` para otros trabajos en otra terminal.
+
+No usar `flyway repair`, `ddl-auto=update`, cambios `ALTER TABLE` manuales ni borrados de la base anterior para ocultar una discrepancia de checksum. El respaldo histórico no se restaura en la base nueva: arrastra el esquema anterior y su historial de Flyway.
 
 ### Datos de demostración
 
@@ -249,7 +268,7 @@ Archivo:
 
 El respaldo incluye la estructura, los datos ficticios y el historial de las diez migraciones Flyway.
 
-**Este archivo es una instantánea anterior a la corrección de la actividad 037**: contiene participaciones en eventos PENDIENTES y RECHAZADOS, por lo que **no** debe considerarse una fuente con las participaciones corregidas. No se modifica ni se reemplaza automáticamente; conserva la evidencia histórica de la actividad 042. Para obtener los datos corregidos, crea una base nueva y ejecuta Flyway (`V1`–`V10`) junto con el perfil `demo`, tal como se indica en "Datos de demostración".
+**Este archivo es una instantánea anterior a la corrección de la actividad 037 y a la revisión del modelo de usuarios**: contiene participaciones en eventos PENDIENTES y RECHAZADOS, y la antigua foto de portada, por lo que **no** debe considerarse una fuente del esquema vigente. No se modifica ni se reemplaza automáticamente; conserva la evidencia histórica de la actividad 042. Para obtener el esquema y los datos corregidos, crea una base nueva y ejecuta Flyway (`V1`–`V10`) junto con el perfil `demo`, tal como se indica arriba. Un nuevo respaldo debe tener otro nombre y generarse únicamente desde el esquema reconstruido y validado.
 
 Para generar un respaldo equivalente se debe utilizar la opción **Tools → Dump database** de DBeaver, seleccionando estructura y datos, e incluyendo el argumento:
 
