@@ -21,6 +21,7 @@ export const CAMPOS_VALIDABLES = [
   'fechaNacimiento',
   'paisCodigo',
   'estadoRegion',
+  'telefono',
   'contrasena',
   'confirmarContrasena',
   'aceptarTerminos',
@@ -29,6 +30,8 @@ export const CAMPOS_VALIDABLES = [
 const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const NOMBRE_USUARIO = /^[a-z0-9._]{3,30}$/
 const CODIGO_PAIS = /^[A-Z]{2}$/
+const NOMBRE_COMPLETO = /^[\p{L}\p{M}]+(?: +[\p{L}\p{M}]+)*$/u
+const TELEFONO = /^\+?[0-9][0-9 ()-]*$/
 
 function fechaValidaYNoFutura(valor) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false
@@ -53,12 +56,13 @@ function paisValido(paisCodigo) {
   return CODIGO_PAIS.test(String(paisCodigo ?? '').trim().toUpperCase())
 }
 
-export function validarCampo(campo, valores) {
+export function validarCampo(campo, valores, catalogo = {}) {
   switch (campo) {
     case 'nombre': {
       const nombre = String(valores.nombre ?? '').trim()
       if (!nombre) return 'El nombre es obligatorio.'
       if (nombre.length > 100) return 'El nombre no puede superar los 100 caracteres.'
+      if (!NOMBRE_COMPLETO.test(nombre)) return 'El nombre solo puede contener letras y espacios.'
       return undefined
     }
     case 'nombreUsuario': {
@@ -89,6 +93,9 @@ export function validarCampo(campo, valores) {
       if (!paisValido(valores.paisCodigo)) {
         return 'Ingresa un código de país ISO 3166-1 alfa-2 (dos letras).'
       }
+      if (catalogo.paises && !catalogo.paises.some((pais) => pais.codigo === valores.paisCodigo)) {
+        return 'Selecciona un país del catálogo.'
+      }
       return undefined
     }
     case 'estadoRegion': {
@@ -98,6 +105,20 @@ export function validarCampo(campo, valores) {
       const region = String(valores.estadoRegion ?? '').trim()
       if (!region) return 'La región es obligatoria.'
       if (region.length > 100) return 'La región no puede superar los 100 caracteres.'
+      if (catalogo.regiones && !catalogo.regiones.some((item) => item.nombre === region)) {
+        return 'Selecciona una región del país indicado.'
+      }
+      return undefined
+    }
+    case 'telefono': {
+      const telefono = String(valores.telefono ?? '').trim()
+      if (!telefono) {
+        return valores.recibirSms || valores.recibirWhatsapp
+          ? 'Se requiere un teléfono para recibir comunicaciones.' : undefined
+      }
+      if (telefono.length > 20 || !TELEFONO.test(telefono)) return 'Ingresa un teléfono válido.'
+      const digitos = (telefono.match(/\d/g) ?? []).length
+      if (digitos < 7 || digitos > 15) return 'El teléfono debe contener entre 7 y 15 dígitos.'
       return undefined
     }
     case 'contrasena': {
@@ -127,9 +148,9 @@ export function validarCampo(campo, valores) {
   }
 }
 
-export function validarFormulario(valores) {
+export function validarFormulario(valores, catalogo = {}) {
   return CAMPOS_VALIDABLES.reduce((errores, campo) => {
-    const mensaje = validarCampo(campo, valores)
+    const mensaje = validarCampo(campo, valores, catalogo)
     if (mensaje) errores[campo] = mensaje
     return errores
   }, {})

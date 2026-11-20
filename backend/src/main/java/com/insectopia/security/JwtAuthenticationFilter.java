@@ -42,6 +42,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 		if ("GET".equals(request.getMethod()) && "/api/health".equals(path)) {
 			return true;
 		}
+		if ("GET".equals(request.getMethod()) && ("/api/catalogos/paises".equals(path)
+				|| path.matches("/api/catalogos/paises/[^/]+/regiones"))) {
+			return true;
+		}
 		return "POST".equals(request.getMethod()) && ("/api/auth/login".equals(path)
 				|| "/api/auth/register".equals(path)
 				|| "/api/auth/forgot-password".equals(path)

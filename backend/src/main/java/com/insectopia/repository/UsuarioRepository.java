@@ -17,6 +17,8 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
     // Verificar si el correo ya está registrado
     boolean existsByCorreo(String correo);
 
+    boolean existsByNombreUsuario(String nombreUsuario);
+
     // Consultar usuarios por estado con paginación
     Page<Usuario> findByEstado(EstadoUsuario estado, Pageable pageable);
 

@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.insectopia.exceptions.BusinessRuleException;
+import com.insectopia.exceptions.CatalogoNoDisponibleException;
 import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 
@@ -81,6 +82,15 @@ class GlobalExceptionHandlerTests {
 				.andExpect(jsonPath("$.error").value("Not Found"))
 				.andExpect(jsonPath("$.message").value("Recurso no encontrado"))
 				.andExpect(jsonPath("$.path").value("/pruebas/no-encontrado"));
+	}
+
+	@Test
+	void proveedorNoDisponibleDevuelve503Controlado() throws Exception {
+		mockMvc.perform(get("/pruebas/catalogo-no-disponible"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(jsonPath("$.error").value("Service Unavailable"))
+				.andExpect(jsonPath("$.message").value("El catálogo de ubicaciones no está disponible en este momento."))
+				.andExpect(jsonPath("$.details").isEmpty());
 	}
 
 	@Test
@@ -149,6 +159,11 @@ class GlobalExceptionHandlerTests {
 		@GetMapping("/pruebas/no-encontrado")
 		public String noEncontrado() {
 			throw new ResourceNotFoundException("Usuario", 99L);
+		}
+
+		@GetMapping("/pruebas/catalogo-no-disponible")
+		public String catalogoNoDisponible() {
+			throw new CatalogoNoDisponibleException();
 		}
 
 		@GetMapping("/pruebas/duplicado")

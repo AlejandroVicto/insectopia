@@ -26,10 +26,13 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.insectopia.dtos.ErrorResponseDTO;
 import com.insectopia.dtos.ErrorResponseDTO.FieldErrorDTO;
 import com.insectopia.exceptions.BusinessRuleException;
+import com.insectopia.exceptions.CatalogoNoDisponibleException;
 import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.exceptions.ResourceNotFoundException;
+import com.insectopia.exceptions.RegistrationValidationException;
 
 import jakarta.validation.ConstraintViolationException;
+import tools.jackson.core.JacksonException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -72,6 +75,13 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponseDTO> handleHttpMessageNotReadable(
 			HttpMessageNotReadableException exception,
 			WebRequest request) {
+		for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
+			if (cause instanceof JacksonException jackson && jackson.getPath().stream()
+					.anyMatch(ref -> "fechaNacimiento".equals(ref.getPropertyName()))) {
+				return build(HttpStatus.BAD_REQUEST, "Los datos enviados no son válidos", path(request),
+						List.of(new FieldErrorDTO("fechaNacimiento", "Ingresa una fecha válida (yyyy-MM-dd).")));
+			}
+		}
 		return build(
 				HttpStatus.BAD_REQUEST,
 				"El cuerpo de la solicitud es inválido o no se pudo analizar",
@@ -108,6 +118,12 @@ public class GlobalExceptionHandler {
 				path(request));
 	}
 
+	@ExceptionHandler(CatalogoNoDisponibleException.class)
+	public ResponseEntity<ErrorResponseDTO> handleCatalogoNoDisponible(
+			CatalogoNoDisponibleException exception, WebRequest request) {
+		return build(HttpStatus.SERVICE_UNAVAILABLE, exception.getMessage(), path(request));
+	}
+
 	@ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
 	public ResponseEntity<ErrorResponseDTO> handleNoHandler(Exception exception, WebRequest request) {
 		return build(
@@ -120,10 +136,18 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponseDTO> handleDuplicate(
 			DuplicateResourceException exception,
 			WebRequest request) {
-		return build(
-				HttpStatus.CONFLICT,
-				"El recurso ya existe",
-				path(request));
+		if (exception.getField() != null) {
+			return build(HttpStatus.CONFLICT, "El recurso ya existe", path(request),
+					List.of(new FieldErrorDTO(exception.getField(), exception.getMessage())));
+		}
+		return build(HttpStatus.CONFLICT, "El recurso ya existe", path(request));
+	}
+
+	@ExceptionHandler(RegistrationValidationException.class)
+	public ResponseEntity<ErrorResponseDTO> handleRegistrationValidation(
+			RegistrationValidationException exception, WebRequest request) {
+		return build(HttpStatus.BAD_REQUEST, "Los datos enviados no son válidos", path(request),
+				List.of(new FieldErrorDTO(exception.getField(), exception.getMessage())));
 	}
 
 	@ExceptionHandler(DataIntegrityViolationException.class)

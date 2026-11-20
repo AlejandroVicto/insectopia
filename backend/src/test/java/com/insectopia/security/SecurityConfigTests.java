@@ -42,7 +42,7 @@ import com.insectopia.repository.TokenRevocadoRepository;
 
 import tools.jackson.databind.json.JsonMapper;
 
-@WebMvcTest
+@WebMvcTest({HealthController.class, SecurityConfigTests.SecurityProbeController.class})
 @Import({
 		HealthController.class,
 		SecurityConfig.class,

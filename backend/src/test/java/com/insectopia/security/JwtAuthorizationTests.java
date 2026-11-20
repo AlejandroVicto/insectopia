@@ -41,7 +41,7 @@ import com.insectopia.repository.TokenRevocadoRepository;
 import com.insectopia.repository.UsuarioRepository;
 import com.insectopia.repository.PublicacionRepository;
 
-@WebMvcTest
+@WebMvcTest({HealthController.class, JwtAuthorizationTests.ProbeController.class})
 @Import({SecurityConfig.class, JwtService.class, CustomUserDetailsService.class,
 		JwtAuthenticationFilter.class, ResourceAccess.class, HealthController.class,
 		JwtAuthorizationTests.ProbeController.class, JwtAuthorizationTests.Actions.class})

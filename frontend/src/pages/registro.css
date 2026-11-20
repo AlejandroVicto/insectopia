@@ -31,8 +31,7 @@
 }
 
 .registro-shell .registro-campo[type='date']::-webkit-calendar-picker-indicator {
-  cursor: pointer;
-  opacity: 0.75;
+  display: none;
 }
 
 .registro-shell .registro-campo option {

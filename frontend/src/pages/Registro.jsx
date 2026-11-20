@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import {
-  REGISTRO_DISPONIBLE,
   normalizarErrorRegistro,
   registrarUsuario,
 } from '../services/authService'
+import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import {
   CAMPOS_VALIDABLES,
   VALORES_INICIALES,
@@ -48,17 +48,7 @@ function claseInput(hayError, extra = '') {
 
 function normalizarValor(campo, valor) {
   if (campo === 'nombreUsuario') return String(valor).toLowerCase()
-  if (campo === 'paisCodigo') {
-    return String(valor).toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2)
-  }
   return valor
-}
-
-function hoyISO() {
-  const hoy = new Date()
-  const mes = String(hoy.getMonth() + 1).padStart(2, '0')
-  const dia = String(hoy.getDate()).padStart(2, '0')
-  return `${hoy.getFullYear()}-${mes}-${dia}`
 }
 
 function Etiqueta({ htmlFor, children }) {
@@ -182,7 +172,7 @@ function PanelInstitucional() {
   )
 }
 
-export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
+export default function Registro() {
   const navigate = useNavigate()
   const [valores, setValores] = useState({ ...VALORES_INICIALES })
   const [errores, setErrores] = useState({})
@@ -190,6 +180,59 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
   const [enviando, setEnviando] = useState(false)
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
+  const fechaRef = useRef(null)
+  const [paises, setPaises] = useState([])
+  const [regiones, setRegiones] = useState([])
+  const [cargandoPaises, setCargandoPaises] = useState(true)
+  const [cargandoRegiones, setCargandoRegiones] = useState(false)
+  const [errorCatalogo, setErrorCatalogo] = useState('')
+  const [errorRegiones, setErrorRegiones] = useState('')
+  const [intentosCatalogo, setIntentosCatalogo] = useState(0)
+
+  useEffect(() => {
+    let activo = true
+    obtenerPaises()
+      .then((datos) => {
+        if (!activo) return
+        if (!Array.isArray(datos) || datos.length === 0) throw new Error('Catálogo vacío')
+        setPaises(datos)
+        setErrorCatalogo('')
+      })
+      .catch(() => {
+        if (activo) {
+          setErrorCatalogo('No se pudo cargar el catálogo de países. Comprueba el backend e inténtalo de nuevo.')
+        }
+      })
+      .finally(() => {
+        if (activo) setCargandoPaises(false)
+      })
+    return () => { activo = false }
+  }, [intentosCatalogo])
+
+  useEffect(() => {
+    const codigo = valores.paisCodigo
+    if (!codigo) return undefined
+    let activo = true
+    obtenerRegiones(codigo)
+      .then((datos) => {
+        if (!activo) return
+        if (!Array.isArray(datos) || datos.length === 0) {
+          setRegiones([])
+          setErrorRegiones('Este país no tiene regiones verificadas. Selecciona otro país.')
+          return
+        }
+        setRegiones(datos)
+        setErrorRegiones('')
+      })
+      .catch(() => {
+        if (!activo) return
+        setErrorRegiones('No se pudieron cargar las regiones. Selecciona el país de nuevo.')
+      })
+      .finally(() => {
+        if (activo) setCargandoRegiones(false)
+      })
+    return () => { activo = false }
+  }, [valores.paisCodigo])
 
   function actualizarCampo(evento) {
     const { name, type, checked, value } = evento.target
@@ -198,13 +241,20 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
 
     if (name === 'paisCodigo' && valor !== valores.paisCodigo) {
       siguientes.estadoRegion = ''
+      setRegiones([])
+      setErrorRegiones('')
+      setCargandoRegiones(Boolean(valor))
     }
 
     setValores(siguientes)
     setErrores((actuales) => {
-      const proximos = { ...actuales, [name]: validarCampo(name, siguientes) }
+      const catalogo = { paises, regiones: name === 'paisCodigo' ? [] : regiones }
+      const proximos = { ...actuales, [name]: validarCampo(name, siguientes, catalogo) }
       if (name === 'paisCodigo') {
         proximos.estadoRegion = validarCampo('estadoRegion', siguientes)
+      }
+      if (name === 'recibirSms' || name === 'recibirWhatsapp') {
+        proximos.telefono = validarCampo('telefono', siguientes)
       }
       if (name === 'contrasena') {
         proximos.confirmarContrasena = validarCampo('confirmarContrasena', siguientes)
@@ -218,14 +268,14 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
     const { name } = evento.target
     setErrores((actuales) => ({
       ...actuales,
-      [name]: validarCampo(name, valores),
+      [name]: validarCampo(name, valores, { paises, regiones }),
     }))
   }
 
   async function manejarEnvio(evento) {
     evento.preventDefault()
 
-    const erroresEnvio = validarFormulario(valores)
+    const erroresEnvio = validarFormulario(valores, { paises, regiones })
     setErrores(erroresEnvio)
     setErrorGeneral('')
 
@@ -235,10 +285,8 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
       return
     }
 
-    if (!servicioDisponible) {
-      setErrorGeneral(
-        'Registro no disponible: el backend aún no expone POST /api/auth/register. Se habilitará con la actividad 052.',
-      )
+    if (!paises.length || (cargandoRegiones && !regiones.length) || (errorRegiones && !regiones.length)) {
+      setErrorGeneral('Espera a que se cargue el catálogo de ubicaciones o vuelve a intentarlo.')
       return
     }
 
@@ -255,7 +303,7 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
     }
   }
 
-  const botonDeshabilitado = enviando || !servicioDisponible
+  const botonDeshabilitado = enviando
 
   return (
     <main className="registro-shell relative min-h-screen bg-neutral-900 font-['Mulish'] text-white lg:grid lg:h-screen lg:grid-cols-2">
@@ -298,17 +346,16 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
             </p>
           </div>
 
-          {!servicioDisponible && (
-            <div
-              role="status"
-              className="mt-5 rounded-lg border border-amber-700/60 bg-amber-950/40 px-3 py-2.5 text-xs leading-4 text-amber-200"
-            >
-              Registro no disponible: el backend aún no expone <strong>POST /api/auth/register</strong>.
-              Se habilitará con la actividad 052.
-            </div>
-          )}
-
           <form onSubmit={manejarEnvio} noValidate className="mt-5 flex flex-col gap-4">
+            {errorCatalogo && (
+              <div role="status" className="rounded-lg border border-amber-700/60 bg-amber-950/40 px-3 py-2 text-xs text-amber-200">
+                {errorCatalogo}{' '}
+                <button type="button" className="underline" onClick={() => {
+                  setCargandoPaises(true)
+                  setIntentosCatalogo((intentos) => intentos + 1)
+                }}>Reintentar</button>
+              </div>
+            )}
             {errorGeneral && (
               <div
                 role="alert"
@@ -356,8 +403,9 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
                 onBlur={validarAlSalir}
                 aria-invalid={Boolean(errores.nombre)}
                 aria-describedby={describir('nombre', errores)}
-                className={claseInput(Boolean(errores.nombre))}
-                placeholder="ej. Mariana González"
+                  className={claseInput(Boolean(errores.nombre))}
+                  placeholder="ej. Mariana González"
+                  maxLength={100}
               />
               <MensajeError campo="nombre" errores={errores} />
             </div>
@@ -383,19 +431,43 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Etiqueta htmlFor={idDe('fechaNacimiento')}>Fecha de nacimiento</Etiqueta>
-                <input
-                  id={idDe('fechaNacimiento')}
-                  name="fechaNacimiento"
-                  type="date"
-                  lang="es"
-                  max={hoyISO()}
-                  value={valores.fechaNacimiento}
-                  onChange={actualizarCampo}
-                  onBlur={validarAlSalir}
-                  aria-invalid={Boolean(errores.fechaNacimiento)}
-                  aria-describedby={describir('fechaNacimiento', errores)}
-                  className={claseInput(Boolean(errores.fechaNacimiento))}
-                />
+                <div className="relative">
+                  <input
+                    ref={fechaRef}
+                    id={idDe('fechaNacimiento')}
+                    name="fechaNacimiento"
+                    type="date"
+                    lang="es"
+                    value={valores.fechaNacimiento}
+                    onChange={actualizarCampo}
+                    onBlur={validarAlSalir}
+                    aria-invalid={Boolean(errores.fechaNacimiento)}
+                    aria-describedby={describir('fechaNacimiento', errores)}
+                    className={claseInput(Boolean(errores.fechaNacimiento), 'min-w-0 pr-12')}
+                  />
+                  <button
+                    type="button"
+                    aria-label="Abrir calendario de fecha de nacimiento"
+                    onClick={() => {
+                      const input = fechaRef.current
+                      if (typeof input?.showPicker === 'function') {
+                        try {
+                          input.showPicker()
+                          return
+                        } catch {
+                          // Algunos navegadores no permiten abrir el selector nativo.
+                        }
+                      }
+                      input?.focus()
+                    }}
+                    className="absolute right-2 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded text-gray-300 hover:text-lime-400 focus-visible:outline-2 focus-visible:outline-lime-400"
+                  >
+                    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-5">
+                      <rect x="3" y="5" width="18" height="16" rx="2" stroke="currentColor" strokeWidth="1.7" />
+                      <path d="M7 3v4m10-4v4M3 10h18" stroke="currentColor" strokeWidth="1.7" />
+                    </svg>
+                  </button>
+                </div>
                 <MensajeError campo="fechaNacimiento" errores={errores} />
               </div>
 
@@ -426,42 +498,41 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
             <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Etiqueta htmlFor={idDe('paisCodigo')}>País</Etiqueta>
-                <input
+                <select
                   id={idDe('paisCodigo')}
                   name="paisCodigo"
-                  type="text"
-                  inputMode="text"
-                  maxLength={2}
                   value={valores.paisCodigo}
                   onChange={actualizarCampo}
                   onBlur={validarAlSalir}
+                  aria-busy={cargandoPaises}
                   aria-invalid={Boolean(errores.paisCodigo)}
-                  aria-describedby={describir('paisCodigo', errores, true)}
-                  className={claseInput(Boolean(errores.paisCodigo), 'uppercase')}
-                  placeholder="Código ISO"
-                />
-                <p id={idAyuda('paisCodigo')} className="text-xs leading-4 text-gray-500">
-                  Catálogo pendiente del backend 052 · escribe el código ISO alfa-2.
-                </p>
+                  aria-describedby={describir('paisCodigo', errores)}
+                  className={claseInput(Boolean(errores.paisCodigo), 'appearance-none')}
+                >
+                  <option value="">{cargandoPaises ? 'Cargando países…' : errorCatalogo && !paises.length ? 'Países no disponibles' : 'Selecciona un país'}</option>
+                  {paises.map((pais) => <option key={pais.codigo} value={pais.codigo}>{pais.nombre}</option>)}
+                </select>
                 <MensajeError campo="paisCodigo" errores={errores} />
               </div>
 
               <div className="flex min-w-0 flex-col gap-1.5">
                 <Etiqueta htmlFor={idDe('estadoRegion')}>Estado / Región</Etiqueta>
-                <input
+                <select
                   id={idDe('estadoRegion')}
                   name="estadoRegion"
-                  type="text"
-                  maxLength={100}
-                  disabled={!valores.paisCodigo}
+                  disabled={!valores.paisCodigo || cargandoRegiones || Boolean(errorRegiones)}
+                  aria-busy={cargandoRegiones}
                   value={valores.estadoRegion}
                   onChange={actualizarCampo}
                   onBlur={validarAlSalir}
                   aria-invalid={Boolean(errores.estadoRegion)}
-                  aria-describedby={describir('estadoRegion', errores)}
-                  className={claseInput(Boolean(errores.estadoRegion))}
-                  placeholder={valores.paisCodigo ? 'Estado o región' : 'Primero elige país'}
-                />
+                  aria-describedby={[describir('estadoRegion', errores), errorRegiones ? 'registro-regiones-catalogo-error' : ''].filter(Boolean).join(' ') || undefined}
+                  className={claseInput(Boolean(errores.estadoRegion), 'appearance-none')}
+                >
+                  <option value="">{cargandoRegiones ? 'Cargando regiones…' : 'Selecciona una región'}</option>
+                  {regiones.map((region) => <option key={region.nombre} value={region.nombre}>{region.nombre}</option>)}
+                </select>
+                {errorRegiones && <p role="alert" id="registro-regiones-catalogo-error" className="text-xs text-red-400">{errorRegiones}</p>}
                 <MensajeError campo="estadoRegion" errores={errores} />
               </div>
             </div>
@@ -477,12 +548,12 @@ export default function Registro({ servicioDisponible = REGISTRO_DISPONIBLE }) {
                 value={valores.telefono}
                 onChange={actualizarCampo}
                 onBlur={validarAlSalir}
-                aria-invalid={Boolean(errores.telefono)}
-                aria-describedby={describir('telefono', errores)}
+                  aria-invalid={Boolean(errores.telefono)}
+                  aria-describedby={describir('telefono', errores)}
                 className={claseInput(Boolean(errores.telefono))}
-                placeholder="Ej. +52 951 123 4567"
-              />
-              <MensajeError campo="telefono" errores={errores} />
+                  placeholder="Ej. +52 951 123 4567"
+                />
+                <MensajeError campo="telefono" errores={errores} />
             </div>
 
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-300">

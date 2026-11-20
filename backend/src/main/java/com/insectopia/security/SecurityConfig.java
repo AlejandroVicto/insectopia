@@ -64,6 +64,7 @@ public class SecurityConfig {
 						.accessDeniedHandler(accessDeniedHandler()))
 				.authorizeHttpRequests(authorize -> authorize
 						.requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/catalogos/paises", "/api/catalogos/paises/*/regiones").permitAll()
 						.requestMatchers(
 								HttpMethod.POST,
 								"/api/auth/login",

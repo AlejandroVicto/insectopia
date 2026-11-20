@@ -49,6 +49,7 @@ public record ErrorResponseDTO(
 			case 409 -> "Conflict";
 			case 422 -> "Unprocessable Entity";
 			case 500 -> "Internal Server Error";
+			case 503 -> "Service Unavailable";
 			default -> "Error";
 		};
 	}

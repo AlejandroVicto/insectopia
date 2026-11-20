@@ -1,11 +1,6 @@
 import api from './api'
 
-// Revisado en el repositorio: hoy solo existe GET /api/health. La ruta de registro
-// aparece permitida en SecurityConfig, pero no hay ningún controlador que la implemente.
-// Por eso el formulario arranca en modo "servicio no disponible" y solo se habilita
-// explícitamente cuando el backend 052 exponga el endpoint.
 export const REGISTRO_ENDPOINT = '/api/auth/register'
-export const REGISTRO_DISPONIBLE = import.meta.env.VITE_REGISTRO_DISPONIBLE === 'true'
 
 const ALIAS_CAMPOS = {
   nombre: 'nombre',
@@ -80,7 +75,7 @@ export function normalizarErrorRegistro(error) {
   if (status === 404) {
     return {
       codigo: 'no_disponible',
-      message: 'Registro no disponible: el backend aún no expone este endpoint.',
+      message: 'No se encontró el servicio de registro. Revisa que el backend esté actualizado y en ejecución.',
       fieldErrors,
     }
   }
