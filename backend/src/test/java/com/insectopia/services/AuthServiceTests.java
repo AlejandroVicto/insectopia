@@ -28,7 +28,8 @@ class AuthServiceTests {
     private final CountriesNowClient provider = mock(CountriesNowClient.class);
     private final BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
     private final AuthService service = new AuthService(usuarios, roles, encoder,
-            new CatalogoUbicacionesService(provider));
+            new CatalogoUbicacionesService(provider), mock(org.springframework.security.authentication.AuthenticationManager.class),
+            mock(com.insectopia.security.JwtService.class));
     private final Rol usuarioRol = new Rol();
 
     private RegisterRequestDTO request() {
@@ -114,7 +115,8 @@ class AuthServiceTests {
                 new CountriesNowClient.CountryStates("MX", java.util.List.of("Oaxaca")),
                 new CountriesNowClient.CountryStates("AR", java.util.List.of("Córdoba"))));
         AuthService multiCountryService = new AuthService(usuarios, roles, encoder,
-                new CatalogoUbicacionesService(provider));
+                new CatalogoUbicacionesService(provider), mock(org.springframework.security.authentication.AuthenticationManager.class),
+                mock(com.insectopia.security.JwtService.class));
         var invalid = new RegisterRequestDTO("María", "maria", "maria@example.com", LocalDate.now(),
                 null, "AR", "Oaxaca", null, "Ejemplo#2026", null, null);
         assertEquals("estadoRegion", assertThrows(RegistrationValidationException.class,

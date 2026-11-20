@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.BindingResult;
 import org.springframework.validation.ObjectError;
@@ -174,9 +175,9 @@ public class GlobalExceptionHandler {
 	public ResponseEntity<ErrorResponseDTO> handleAuthentication(
 			AuthenticationException exception,
 			WebRequest request) {
-		return build(
-				HttpStatus.UNAUTHORIZED,
-				"Autenticación requerida",
+		return build(HttpStatus.UNAUTHORIZED,
+				"/api/auth/login".equals(path(request)) && exception instanceof BadCredentialsException
+						? "Correo o contraseña incorrectos." : "Autenticación requerida",
 				path(request));
 	}
 

@@ -6,11 +6,20 @@ import java.util.regex.Pattern;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.insectopia.dtos.RegisterRequestDTO;
 import com.insectopia.dtos.RegisterResponseDTO;
+import com.insectopia.dtos.LoginRequestDTO;
+import com.insectopia.dtos.AuthResponseDTO;
+import com.insectopia.models.enums.EstadoUsuario;
+import com.insectopia.security.InsectopiaUserDetails;
+import com.insectopia.security.JwtService;
 import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.models.Usuario;
 import com.insectopia.repository.RolRepository;
@@ -23,13 +32,46 @@ public class AuthService {
     private final RolRepository roles;
     private final PasswordEncoder passwordEncoder;
     private final CatalogoUbicacionesService catalogo;
+    private final AuthenticationManager authenticationManager;
+    private final JwtService jwtService;
 
     public AuthService(UsuarioRepository usuarios, RolRepository roles,
-            PasswordEncoder passwordEncoder, CatalogoUbicacionesService catalogo) {
+            PasswordEncoder passwordEncoder, CatalogoUbicacionesService catalogo,
+            AuthenticationManager authenticationManager, JwtService jwtService) {
         this.usuarios = usuarios;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
         this.catalogo = catalogo;
+        this.authenticationManager = authenticationManager;
+        this.jwtService = jwtService;
+    }
+
+    @Transactional(readOnly = true)
+    public AuthResponseDTO login(LoginRequestDTO request) {
+        try {
+            var authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(request.correo(), request.contrasena()));
+            InsectopiaUserDetails principal = (InsectopiaUserDetails) authentication.getPrincipal();
+            Usuario usuario = usuarios.findById(principal.idUsuario())
+                    .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
+            if (usuario.getEstado() != EstadoUsuario.ACTIVO || usuario.getRol() == null
+                    || !usuario.getCorreo().equals(principal.correo())
+                    || !usuario.getRol().getNombre().equals(principal.role())
+                    || !usuario.getVersionToken().equals(principal.versionToken())) {
+                throw new BadCredentialsException("Credenciales inválidas");
+            }
+            return new AuthResponseDTO(jwtService.issue(usuario), AuthResponseDTO.UserDTO.from(usuario));
+        } catch (AuthenticationException exception) {
+            // No indication whether the address exists or the account is inactive.
+            throw new BadCredentialsException("Credenciales inválidas");
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public AuthResponseDTO.UserDTO me(InsectopiaUserDetails principal) {
+        Usuario usuario = usuarios.findById(principal.idUsuario())
+                .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
+        return AuthResponseDTO.UserDTO.from(usuario);
     }
 
     @Transactional

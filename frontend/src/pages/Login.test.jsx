@@ -36,7 +36,8 @@ function rechazar(config, status, data) {
 
 function SesionProbe() {
   const { role, isAuthenticated } = useAuth()
-  return <p>Sesión: {isAuthenticated ? role : 'sin sesión'}</p>
+  return <><p>Sesión: {isAuthenticated ? role : 'sin sesión'}</p>
+    <button onClick={() => api.get('/api/auth/me')}>Consultar perfil protegido</button></>
 }
 
 function renderLogin({
@@ -226,6 +227,19 @@ describe('pantalla de inicio de sesión', () => {
     expect(adaptador.mock.calls[0][0].url).toBe(LOGIN_ENDPOINT)
     expect(adaptador.mock.calls[0][0].skipAuth).toBe(true)
     expect(screen.getByText('Sesión: ADMINISTRADOR')).toBeTruthy()
+  })
+
+  it('acepta el JSON definitivo de Spring y envía Bearer desde AuthProvider', async () => {
+    const adaptador = vi.fn((config) => respuesta(config, config.url === LOGIN_ENDPOINT
+      ? { token: 'jwt-firmado', user: { id: 7, role: 'USUARIO', name: 'María', email: 'maria@ejemplo.com', nombreUsuario: 'maria', avatarUrl: null } }
+      : { id: 7, role: 'USUARIO' }))
+    renderLogin({ adaptador })
+    completarFormulario()
+    enviar()
+    await waitFor(() => expect(screen.getByText('Área general')).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: 'Consultar perfil protegido' }))
+    await waitFor(() => expect(adaptador).toHaveBeenCalledTimes(2))
+    expect(adaptador.mock.calls[1][0].headers.get('Authorization')).toBe('Bearer jwt-firmado')
   })
 
   it.each([

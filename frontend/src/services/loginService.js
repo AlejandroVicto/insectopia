@@ -1,10 +1,7 @@
 import api from './api'
 import { ROLES } from '../auth/roles'
 
-// Revisado en el repositorio: SecurityConfig declara POST /api/auth/login como
-// permitAll, pero no existe ningún controlador ni DTO que lo implemente.
-// El envío se habilita explícitamente con VITE_LOGIN_DISPONIBLE=true cuando el
-// backend 054 exponga el endpoint y confirme el contrato de respuesta.
+// El backend expone POST /api/auth/login con { token, user }.
 export const LOGIN_ENDPOINT = '/api/auth/login'
 export const LOGIN_DISPONIBLE = import.meta.env.VITE_LOGIN_DISPONIBLE === 'true'
 
@@ -51,8 +48,7 @@ export function iniciarSesion(valores) {
 /**
  * Adapta la respuesta del backend al objeto que acepta AuthProvider.setSession.
  * No decodifica JWT: solo toma el token emitido por el servidor.
- * Mientras no exista el endpoint, los nombres alternativos son tolerancia al
- * contrato pendiente de la actividad 054, no una suposición confirmada.
+ * Los nombres alternativos conservan compatibilidad con versiones anteriores.
  */
 export function adaptarRespuestaLogin(data) {
   const token = primerValor(data?.token, data?.accessToken, data?.access_token, data?.jwt)
