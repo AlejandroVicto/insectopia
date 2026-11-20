@@ -1,6 +1,9 @@
 package com.insectopia.services;
 
 import java.sql.SQLException;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -24,6 +27,7 @@ import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.models.Usuario;
 import com.insectopia.repository.RolRepository;
 import com.insectopia.repository.UsuarioRepository;
+import com.insectopia.repository.TokenRevocadoRepository;
 
 @Service
 public class AuthService {
@@ -34,16 +38,19 @@ public class AuthService {
     private final CatalogoUbicacionesService catalogo;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final TokenRevocadoRepository revoked;
 
     public AuthService(UsuarioRepository usuarios, RolRepository roles,
             PasswordEncoder passwordEncoder, CatalogoUbicacionesService catalogo,
-            AuthenticationManager authenticationManager, JwtService jwtService) {
+            AuthenticationManager authenticationManager, JwtService jwtService,
+            TokenRevocadoRepository revoked) {
         this.usuarios = usuarios;
         this.roles = roles;
         this.passwordEncoder = passwordEncoder;
         this.catalogo = catalogo;
         this.authenticationManager = authenticationManager;
         this.jwtService = jwtService;
+        this.revoked = revoked;
     }
 
     @Transactional(readOnly = true)
@@ -72,6 +79,28 @@ public class AuthService {
         Usuario usuario = usuarios.findById(principal.idUsuario())
                 .orElseThrow(() -> new BadCredentialsException("Credenciales inválidas"));
         return AuthResponseDTO.UserDTO.from(usuario);
+    }
+
+    @Transactional
+    public void logout(String authorization, InsectopiaUserDetails principal) {
+        if (principal == null || authorization == null || !authorization.regionMatches(true, 0, "Bearer ", 0, 7)
+                || authorization.length() <= 7) {
+            throw new BadCredentialsException("Credencial inválida");
+        }
+        JwtService.TokenClaims claims;
+        try {
+            claims = jwtService.validate(authorization.substring(7)); // Signature and expiration verified first.
+        } catch (RuntimeException exception) {
+            throw new BadCredentialsException("Credencial inválida");
+        }
+        if (claims.userId() != principal.idUsuario() || !claims.role().equals(principal.role())
+                || claims.version() != principal.versionToken() || revoked.existsByJti(claims.jti())) {
+            throw new BadCredentialsException("Credencial inválida");
+        }
+        revoked.revokeIfAbsent(claims.jti(), principal.idUsuario(),
+                LocalDateTime.ofInstant(Instant.now(), ZoneOffset.UTC),
+                LocalDateTime.ofInstant(claims.expiresAt(), ZoneOffset.UTC));
+        // The transaction commits before the controller can send 204. Database errors propagate as 5xx.
     }
 
     @Transactional

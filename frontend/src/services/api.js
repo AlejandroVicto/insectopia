@@ -54,7 +54,7 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(undefined, (error) => {
   if (error.response?.status === 401) {
     // Only a request carrying the current session token may invalidate it.
-    if (isBackendRequest(error.config) && error.config?.sessionToken) {
+    if (isBackendRequest(error.config) && error.config?.sessionToken && !error.config?.suppressAuthRedirect) {
       sessionBridge?.onUnauthorized(error.config.sessionToken)
       error.userMessage = 'Tu sesión ya no es válida. Inicia sesión nuevamente.'
     }

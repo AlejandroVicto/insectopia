@@ -1,0 +1,32 @@
+.inicio {
+  --inicio-bg: #111713;
+  --inicio-card: #19261e;
+  --inicio-inset: #15211a;
+  --inicio-soft: #2a4330;
+  --inicio-lime: #a8e223;
+  --inicio-text: #f3f8ef;
+  --inicio-muted: #a5b7a7;
+  --inicio-border: #2f4737;
+  background: var(--inicio-bg);
+  font-family: Mulish, Arial, sans-serif;
+}
+
+.inicio-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+.inicio-scroll::-webkit-scrollbar { display: none; }
+.inicio-scroll:focus-visible { outline: 2px solid var(--inicio-lime); outline-offset: -2px; }
+
+.inicio .font-display { font-family: 'Plus Jakarta Sans', Mulish, Arial, sans-serif; }
+.inicio-card { border: 1px solid var(--inicio-border); border-radius: 16px; background: var(--inicio-card); }
+.inicio-inset { border: 1px solid var(--inicio-border); background: var(--inicio-inset); }
+.inicio-avatar { display: inline-flex; width: 40px; height: 40px; flex: none; align-items: center; justify-content: center; overflow: hidden; border-radius: 100%; background: var(--inicio-soft); color: var(--inicio-text); font-size: 12px; font-weight: 700; }
+.inicio-avatar-sm { width: 36px; height: 36px; }
+.inicio-filter { display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 32px; padding: 0 12px; border: 1px solid var(--inicio-border); border-radius: 999px; color: var(--inicio-muted); font-size: 12px; font-weight: 700; }
+.inicio-filter:hover, .inicio-page:not(:disabled):hover { background: var(--inicio-soft); }
+.inicio-filter-active, .inicio-filter-active:hover { border-color: var(--inicio-lime); background: var(--inicio-lime); color: var(--inicio-bg); }
+.inicio-primary { border-radius: 999px; background: var(--inicio-lime); color: var(--inicio-bg); font-weight: 700; }
+.inicio-pending { border-radius: 8px; background: var(--inicio-soft); padding: 5px 9px; color: var(--inicio-muted); font-size: 11px; font-weight: 600; }
+.inicio-action { display: inline-flex; min-width: 108px; align-items: center; justify-content: center; gap: 8px; padding: 5px 12px; border: 1px solid var(--inicio-border); border-radius: 999px; background: var(--inicio-inset); color: var(--inicio-muted); font-size: 12px; font-weight: 700; }
+.inicio-page { border: 1px solid var(--inicio-border); border-radius: 999px; padding: 7px 12px; }
+.inicio-page:disabled { opacity: .45; cursor: not-allowed; }
+.inicio-map { background: repeating-linear-gradient(135deg, #182c21, #182c21 14px, #203b29 14px, #203b29 16px); border: 1px solid var(--inicio-border); }
+.inicio button:focus-visible, .inicio a:focus-visible { outline: 2px solid var(--inicio-lime); outline-offset: 3px; }

@@ -7,6 +7,7 @@ import Login from './pages/Login'
 import Registro from './pages/Registro'
 import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
+import Inicio from './pages/Inicio'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -135,7 +136,7 @@ export default function App() {
       <Route path="/registro" element={<Registro />} />
       <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
         <Route element={<PrivateLayout />}>
-          <Route path="/app" element={<SectionPlaceholder title="Área general" />} />
+          <Route path="/app" element={<Inicio />} />
           <Route path="/app/mensajes" element={<SectionPlaceholder title="Mensajes" />} />
           <Route path="/app/notificaciones" element={<SectionPlaceholder title="Notificaciones" />} />
           <Route path="/app/eventos" element={<SectionPlaceholder title="Eventos" />} />

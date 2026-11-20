@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import RoleGate from '../auth/RoleGate'
 import { ROUTE_ROLES } from '../auth/roles'
-import { useAuth } from '../auth/useAuth'
 
 const mainLinks = [
   { label: 'Inicio', to: '/app', end: true, roles: ROUTE_ROLES.generales },
@@ -23,9 +22,8 @@ function MenuLink({ label, to, end, count }) {
 }
 
 export default function Sidebar({ notificationCount, onLogout }) {
-  const { role } = useAuth()
   return (
-    <aside className="w-60 shrink-0 bg-[var(--nav-sidebar)] px-3 pb-4 pt-5 text-[var(--nav-light)]">
+    <aside className="flex min-h-[calc(100vh-80px)] w-60 shrink-0 flex-col bg-[var(--nav-sidebar)] px-3 pb-4 pt-5 text-[var(--nav-light)]">
       <nav aria-label="Navegación principal" className="flex flex-col gap-2">
         <p className="text-[10px] font-semibold text-[var(--nav-muted)]">MENÚ PRINCIPAL</p>
         {mainLinks.map(({ label, to, end, roles }) => (
@@ -33,12 +31,13 @@ export default function Sidebar({ notificationCount, onLogout }) {
             <MenuLink label={label} to={to} end={end} count={label === 'Notificaciones' ? notificationCount : undefined} />
           </RoleGate>
         ))}
-        <p className="flex h-9 items-end text-[10px] font-semibold text-[var(--nav-muted)]">MI CUENTA</p>
+      </nav>
+      <nav aria-label="Mi cuenta" className="mt-auto flex flex-col gap-2 border-t border-[var(--nav-active)] pt-4">
+        <p className="text-[10px] font-semibold text-[var(--nav-muted)]">MI CUENTA</p>
         <MenuLink label="Configuración" to="/app/configuracion" />
         <button type="button" onClick={onLogout} className="nav-entry text-left">
           <span aria-hidden="true" className="nav-dot" />Cerrar sesión
         </button>
-        <p className="mt-1 text-xs text-[var(--nav-muted)]">Acceso: {role}</p>
       </nav>
     </aside>
   )

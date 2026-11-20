@@ -8,6 +8,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import java.util.Base64;
 import java.util.Optional;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneOffset;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+
+import org.springframework.dao.DataAccessResourceFailureException;
+import org.mockito.ArgumentCaptor;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,6 +26,10 @@ import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
+import java.util.Date;
+import java.util.UUID;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
@@ -62,8 +74,13 @@ class LoginFlujoMvcTests {
     @MockitoBean CatalogoUbicacionesService catalogo;
 
     private Usuario user;
+    private final Set<String> revokedJtis = ConcurrentHashMap.newKeySet();
 
     @BeforeEach void setup() {
+        revokedJtis.clear();
+        when(revoked.existsByJti(anyString())).thenAnswer(invocation -> revokedJtis.contains(invocation.getArgument(0)));
+        when(revoked.revokeIfAbsent(anyString(), anyLong(), any(), any())).thenAnswer(invocation ->
+                revokedJtis.add(invocation.getArgument(0)) ? 1 : 0);
         user = new Usuario();
         user.setIdUsuario(7L);
         user.setNombre("María");
@@ -116,6 +133,76 @@ class LoginFlujoMvcTests {
         assertEquals(role, jwt.validate(token).role());
         mvc.perform(get("/api/login-probe").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isOk());
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        mvc.perform(get("/api/login-probe").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test void revocaJtiActualConUsuarioYFechasUTCYPreservaOtraSesion() throws Exception {
+        String first = json.readTree(login("maria@example.com", "clave")).get("token").asText();
+        String second = json.readTree(login("maria@example.com", "clave")).get("token").asText();
+        var claims = jwt.validate(first);
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + first))
+                .andExpect(status().isOk());
+        Instant before = Instant.now();
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + first))
+                .andExpect(status().isNoContent()).andExpect(content().string(""));
+        Instant after = Instant.now();
+        ArgumentCaptor<LocalDateTime> revokedAt = ArgumentCaptor.forClass(LocalDateTime.class);
+        verify(revoked).revokeIfAbsent(eq(claims.jti()), eq(7L), revokedAt.capture(),
+                eq(LocalDateTime.ofInstant(claims.expiresAt(), ZoneOffset.UTC)));
+        Instant persistedAt = revokedAt.getValue().toInstant(ZoneOffset.UTC);
+        assertFalse(persistedAt.isBefore(before));
+        assertFalse(persistedAt.isAfter(after));
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + first))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + first))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/login-probe").header(HttpHeaders.AUTHORIZATION, "Bearer " + first))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + second))
+                .andExpect(status().isOk());
+        String newToken = json.readTree(login("maria@example.com", "clave")).get("token").asText();
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + newToken))
+                .andExpect(status().isOk());
+    }
+
+    @Test void logoutSinTokenInvalidoOVencidoSeRechaza() throws Exception {
+        mvc.perform(post("/api/auth/logout")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer inválido"))
+                .andExpect(status().isUnauthorized());
+        String expired = Jwts.builder().subject("7").id(UUID.randomUUID().toString())
+                .issuedAt(Date.from(Instant.now().minusSeconds(120)))
+                .expiration(Date.from(Instant.now().minusSeconds(60)))
+                .claim("role", "USUARIO").claim("version", 0)
+                .signWith(Keys.hmacShaKeyFor(new byte[32]), Jwts.SIG.HS256).compact();
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + expired))
+                .andExpect(status().isUnauthorized());
+        verify(revoked, never()).revokeIfAbsent(anyString(), anyLong(), any(), any());
+    }
+
+    @Test void falloDePersistenciaNuncaDevuelve204NiRevocaOtraSesion() throws Exception {
+        String token = json.readTree(login("maria@example.com", "clave")).get("token").asText();
+        when(revoked.revokeIfAbsent(anyString(), anyLong(), any(), any()))
+                .thenThrow(new DataAccessResourceFailureException("No se pudo persistir"));
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().is5xxServerError());
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk());
+    }
+
+    @Test void insercionConcurrenteIdempotenteNoProvocaErrorSiOtroProcesoYaRevoco() throws Exception {
+        String token = json.readTree(login("maria@example.com", "clave")).get("token").asText();
+        // Both requests passed the filter before either wrote; MySQL's atomic upsert returns 0 for the loser.
+        when(revoked.revokeIfAbsent(anyString(), anyLong(), any(), any())).thenAnswer(invocation -> {
+            revokedJtis.add(invocation.getArgument(0));
+            return 0;
+        });
+        mvc.perform(post("/api/auth/logout").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isNoContent());
+        mvc.perform(get("/api/auth/me").header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isUnauthorized());
     }
 
     @Test void contrasenaIncorrectaYCorreoInexistenteNoEnumeran() throws Exception {

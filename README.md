@@ -8,7 +8,6 @@ Red social para aficionados a los insectos, desarrollada como proyecto universit
 - **Backend:** Java con Spring Boot y Maven
 - **Base de datos:** MySQL y Flyway
 - **Seguridad:** Spring Security y JWT
-- **Pruebas de API:** Bruno
 - **Control de versiones:** Git y GitHub
 
 ## Configuración del entorno de desarrollo — Insectopia

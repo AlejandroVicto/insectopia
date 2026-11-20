@@ -91,12 +91,12 @@ public class JwtService {
 				throw new IllegalArgumentException("Claims JWT inválidos");
 			}
 			Permissions.authoritiesFor(role);
-			return new TokenClaims(userId, jti, role, version);
+			return new TokenClaims(userId, jti, role, version, claims.getExpiration().toInstant());
 		} catch (IllegalArgumentException | JwtException exception) {
 			throw new IllegalArgumentException("Claims JWT inválidos", exception);
 		}
 	}
 
-	public record TokenClaims(long userId, String jti, String role, int version) {
+	public record TokenClaims(long userId, String jti, String role, int version, Instant expiresAt) {
 	}
 }

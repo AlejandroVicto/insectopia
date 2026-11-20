@@ -1,6 +1,7 @@
 package com.insectopia.models;
 
 import java.time.LocalDateTime;
+import java.time.Clock;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -35,7 +36,7 @@ public class TokenRevocado {
     @PrePersist
     private void prepararInsercion() {
         if (fechaRevocacion == null) {
-            fechaRevocacion = LocalDateTime.now();
+            fechaRevocacion = LocalDateTime.now(Clock.systemUTC());
         }
     }
 

@@ -63,6 +63,7 @@ class JwtServiceTests {
 		assertEquals(UUID.fromString(parsed.getId()).toString(), parsed.getId());
 		assertEquals(36, parsed.getId().length());
 		assertEquals(42L, service.validate(token).userId());
+		assertEquals(NOW.plusSeconds(60), service.validate(token).expiresAt());
 		assertNotEquals(token, service.issue(user));
 	}
 

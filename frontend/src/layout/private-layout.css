@@ -28,3 +28,15 @@
 .private-shell .nav-entry:focus-visible { outline: 2px solid var(--nav-lime); outline-offset: 2px; }
 .private-shell .nav-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--nav-muted); }
 .private-shell .nav-entry-active .nav-dot { background: var(--nav-lime); }
+
+/* En Inicio solo se desplaza el feed; otras rutas conservan el flujo normal. */
+.private-shell--inicio {
+  display: flex;
+  height: 100dvh;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.private-shell--inicio > header { flex-shrink: 0; }
+.private-shell--inicio > div > aside { min-height: 0; }
+.private-shell--inicio #private-content { min-height: 0; overflow: hidden; }
