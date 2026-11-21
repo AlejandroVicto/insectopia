@@ -19,6 +19,7 @@ import com.insectopia.dtos.publicaciones.ComentarioCreateRequestDTO;
 import com.insectopia.dtos.publicaciones.ComentarioResponseDTO;
 import com.insectopia.dtos.publicaciones.PublicacionCreateRequestDTO;
 import com.insectopia.dtos.publicaciones.PublicacionResponseDTO;
+import com.insectopia.dtos.publicaciones.PublicacionUpdateRequestDTO;
 import com.insectopia.dtos.publicaciones.ReaccionEstadoDTO;
 import com.insectopia.exceptions.BusinessRuleException;
 import com.insectopia.exceptions.DuplicateResourceException;
@@ -34,6 +35,12 @@ import com.insectopia.repository.PublicacionRepository;
 import com.insectopia.repository.ReaccionRepository;
 import com.insectopia.repository.UsuarioRepository;
 import com.insectopia.security.InsectopiaUserDetails;
+import com.insectopia.security.Permissions;
+import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import org.springframework.http.MediaType;
+import org.springframework.core.io.Resource;
 
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
@@ -53,16 +60,19 @@ public class PublicacionesService {
     private final ComentarioRepository comentarios;
     private final ReaccionRepository reacciones;
     private final UsuarioRepository usuarios;
+    private final AlmacenamientoImagenesService imagenes;
 
     public PublicacionesService(
             PublicacionRepository publicaciones,
             ComentarioRepository comentarios,
             ReaccionRepository reacciones,
-            UsuarioRepository usuarios) {
+            UsuarioRepository usuarios,
+            AlmacenamientoImagenesService imagenes) {
         this.publicaciones = publicaciones;
         this.comentarios = comentarios;
         this.reacciones = reacciones;
         this.usuarios = usuarios;
+        this.imagenes = imagenes;
     }
 
     @Transactional(readOnly = true)
@@ -117,15 +127,123 @@ public class PublicacionesService {
         if (contenido.length() > CONTENIDO_MAX) {
             throw new BusinessRuleException("El contenido no puede superar los 5000 caracteres");
         }
+        if (datos.imagen() != null) {
+            throw new BusinessRuleException("Sube la imagen mediante el endpoint multipart de la publicación");
+        }
         Usuario autor = usuario(principal);
         Publicacion publicacion = new Publicacion();
         publicacion.setUsuario(autor);
         publicacion.setContenido(contenido);
-        publicacion.setImagen(datos.imagenNormalizada());
         publicacion.setEstado(EstadoPublicacion.VISIBLE);
         publicaciones.save(publicacion);
         // Una publicación recién creada no puede tener comentarios ni reacciones aún.
         return PublicacionResponseDTO.from(publicacion, 0, 0, null);
+    }
+
+    @Transactional
+    public PublicacionResponseDTO editar(Long id, PublicacionUpdateRequestDTO datos, InsectopiaUserDetails principal) {
+        Publicacion publicacion = editable(id, principal);
+        if (datos != null && datos.imagen() != null) {
+            throw new BusinessRuleException("Usa el endpoint multipart para modificar la imagen");
+        }
+        String contenido = datos == null ? null : datos.contenidoNormalizado();
+        if (contenido == null || contenido.isBlank() || contenido.length() > CONTENIDO_MAX) {
+            throw new BusinessRuleException("El contenido debe tener entre 1 y 5000 caracteres");
+        }
+        publicacion.setContenido(contenido);
+        publicaciones.saveAndFlush(publicacion);
+        return mapear(publicacion, principal);
+    }
+
+    @Transactional
+    public void eliminar(Long id, InsectopiaUserDetails principal) {
+        Publicacion publicacion = bloquear(id);
+        autorizarEdicion(publicacion, principal);
+        if (publicacion.getEstado() != EstadoPublicacion.ELIMINADA) {
+            publicacion.setEstado(EstadoPublicacion.ELIMINADA);
+            publicaciones.saveAndFlush(publicacion);
+        }
+    }
+
+    @Transactional
+    public PublicacionResponseDTO subirImagen(Long id, MultipartFile archivo, InsectopiaUserDetails principal) {
+        Publicacion publicacion = editable(id, principal);
+        String anterior = publicacion.getImagen();
+        String nuevo = imagenes.guardar(archivo);
+        try {
+            publicacion.setImagen(nuevo);
+            publicaciones.saveAndFlush(publicacion);
+            sincronizarArchivos(nuevo, anterior);
+            return mapear(publicacion, principal);
+        } catch (RuntimeException exception) {
+            imagenes.eliminar(nuevo);
+            throw exception;
+        }
+    }
+
+    @Transactional
+    public void quitarImagen(Long id, InsectopiaUserDetails principal) {
+        Publicacion publicacion = editable(id, principal);
+        String anterior = publicacion.getImagen();
+        if (anterior == null) return;
+        publicacion.setImagen(null);
+        publicaciones.saveAndFlush(publicacion);
+        sincronizarArchivos(null, anterior);
+    }
+
+    @Transactional(readOnly = true)
+    public ImagenPublicacion leerImagen(Long id) {
+        Publicacion publicacion = existente(id);
+        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE || publicacion.getImagen() == null) {
+            throw new ResourceNotFoundException("imagen de la publicación", id);
+        }
+        return new ImagenPublicacion(imagenes.leer(publicacion.getImagen()),
+                publicacion.getImagen().endsWith(".png") ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG);
+    }
+
+    public record ImagenPublicacion(Resource resource, MediaType tipo) { }
+
+    private void sincronizarArchivos(String nuevo, String anterior) {
+        // El filesystem no participa en la transacción JPA. El nuevo se compensa en rollback;
+        // el anterior solo se elimina después del commit. Nunca se elimina una referencia vigente.
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            throw new IllegalStateException("Se requiere una transacción para gestionar fotografías");
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override public void afterCompletion(int status) {
+                if (status == STATUS_COMMITTED) {
+                    if (anterior != null) imagenes.eliminar(anterior);
+                } else if (nuevo != null) {
+                    imagenes.eliminar(nuevo);
+                }
+            }
+        });
+    }
+
+    private Publicacion editable(Long id, InsectopiaUserDetails principal) {
+        Publicacion publicacion = bloquear(id);
+        autorizarEdicion(publicacion, principal);
+        if (publicacion.getEstado() == EstadoPublicacion.ELIMINADA) {
+            throw new BusinessRuleException("La publicación está eliminada");
+        }
+        return publicacion;
+    }
+
+    private void autorizarEdicion(Publicacion publicacion, InsectopiaUserDetails principal) {
+        if (principal == null || (!esAutor(publicacion, principal)
+                && !("ADMINISTRADOR".equals(principal.role()) && principal.getAuthorities().stream()
+                        .anyMatch(a -> Permissions.MODULO_ADMINISTRAR.equals(a.getAuthority()))))) {
+            throw new AccessDeniedException("No tienes permiso para modificar esta publicación");
+        }
+    }
+
+    private Publicacion existente(Long id) {
+        return publicaciones.findById(id).orElseThrow(() -> new ResourceNotFoundException("publicación", id));
+    }
+
+    private Publicacion bloquear(Long id) {
+        return publicaciones.bloquearParaEscritura(id)
+                .orElseThrow(() -> new ResourceNotFoundException("publicación", id));
     }
 
     @Transactional(readOnly = true)
@@ -144,6 +262,9 @@ public class PublicacionesService {
             ComentarioCreateRequestDTO datos,
             InsectopiaUserDetails principal) {
         Publicacion publicacion = publicacionAccesible(idPublicacion, principal);
+        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE) {
+            throw new BusinessRuleException("La publicación no admite nuevas interacciones");
+        }
         String contenido = datos == null ? null : datos.contenidoNormalizado();
         if (contenido == null || contenido.isBlank()) {
             throw new BusinessRuleException("El contenido del comentario es obligatorio");
@@ -168,6 +289,9 @@ public class PublicacionesService {
     @Transactional
     public ReaccionEstadoDTO reaccionar(Long idPublicacion, InsectopiaUserDetails principal) {
         Publicacion publicacion = publicacionAccesible(idPublicacion, principal);
+        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE) {
+            throw new BusinessRuleException("La publicación no admite nuevas interacciones");
+        }
         if (reacciones.existsByPublicacion_IdPublicacionAndUsuario_IdUsuario(
                 publicacion.getIdPublicacion(), principal.idUsuario())) {
             throw new DuplicateResourceException("publicacionId", "Ya reaccionaste a esta publicación");
@@ -204,6 +328,9 @@ public class PublicacionesService {
         Publicacion publicacion = publicaciones.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("publicación", id));
         boolean visible = publicacion.getEstado() == EstadoPublicacion.VISIBLE;
+        if (publicacion.getEstado() == EstadoPublicacion.ELIMINADA) {
+            throw new ResourceNotFoundException("publicación", id);
+        }
         if (!visible && !esAutor(publicacion, principal) && !esModerador(principal)) {
             throw new AccessDeniedException("No tienes acceso a esta publicación");
         }

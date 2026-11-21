@@ -1,20 +1,15 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CampoModal from './CampoModal'
 import ModalContainer from './ModalContainer'
-import { crearPublicacion, prepararFormDataPublicacion } from '../../services/publicacionesService'
+import { crearPublicacion, subirImagenPublicacion } from '../../services/publicacionesService'
 import { mensajeErrorApi } from '../../services/erroresApi'
 import {
-  AVISO_IMAGEN,
-  AVISO_PROPUESTA,
   CLASE_AVISO,
   CLASE_BOTON_PRIMARIO,
   CLASE_BOTON_SECUNDARIO,
   CLASE_CONTROL,
   LIMITES,
-  NIVELES_CERTEZA,
-  ORDENES_TAXONOMICOS,
   TIPOS_IMAGEN_ACEPTADOS,
-  VISIBILIDADES,
   describirCampo,
 } from '../../constants/modalesPublicaciones'
 
@@ -46,17 +41,13 @@ function CrearPublicacionForm({ onClose, onSuccess }) {
   const [vistaPrevia, setVistaPrevia] = useState(null)
   const [errores, setErrores] = useState({})
   const [enviando, setEnviando] = useState(false)
+  const [creada, setCreada] = useState(null)
   const enviandoRef = useRef(false)
   const imagenInputRef = useRef(null)
 
   useEffect(() => () => {
     if (vistaPrevia && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(vistaPrevia)
   }, [vistaPrevia])
-
-  // Se construye por si 062 confirma un contrato multipart, pero jamás se envía aquí.
-  const formDataPreparado = useMemo(() => imagen && !errores.imagen
-    ? prepararFormDataPublicacion({ contenido, imagen })
-    : null, [contenido, imagen, errores.imagen])
 
   function cambiarImagen(event) {
     const archivo = event.target.files?.[0] ?? null
@@ -87,18 +78,35 @@ function CrearPublicacionForm({ onClose, onSuccess }) {
     event.preventDefault()
     if (enviandoRef.current) return
 
-    const errorContenido = validarContenido(contenido)
+    const errorContenido = creada ? '' : validarContenido(contenido)
     setErrores((actual) => ({ ...actual, contenido: errorContenido, envio: '' }))
-    if (errorContenido || errores.imagen || imagen) return
+    if (errorContenido || errores.imagen) return
 
     enviandoRef.current = true
     setEnviando(true)
+    let publicacion = creada
     try {
-      const { data } = await crearPublicacion({ contenido })
-      onSuccess?.(data)
+      if (!publicacion) {
+        const { data } = await crearPublicacion({ contenido })
+        if (data?.id == null) throw new Error('La respuesta de creación no contiene el ID de la publicación')
+        publicacion = data
+        setCreada(data)
+      }
+      if (imagen) {
+        try {
+          const { data } = await subirImagenPublicacion(publicacion.id, imagen)
+          publicacion = data
+        } catch (error) {
+          // El POST JSON ya se confirmó: actualizar el feed y conservar el ID para reintentar.
+          onSuccess?.(publicacion)
+          throw error
+        }
+      }
+      onSuccess?.(publicacion)
       onClose?.()
     } catch (error) {
-      setErrores((actual) => ({ ...actual, envio: mensajeErrorApi(error, 'No se pudo publicar el hallazgo.') }))
+      setErrores((actual) => ({ ...actual, envio: mensajeErrorApi(error,
+        publicacion ? `La publicación #${publicacion.id} se guardó, pero no se pudo subir la fotografía. Puedes reintentar sin duplicarla.` : 'No se pudo publicar el hallazgo.') }))
     } finally {
       enviandoRef.current = false
       setEnviando(false)
@@ -117,23 +125,9 @@ function CrearPublicacionForm({ onClose, onSuccess }) {
     >
       <form onSubmit={handleSubmit} aria-busy={enviando} className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8">
-          <p className={CLASE_AVISO}>{AVISO_PROPUESTA}</p>
-
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CampoModal id="crear-orden" etiqueta="Orden taxonómico principal" pista="Propuesta de diseño · no se enviará">
-              <select id="crear-orden" disabled defaultValue="" className={CLASE_CONTROL}>
-                <option value="">Selecciona un orden</option>
-                {ORDENES_TAXONOMICOS.map((orden) => <option key={orden} value={orden}>{orden}</option>)}
-              </select>
-            </CampoModal>
-
-            <CampoModal id="crear-certeza" etiqueta="Nivel de certeza taxonómica" pista="Propuesta de diseño · no se enviará">
-              <select id="crear-certeza" disabled defaultValue="" className={CLASE_CONTROL}>
-                <option value="">Selecciona un nivel</option>
-                {NIVELES_CERTEZA.map((nivel) => <option key={nivel} value={nivel}>{nivel}</option>)}
-              </select>
-            </CampoModal>
-          </div>
+          {creada && <p role="status" className={CLASE_AVISO}>
+            La publicación #{creada.id} ya se guardó. Si falló la fotografía, vuelve a intentar subirla sin crear otra publicación.
+          </p>}
 
           <CampoModal
             id={IDS.contenido}
@@ -151,6 +145,7 @@ function CrearPublicacionForm({ onClose, onSuccess }) {
               }}
               rows={5}
               maxLength={LIMITES.contenidoMax}
+              disabled={enviando || Boolean(creada)}
               aria-invalid={Boolean(errores.contenido)}
               aria-describedby={describirCampo(IDS.contenido, { error: errores.contenido, pista: true })}
               placeholder="¿Qué espécimen o hallazgo observaste hoy? Describe el microhábitat, la planta nutricia y el comportamiento…"
@@ -182,29 +177,16 @@ function CrearPublicacionForm({ onClose, onSuccess }) {
             <button type="button" disabled={enviando} onClick={quitarImagen} className={CLASE_BOTON_SECUNDARIO}>Quitar imagen</button>
           </div>}
           {vistaPrevia && <img src={vistaPrevia} alt={`Vista previa de ${imagen?.name ?? 'la imagen'}`} className="max-h-48 w-full rounded-xl object-contain" />}
-          {imagen && <p role="status" className={CLASE_AVISO}>{AVISO_IMAGEN}</p>}
-          {formDataPreparado && <p className="text-[10px] leading-4 text-[#a5b7a7]">FormData preparado con el texto y el archivo; no se envía al backend actual.</p>}
+          {imagen && !creada && <p role="status" className={CLASE_AVISO}>Primero se guardará el texto y después se subirá la fotografía JPG o PNG.</p>}
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CampoModal id="crear-ubicacion" etiqueta="Ubicación de muestreo" pista="Propuesta de diseño · no se enviará">
-              <input id="crear-ubicacion" type="text" disabled placeholder="Reserva Montes Azules, Chiapas" className={CLASE_CONTROL} />
-            </CampoModal>
-
-            <CampoModal id="crear-visibilidad" etiqueta="Visibilidad del registro" pista="Propuesta de diseño · no se enviará">
-              <select id="crear-visibilidad" disabled defaultValue="" className={CLASE_CONTROL}>
-                <option value="">Selecciona la visibilidad</option>
-                {VISIBILIDADES.map((opcion) => <option key={opcion} value={opcion}>{opcion}</option>)}
-              </select>
-            </CampoModal>
-          </div>
         </div>
 
         <footer className="shrink-0 border-t border-[#35483a] px-6 py-4 sm:px-8">
           {errores.envio && <div role="alert" className="mb-3 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-xs leading-5 text-red-200">{errores.envio}</div>}
           <div className="flex flex-wrap items-center justify-end gap-3">
             <button type="button" disabled={enviando} onClick={onClose} className={CLASE_BOTON_SECUNDARIO}>Cancelar</button>
-            <button type="submit" disabled={enviando || Boolean(imagen)} className={CLASE_BOTON_PRIMARIO}>
-              {enviando ? 'Publicando…' : 'Publicar hallazgo'}
+            <button type="submit" disabled={enviando} className={CLASE_BOTON_PRIMARIO}>
+              {enviando ? 'Publicando…' : creada && imagen ? 'Reintentar fotografía' : creada ? 'Terminar sin fotografía' : 'Publicar hallazgo'}
             </button>
           </div>
         </footer>

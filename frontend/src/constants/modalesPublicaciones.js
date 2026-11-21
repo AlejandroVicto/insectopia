@@ -1,7 +1,5 @@
-// Contrato visual y validaciones compartidas por los cuatro modales de publicaciones (actividad 061).
-// Los valores de esta lista son propuestas de interfaz: el backend actual (V3/V7) solo expone
-// contenido, imagen y, para reportes, motivo/descripcion. Nada de aquí se envía a la API salvo
-// MOTIVOS_REPORTE, que es la selección real del formulario de reporte.
+// Límites y estilos compartidos por el composer de Inicio y los modales de publicaciones.
+// El backend acepta contenido, fotografías JPEG/PNG y los motivos de reporte indicados abajo.
 
 export const LIMITES = {
   contenidoMin: 10,
@@ -13,31 +11,8 @@ export const LIMITES = {
 
 export const TIPOS_IMAGEN_ACEPTADOS = ['image/jpeg', 'image/png']
 
-export const ORDENES_TAXONOMICOS = [
-  'Coleoptera (escarabajos)',
-  'Lepidoptera (mariposas)',
-  'Hymenoptera (abejas y avispas)',
-  'Diptera (moscas)',
-  'Hemiptera (chinches)',
-  'Otro orden',
-]
-
-export const NIVELES_CERTEZA = [
-  'Orden identificado',
-  'Familia probable',
-  'Familia confirmada',
-  'Género probable',
-  'Especie confirmada (nivel 4)',
-]
-
-export const VISIBILIDADES = [
-  'Público (red abierta de biodiversidad)',
-  'Solo seguidores',
-  'Privado',
-]
-
 // Códigos estables para el campo `motivo` (VARCHAR(100) en la migración V7).
-// Las etiquetas son solo presentación; el backend aún debe confirmar los valores admitidos.
+// Las etiquetas son solo presentación; los códigos coinciden con el contrato backend 062.
 export const MOTIVOS_REPORTE = [
   { value: 'CONTENIDO_INAPROPIADO', label: 'Contenido inapropiado' },
   { value: 'DATOS_FICTICIOS', label: 'Datos ficticios o engañosos' },
@@ -46,10 +21,6 @@ export const MOTIVOS_REPORTE = [
   { value: 'LENGUAJE_OFENSIVO', label: 'Lenguaje ofensivo' },
   { value: 'OTRO', label: 'Otro motivo' },
 ]
-
-export const AVISO_PROPUESTA = 'Orden taxonómico, certeza, ubicación y visibilidad son propuestas del diseño: la API actual no las admite y no se enviarán.'
-
-export const AVISO_IMAGEN = 'La vista previa y el FormData son locales: adjuntar archivos al envío aún no está disponible. Quita la imagen para guardar solo el texto.'
 
 export const CLASE_ETIQUETA = 'mb-1.5 block text-xs font-semibold tracking-tight text-[#d6e2d2]'
 export const CLASE_CONTROL = 'w-full min-w-0 rounded-xl border border-[#40584a] bg-[#141d17] px-4 py-2.5 text-sm leading-5 text-[#f3f8ef] placeholder:text-[#83998a] focus:border-lime-400 focus:outline-none focus:ring-2 focus:ring-lime-400/30 disabled:cursor-not-allowed disabled:opacity-60'

@@ -72,7 +72,7 @@ function ReportarPublicacionForm({ publicacion, onClose, onSuccess }) {
     >
       <form onSubmit={handleSubmit} aria-busy={enviando} className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8">
-          <p className={CLASE_AVISO}>El envío de reportes aún no está disponible en el backend: no se registrará nada sin confirmación real.</p>
+          <p className={CLASE_AVISO}>El reporte se registrará cuando el backend confirme el envío.</p>
           <p className={CLASE_AVISO}>Cuando esté disponible, tu reporte será revisado por el equipo de moderación.</p>
           <p className="text-xs text-[#a5b7a7]">Publicación reportada: {String(publicacion?.id ?? publicacion?.idPublicacion ?? 'no disponible')}</p>
 

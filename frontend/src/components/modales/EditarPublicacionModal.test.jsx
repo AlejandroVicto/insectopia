@@ -80,6 +80,32 @@ describe('EditarPublicacionModal', () => {
     expect(JSON.parse(adapter.mock.calls[0][0].data)).toEqual({ contenido: 'Nueva descripción de la observación de campo.' })
   })
 
+  it('permite sustituir la fotografía después de guardar el texto', async () => {
+    const adapter = vi.fn((config) => respuesta(config, { ...publicacion, imagenUrl: '/api/publicaciones/24/imagen' }))
+    api.defaults.adapter = adapter
+    const { onClose, onSuccess } = renderModal()
+    fireEvent.change(screen.getByLabelText(/Imagen actual/), {
+      target: { files: [new File([new Uint8Array([1, 2])], 'macro.png', { type: 'image/png' })] },
+    })
+    expect(screen.getByRole('button', { name: 'Guardar cambios' }).disabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls.map(([config]) => config.method)).toEqual(['put', 'post'])
+    expect(adapter.mock.calls[1][0].data.get('imagen').name).toBe('macro.png')
+  })
+
+  it('permite quitar la fotografía actual con DELETE', async () => {
+    const adapter = vi.fn(respuesta)
+    api.defaults.adapter = adapter
+    const { onSuccess } = renderModal()
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar fotografía actual' }))
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled())
+    expect(adapter.mock.calls[0][0].url).toBe('/api/publicaciones/24/imagen')
+    expect(adapter.mock.calls[0][0].method).toBe('delete')
+    expect(screen.getByText('Esta publicación no tiene imagen adjunta.')).toBeTruthy()
+  })
+
   it.each([
     [403, 'No tienes permisos para realizar esta acción.'],
     [404, 'La publicación ya no existe o fue eliminada.'],

@@ -28,7 +28,8 @@ public record PublicacionResponseDTO(
                 publicacion.getIdPublicacion(),
                 AutorResumenDTO.from(publicacion.getUsuario()),
                 publicacion.getContenido(),
-                blankToNull(publicacion.getImagen()),
+                blankToNull(publicacion.getImagen()) == null ? null
+                        : "/api/publicaciones/" + publicacion.getIdPublicacion() + "/imagen",
                 publicacion.getFechaPublicacion(),
                 publicacion.getEstado() == null ? null : publicacion.getEstado().name(),
                 totalComentarios,

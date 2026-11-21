@@ -183,20 +183,22 @@ class PublicacionesServiceTests {
         when(usuarios.findById(7L)).thenReturn(Optional.of(autor));
 
         PublicacionResponseDTO creada = service.crear(
-                new PublicacionCreateRequestDTO("  Observación de campo  ", "  https://img.test/a.jpg  "),
+                new PublicacionCreateRequestDTO("  Observación de campo  ", null),
                 principal);
 
         ArgumentCaptor<Publicacion> captor = ArgumentCaptor.forClass(Publicacion.class);
         verify(publicaciones).save(captor.capture());
         assertEquals(7L, captor.getValue().getUsuario().getIdUsuario());
         assertEquals("Observación de campo", captor.getValue().getContenido());
-        assertEquals("https://img.test/a.jpg", captor.getValue().getImagen());
+        assertNull(captor.getValue().getImagen());
         assertEquals(EstadoPublicacion.VISIBLE, captor.getValue().getEstado());
         assertEquals("Observación de campo", creada.contenido());
     }
 
     @Test
     void rechazaCreacionVaciaOMuyLarga() {
+        assertThrows(BusinessRuleException.class,
+                () -> service.crear(new PublicacionCreateRequestDTO("Texto", "https://img.test/a.jpg"), principal));
         assertThrows(BusinessRuleException.class,
                 () -> service.crear(new PublicacionCreateRequestDTO("   ", null), principal));
         assertThrows(BusinessRuleException.class,

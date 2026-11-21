@@ -9,34 +9,50 @@ export function consultarPublicaciones({ page = 0, size = 10, q = '', feed = 'pa
   })
 }
 
-// Escrituras pendientes de que el backend publique sus DTO/controller.
-// Solo se envían campos que existen hoy en la entidad Publicacion: contenido y imagen (string).
-// La imagen se acepta como URL/identificador ya resuelto; la carga de archivos necesita otro endpoint.
 function idValido(id) {
   return id !== null && id !== undefined && id !== ''
 }
 
 export function crearPublicacion({ contenido, imagen, signal } = {}) {
+  if (imagen != null) {
+    return Promise.reject(new TypeError('La fotografía debe subirse como archivo después de crear la publicación'))
+  }
   if (typeof contenido !== 'string' || !contenido.trim()) {
     return Promise.reject(new TypeError('El contenido de la publicación es obligatorio'))
   }
-  const cuerpo = { contenido: contenido.trim() }
-  if (typeof imagen === 'string' && imagen.trim()) cuerpo.imagen = imagen.trim()
-  return api.post(RUTA_PUBLICACIONES, cuerpo, { signal })
+  return api.post(RUTA_PUBLICACIONES, { contenido: contenido.trim() }, { signal })
 }
 
-// Preparación local para el futuro contrato multipart. NO se envía: el backend actual solo
-// acepta `imagen` como cadena en JSON. El nombre del campo es una propuesta para acordar en 062.
 export const CAMPO_IMAGEN_FORMDATA = 'imagen'
 
-export function prepararFormDataPublicacion({ contenido = '', imagen } = {}) {
+export function prepararFormDataPublicacion({ imagen } = {}) {
   if (!imagen || typeof imagen.name !== 'string') {
     throw new TypeError('Se requiere un archivo de imagen')
   }
   const datos = new FormData()
-  datos.append('contenido', typeof contenido === 'string' ? contenido.trim() : '')
   datos.append(CAMPO_IMAGEN_FORMDATA, imagen, imagen.name)
   return datos
+}
+
+export function subirImagenPublicacion(id, imagen, { signal } = {}) {
+  if (!idValido(id)) return Promise.reject(new TypeError('Se requiere el identificador de la publicación'))
+  let datos
+  try {
+    datos = prepararFormDataPublicacion({ imagen })
+  } catch (error) {
+    return Promise.reject(error)
+  }
+  // El api compartido fija application/json; para FormData hay que retirar esa cabecera
+  // y dejar que el navegador genere Content-Type con su boundary.
+  return api.post(`${RUTA_PUBLICACIONES}/${encodeURIComponent(String(id))}/imagen`, datos, {
+    signal,
+    headers: { 'Content-Type': undefined },
+  })
+}
+
+export function quitarImagenPublicacion(id, { signal } = {}) {
+  if (!idValido(id)) return Promise.reject(new TypeError('Se requiere el identificador de la publicación'))
+  return api.delete(`${RUTA_PUBLICACIONES}/${encodeURIComponent(String(id))}/imagen`, { signal })
 }
 
 export function actualizarPublicacion(id, { contenido, imagen, signal } = {}) {
@@ -46,9 +62,10 @@ export function actualizarPublicacion(id, { contenido, imagen, signal } = {}) {
   if (typeof contenido !== 'string' || !contenido.trim()) {
     return Promise.reject(new TypeError('El contenido de la publicación es obligatorio'))
   }
-  const cuerpo = { contenido: contenido.trim() }
-  if (imagen !== undefined) cuerpo.imagen = imagen
-  return api.put(`${RUTA_PUBLICACIONES}/${encodeURIComponent(String(id))}`, cuerpo, { signal })
+  if (imagen != null) {
+    return Promise.reject(new TypeError('La fotografía debe subirse como archivo, no en el JSON de edición'))
+  }
+  return api.put(`${RUTA_PUBLICACIONES}/${encodeURIComponent(String(id))}`, { contenido: contenido.trim() }, { signal })
 }
 
 export function eliminarPublicacion(id, { signal } = {}) {

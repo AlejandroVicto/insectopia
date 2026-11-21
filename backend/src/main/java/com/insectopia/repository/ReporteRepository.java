@@ -10,6 +10,8 @@ import com.insectopia.models.enums.EstadoReporte;
 public interface ReporteRepository
         extends JpaRepository<Reporte, Long> {
 
+    Page<Reporte> findAllByOrderByFechaReporteDesc(Pageable pageable);
+
     // Consultar reportes por estado, del más reciente al más antiguo
     Page<Reporte> findByEstadoOrderByFechaReporteDesc(
             EstadoReporte estado,

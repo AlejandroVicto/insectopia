@@ -77,16 +77,18 @@ describe('CrearPublicacionModal', () => {
     expect(adapter).not.toHaveBeenCalled()
   })
 
-  it('muestra los campos propuestos como no enviables', () => {
+  it('solo muestra notas y fotografía, no campos propuestos', () => {
     renderModal()
-    expect(screen.getByLabelText('Orden taxonómico principal').disabled).toBe(true)
-    expect(screen.getByLabelText('Nivel de certeza taxonómica').disabled).toBe(true)
-    expect(screen.getByLabelText('Ubicación de muestreo').disabled).toBe(true)
-    expect(screen.getByLabelText('Visibilidad del registro').disabled).toBe(true)
-    expect(screen.getByText(/no las admite y no se enviarán/)).toBeTruthy()
+    expect(screen.getByLabelText('Notas de campo y morfología')).toBeTruthy()
+    expect(screen.getByLabelText(/Captura macro/)).toBeTruthy()
+    expect(screen.queryByLabelText('Orden taxonómico principal')).toBeNull()
+    expect(screen.queryByLabelText('Nivel de certeza taxonómica')).toBeNull()
+    expect(screen.queryByLabelText('Ubicación de muestreo')).toBeNull()
+    expect(screen.queryByLabelText('Visibilidad del registro')).toBeNull()
+    expect(screen.queryByText(/propuestas del diseño/)).toBeNull()
   })
 
-  it('selecciona y previsualiza una imagen válida, prepara FormData y bloquea el envío hasta quitarla', () => {
+  it('selecciona y previsualiza una imagen válida y permite enviarla', () => {
     const adapter = vi.fn(respuesta)
     api.defaults.adapter = adapter
     renderModal()
@@ -96,13 +98,11 @@ describe('CrearPublicacionModal', () => {
 
     seleccionarImagen(screen.getByLabelText(/Captura macro/))
     expect(screen.getByRole('img', { name: 'Vista previa de macro.jpg' }).getAttribute('src')).toBe('blob:vista-previa')
-    expect(screen.getByRole('button', { name: 'Publicar hallazgo' }).disabled).toBe(true)
-    expect(screen.getByRole('status').textContent).toContain('Quita la imagen')
-    expect(screen.getByText(/FormData preparado/)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Publicar hallazgo' }).disabled).toBe(false)
+    expect(screen.getByRole('status').textContent).toContain('después se subirá la fotografía')
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar imagen' }))
     expect(screen.queryByRole('img')).toBeNull()
-    expect(screen.queryByText(/FormData preparado/)).toBeNull()
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:vista-previa')
     expect(screen.getByRole('button', { name: 'Publicar hallazgo' }).disabled).toBe(false)
     expect(adapter).not.toHaveBeenCalled()
@@ -124,7 +124,7 @@ describe('CrearPublicacionModal', () => {
     expect(screen.queryByRole('img', { name: 'Vista previa de primero.jpg' })).toBeNull()
     expect(URL.createObjectURL).toHaveBeenCalledTimes(2)
     expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:primero')
-    expect(screen.getByRole('button', { name: 'Publicar hallazgo' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Publicar hallazgo' }).disabled).toBe(false)
   })
 
   it('rechaza formatos no soportados y archivos demasiado grandes', () => {
@@ -153,6 +153,52 @@ describe('CrearPublicacionModal', () => {
     expect(JSON.parse(adapter.mock.calls[0][0].data)).toEqual({
       contenido: 'Escarabajo metálico bajo hojas de encino, activo al atardecer.',
     })
+  })
+
+  it('crea por JSON y después sube el archivo al ID confirmado', async () => {
+    const conImagen = { ...publicacion, imagenUrl: '/api/publicaciones/11/imagen' }
+    const adapter = vi.fn((config) => respuesta(config, config.url.endsWith('/imagen') ? conImagen : publicacion))
+    api.defaults.adapter = adapter
+    const { onSuccess, onClose } = renderModal()
+    fireEvent.change(screen.getByLabelText('Notas de campo y morfología'), {
+      target: { value: 'Observación de campo suficientemente detallada.' },
+    })
+    seleccionarImagen(screen.getByLabelText(/Captura macro/))
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar hallazgo' }))
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(conImagen))
+    expect(onClose).toHaveBeenCalledTimes(1)
+    expect(adapter).toHaveBeenCalledTimes(2)
+    expect(adapter.mock.calls[0][0].url).toBe('/api/publicaciones')
+    expect(JSON.parse(adapter.mock.calls[0][0].data)).toEqual({ contenido: 'Observación de campo suficientemente detallada.' })
+    expect(adapter.mock.calls[1][0].url).toBe('/api/publicaciones/11/imagen')
+    expect(adapter.mock.calls[1][0].data.get('imagen').name).toBe('macro.jpg')
+    expect(adapter.mock.calls[1][0].data.has('contenido')).toBe(false)
+  })
+
+  it('si falla la fotografía conserva el ID y reintenta sin repetir el POST JSON', async () => {
+    let fallar = true
+    const adapter = vi.fn((config) => config.url.endsWith('/imagen') && fallar
+      ? Promise.reject(Object.assign(new Error('sin red'), { config }))
+      : respuesta(config, config.url.endsWith('/imagen') ? { ...publicacion, imagenUrl: '/api/publicaciones/11/imagen' } : publicacion))
+    api.defaults.adapter = adapter
+    const { onClose, onSuccess } = renderModal()
+    fireEvent.change(screen.getByLabelText('Notas de campo y morfología'), {
+      target: { value: 'Observación de campo suficientemente detallada.' },
+    })
+    seleccionarImagen(screen.getByLabelText(/Captura macro/))
+    fireEvent.click(screen.getByRole('button', { name: 'Publicar hallazgo' }))
+    await screen.findByText(/publicación #11 ya se guardó/)
+    expect(screen.getByRole('alert').textContent).toContain('No se pudo conectar con el backend')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(onSuccess).toHaveBeenCalledWith(publicacion)
+
+    fallar = false
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fotografía' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(adapter.mock.calls.map(([config]) => config.url)).toEqual([
+      '/api/publicaciones', '/api/publicaciones/11/imagen', '/api/publicaciones/11/imagen',
+    ])
   })
 
   it('mantiene el diálogo abierto y muestra el error de red', async () => {

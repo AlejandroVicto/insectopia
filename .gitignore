@@ -60,3 +60,7 @@ credentials*.json
 
 # Script de configuración local
 /backend/cargar-env.ps1
+
+# Fotografías gestionadas por el backend
+uploads/
+backend/uploads/

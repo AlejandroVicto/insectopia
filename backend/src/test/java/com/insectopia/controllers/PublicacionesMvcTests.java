@@ -12,6 +12,9 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -57,10 +60,16 @@ import com.insectopia.security.JwtService;
 import com.insectopia.security.Permissions;
 import com.insectopia.security.SecurityConfig;
 import com.insectopia.services.PublicacionesService;
+import com.insectopia.services.ReportesService;
+import com.insectopia.dtos.reportes.ReporteResponseDTO;
+import com.insectopia.dtos.publicaciones.PublicacionUpdateRequestDTO;
+import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.core.io.ByteArrayResource;
+import org.springframework.http.MediaType;
 
 import tools.jackson.databind.json.JsonMapper;
 
-@WebMvcTest({PublicacionesController.class, ComentariosController.class, ReaccionesController.class})
+@WebMvcTest({PublicacionesController.class, ComentariosController.class, ReaccionesController.class, ReportesController.class})
 @Import({SecurityConfig.class, JwtService.class, CustomUserDetailsService.class, JwtAuthenticationFilter.class})
 class PublicacionesMvcTests {
 
@@ -83,15 +92,17 @@ class PublicacionesMvcTests {
     @Autowired private JwtService jwt;
 
     @MockitoBean private PublicacionesService service;
+    @MockitoBean private ReportesService reportes;
     @MockitoBean private UsuarioRepository usuarios;
     @MockitoBean private TokenRevocadoRepository revocados;
 
     private String token;
     private InsectopiaUserDetails principal;
+    private Usuario usuario;
 
     @BeforeEach
     void setUp() {
-        Usuario usuario = new Usuario();
+        usuario = new Usuario();
         usuario.setIdUsuario(7L);
         usuario.setCorreo("maria@example.test");
         usuario.setNombre("María");
@@ -303,5 +314,82 @@ class PublicacionesMvcTests {
         mvc.perform(bearer(get("/api/publicaciones/-1/comentarios"))).andExpect(status().isNotFound());
         mvc.perform(bearer(post("/api/publicaciones/-1/reaccion"))).andExpect(status().isNotFound());
         verify(service, never()).crearComentario(anyLong(), any(), any());
+    }
+
+    @Test void edicionYBorradoExigenJwtYRespetanErrores() throws Exception {
+        mvc.perform(put("/api/publicaciones/24").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"Texto\"}")).andExpect(status().isUnauthorized());
+        mvc.perform(delete("/api/publicaciones/24")).andExpect(status().isUnauthorized());
+        mvc.perform(bearer(put("/api/publicaciones/24").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"  \"}"))).andExpect(status().isBadRequest());
+        mvc.perform(bearer(put("/api/publicaciones/24").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"X\",\"imagen\":\"evil.jpg\"}")))
+                .andExpect(status().isBadRequest());
+        when(service.editar(eq(24L), any(PublicacionUpdateRequestDTO.class), any())).thenReturn(publicacion());
+        mvc.perform(bearer(put("/api/publicaciones/24").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"Texto\"}"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(24));
+        when(service.editar(eq(25L), any(), any())).thenThrow(new AccessDeniedException("ajeno"));
+        mvc.perform(bearer(put("/api/publicaciones/25").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"Texto\"}"))).andExpect(status().isForbidden());
+        when(service.editar(eq(26L), any(), any())).thenThrow(new ResourceNotFoundException("publicación",26L));
+        mvc.perform(bearer(put("/api/publicaciones/26").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"Texto\"}"))).andExpect(status().isNotFound());
+        mvc.perform(bearer(delete("/api/publicaciones/24"))).andExpect(status().isNoContent());
+        verify(service).eliminar(eq(24L), any());
+    }
+
+    @Test void imagenPublicaSoloPorIdYEscrituraConJwt() throws Exception {
+        when(service.leerImagen(24L)).thenReturn(new PublicacionesService.ImagenPublicacion(
+                new ByteArrayResource(new byte[]{1,2,3}), MediaType.IMAGE_PNG));
+        mvc.perform(get("/api/publicaciones/24/imagen")).andExpect(status().isOk())
+                .andExpect(header().string(HttpHeaders.CONTENT_TYPE, "image/png"));
+        when(service.leerImagen(25L)).thenThrow(new ResourceNotFoundException("imagen",25L));
+        mvc.perform(get("/api/publicaciones/25/imagen")).andExpect(status().isNotFound());
+        var foto = new MockMultipartFile("imagen", "foto.png", "image/png", new byte[]{1});
+        mvc.perform(multipart("/api/publicaciones/24/imagen").file(foto)).andExpect(status().isUnauthorized());
+        when(service.subirImagen(eq(24L), any(), any())).thenReturn(publicacion());
+        mvc.perform(multipart("/api/publicaciones/24/imagen").file(foto)
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk());
+        mvc.perform(bearer(delete("/api/publicaciones/24/imagen"))).andExpect(status().isNoContent());
+    }
+
+    @Test void reportesRequierenPermisosYValidacion() throws Exception {
+        mvc.perform(post("/api/reportes").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"publicacionId\":24,\"motivo\":\"SPAM\"}")).andExpect(status().isUnauthorized());
+        mvc.perform(bearer(post("/api/reportes").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"publicacionId\":24,\"motivo\":\"inventado\"}"))).andExpect(status().isBadRequest());
+        mvc.perform(bearer(get("/api/reportes"))).andExpect(status().isForbidden());
+        mvc.perform(bearer(patch("/api/reportes/1/resolver").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"estado\":\"RESUELTO\",\"resolucion\":\"revisado\"}"))).andExpect(status().isForbidden());
+        when(reportes.crear(any(), any())).thenReturn(new ReporteResponseDTO(5L,24L,"SPAM",null,"PENDIENTE",null,null,null,null,null));
+        mvc.perform(bearer(post("/api/reportes").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"publicacionId\":24,\"motivo\":\"SPAM\"}")))
+                .andExpect(status().isCreated()).andExpect(jsonPath("$.id").value(5));
+    }
+
+    @Test void moderadorRevisaYResuelveConRolRealPeroNoObtieneCrudAjeno() throws Exception {
+        usuario.getRol().setNombre("MODERADOR");
+        String tokenModerador = jwt.issue(usuario);
+        InsectopiaUserDetails mod = new InsectopiaUserDetails(7L, "maria@example.test", "hash", "MODERADOR", 0,
+                Permissions.authoritiesFor("MODERADOR"));
+        when(reportes.listar(eq(0), eq(20), eq(com.insectopia.models.enums.EstadoReporte.PENDIENTE), eq(mod)))
+                .thenReturn(new PageImpl<>(List.of(new ReporteResponseDTO(5L, 24L, "SPAM", null,
+                        "PENDIENTE", null, 9L, null, null, null))));
+        mvc.perform(get("/api/reportes").param("estado", "PENDIENTE")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenModerador))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.content[0].reportanteId").value(9));
+        when(reportes.resolver(eq(5L), any(), eq(mod))).thenReturn(new ReporteResponseDTO(5L, 24L,
+                "SPAM", null, "RESUELTO", null, 9L, 7L, "Revisado", LocalDateTime.now()));
+        mvc.perform(patch("/api/reportes/5/resolver").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"estado\":\"RESUELTO\",\"resolucion\":\"Revisado\"}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenModerador))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.moderadorId").value(7));
+        when(service.editar(eq(25L), any(), eq(mod))).thenThrow(new AccessDeniedException("ajeno"));
+        mvc.perform(put("/api/publicaciones/25").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"contenido\":\"Texto\"}")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + tokenModerador))
+                .andExpect(status().isForbidden());
     }
 }

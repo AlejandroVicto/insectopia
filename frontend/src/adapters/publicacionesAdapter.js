@@ -6,6 +6,16 @@ function count(value) {
   return Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
+function imagenUrl(value) {
+  const ruta = optionalText(value)
+  if (!ruta?.startsWith('/api/publicaciones/') || !import.meta.env.VITE_API_URL) return ruta
+  try {
+    return new URL(ruta, import.meta.env.VITE_API_URL).href
+  } catch {
+    return ruta
+  }
+}
+
 export function adaptarPublicacion(raw) {
   const id = raw?.id ?? raw?.idPublicacion
   const source = raw?.autor ?? raw?.usuario
@@ -19,7 +29,7 @@ export function adaptarPublicacion(raw) {
   const fecha = optionalText(raw.fechaPublicacion)
   return {
     id, autor: { id: autorId, nombre, nombreUsuario, avatarUrl: optionalText(source.avatarUrl ?? source.fotoPerfil) },
-    titulo: optionalText(raw.titulo), contenido, imagenUrl: optionalText(raw.imagenUrl ?? raw.imagen),
+    titulo: optionalText(raw.titulo), contenido, imagenUrl: imagenUrl(raw.imagenUrl ?? raw.imagen),
     imagenAlt: optionalText(raw.imagenAlt),
     fechaPublicacion: fecha && !Number.isNaN(Date.parse(fecha)) ? fecha : null,
     totalComentarios: count(raw.totalComentarios), totalReacciones: count(raw.totalReacciones),

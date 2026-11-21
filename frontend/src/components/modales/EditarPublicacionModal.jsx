@@ -1,11 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import CampoModal from './CampoModal'
 import ModalContainer from './ModalContainer'
-import { actualizarPublicacion } from '../../services/publicacionesService'
+import { actualizarPublicacion, subirImagenPublicacion, quitarImagenPublicacion } from '../../services/publicacionesService'
 import { mensajeErrorApi } from '../../services/erroresApi'
 import {
-  AVISO_IMAGEN,
-  AVISO_PROPUESTA,
   CLASE_AVISO,
   CLASE_BOTON_PRIMARIO,
   CLASE_BOTON_SECUNDARIO,
@@ -55,6 +53,8 @@ function EditarPublicacionForm({
   const [vistaPrevia, setVistaPrevia] = useState(null)
   const [errores, setErrores] = useState({})
   const [enviando, setEnviando] = useState(false)
+  const [actualizada, setActualizada] = useState(null)
+  const [tieneImagen, setTieneImagen] = useState(Boolean(publicacion?.imagenUrl))
   const enviandoRef = useRef(false)
 
   useEffect(() => () => {
@@ -78,18 +78,53 @@ function EditarPublicacionForm({
     event.preventDefault()
     if (enviandoRef.current || !puedeEditar) return
 
-    const errorContenido = validarContenido(contenido)
+    const errorContenido = actualizada ? '' : validarContenido(contenido)
     setErrores((actual) => ({ ...actual, contenido: errorContenido, envio: '' }))
-    if (errorContenido || errores.imagen || imagen) return
+    if (errorContenido || errores.imagen) return
 
     enviandoRef.current = true
     setEnviando(true)
+    let data = actualizada
     try {
-      const { data } = await actualizarPublicacion(publicacionId, { contenido })
+      if (!data) {
+        const respuesta = await actualizarPublicacion(publicacionId, { contenido })
+        data = respuesta.data
+        setActualizada(data)
+      }
+      if (imagen) {
+        try {
+          const respuesta = await subirImagenPublicacion(publicacionId, imagen)
+          data = respuesta.data
+        } catch (error) {
+          // El texto ya se guardó; solo queda reintentar la fotografía al mismo ID.
+          onSuccess?.(data, publicacion)
+          throw error
+        }
+      }
       onSuccess?.(data, publicacion)
       onClose?.()
     } catch (error) {
-      setErrores((actual) => ({ ...actual, envio: mensajeErrorApi(error, 'No se pudo guardar la publicación.') }))
+      setErrores((actual) => ({ ...actual, envio: mensajeErrorApi(error,
+        data ? 'El texto se guardó, pero falló la fotografía. Puedes reintentar sin repetir la edición.' : 'No se pudo guardar la publicación.') }))
+    } finally {
+      enviandoRef.current = false
+      setEnviando(false)
+    }
+  }
+
+  async function quitarImagenActual() {
+    if (enviandoRef.current || !puedeEditar) return
+    enviandoRef.current = true
+    setEnviando(true)
+    setErrores((actual) => ({ ...actual, envio: '' }))
+    try {
+      await quitarImagenPublicacion(publicacionId)
+      setTieneImagen(false)
+      setImagen(null)
+      setVistaPrevia(null)
+      onSuccess?.({ ...(actualizada ?? publicacion), imagenUrl: null }, publicacion)
+    } catch (error) {
+      setErrores((actual) => ({ ...actual, envio: mensajeErrorApi(error, 'No se pudo quitar la fotografía.') }))
     } finally {
       enviandoRef.current = false
       setEnviando(false)
@@ -111,9 +146,8 @@ function EditarPublicacionForm({
           <p className={CLASE_AVISO}>{puedeEditar
             ? 'Solo el autor o un administrador autorizado puede modificar este contenido.'
             : 'No tienes autorización para editar esta publicación.'}</p>
-          <p className={CLASE_AVISO}>La edición aún no está disponible en el backend: si intentas guardar verás el error real y no se modificará nada.</p>
+          {actualizada && <p role="status" className={CLASE_AVISO}>El texto ya se guardó. Reintenta únicamente la subida de la fotografía.</p>}
           <p className="truncate text-xs text-[#a5b7a7]">{resumen(publicacion)}</p>
-          <p className={CLASE_AVISO}>{AVISO_PROPUESTA}</p>
 
           <CampoModal
             id={IDS.contenido}
@@ -131,27 +165,19 @@ function EditarPublicacionForm({
               }}
               rows={5}
               maxLength={LIMITES.contenidoMax}
-              disabled={!puedeEditar || enviando}
+              disabled={!puedeEditar || enviando || Boolean(actualizada)}
               aria-invalid={Boolean(errores.contenido)}
               aria-describedby={describirCampo(IDS.contenido, { error: errores.contenido, pista: true })}
               className={`${CLASE_CONTROL} resize-y`}
             />
           </CampoModal>
 
-          <div className="grid gap-4 sm:grid-cols-2">
-            <CampoModal id="editar-orden" etiqueta="Orden taxonómico" pista="Propuesta de diseño · no editable">
-              <input id="editar-orden" type="text" disabled className={CLASE_CONTROL} />
-            </CampoModal>
-            <CampoModal id="editar-ubicacion" etiqueta="Ubicación de muestreo" pista="Propuesta de diseño · no editable">
-              <input id="editar-ubicacion" type="text" disabled className={CLASE_CONTROL} />
-            </CampoModal>
-          </div>
 
           <CampoModal
             id={IDS.imagen}
             etiqueta="Imagen actual · cambiar fotografía (JPG o PNG)"
             error={errores.imagen}
-            pista={publicacion?.imagenUrl ? 'Ya hay una imagen adjunta en la publicación.' : 'Esta publicación no tiene imagen adjunta.'}
+            pista={tieneImagen ? 'Ya hay una imagen adjunta en la publicación.' : 'Esta publicación no tiene imagen adjunta.'}
           >
             <input
               id={IDS.imagen}
@@ -166,15 +192,17 @@ function EditarPublicacionForm({
           </CampoModal>
 
           {vistaPrevia && <img src={vistaPrevia} alt={`Vista previa de ${imagen?.name ?? 'la imagen'}`} className="max-h-48 w-full rounded-xl object-contain" />}
-          {imagen && <p role="status" className={CLASE_AVISO}>{AVISO_IMAGEN} Quita el archivo para guardar solo el texto.</p>}
+          {imagen && !actualizada && <p role="status" className={CLASE_AVISO}>Se guardará el texto y después se sustituirá la fotografía.</p>}
+          {tieneImagen && <button type="button" disabled={!puedeEditar || enviando} onClick={quitarImagenActual}
+            className={CLASE_BOTON_SECUNDARIO}>Quitar fotografía actual</button>}
         </div>
 
         <footer className="shrink-0 border-t border-[#35483a] px-6 py-4 sm:px-8">
           {errores.envio && <div role="alert" className="mb-3 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-xs leading-5 text-red-200">{errores.envio}</div>}
           <div className="flex flex-wrap items-center justify-end gap-3">
             <button type="button" disabled={enviando} onClick={onClose} className={CLASE_BOTON_SECUNDARIO}>Cancelar</button>
-            <button type="submit" disabled={!puedeEditar || enviando || Boolean(imagen)} className={CLASE_BOTON_PRIMARIO}>
-              {enviando ? 'Guardando…' : 'Guardar cambios'}
+            <button type="submit" disabled={!puedeEditar || enviando} className={CLASE_BOTON_PRIMARIO}>
+              {enviando ? 'Guardando…' : actualizada && imagen ? 'Reintentar fotografía' : 'Guardar cambios'}
             </button>
           </div>
         </footer>

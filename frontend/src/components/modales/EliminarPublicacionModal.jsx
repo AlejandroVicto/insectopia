@@ -47,10 +47,10 @@ function EliminarPublicacionForm({ publicacion, onClose, onSuccess }) {
       <div className="flex min-h-0 flex-1 flex-col">
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8">
           <p className="rounded-xl border border-red-500/40 bg-[#3a2227] px-4 py-3 text-sm leading-5 text-red-100">
-            Esta acción puede afectar comentarios y reacciones relacionados con la publicación.
+            La publicación dejará de mostrarse; sus comentarios, reacciones y reportes se conservarán.
           </p>
           <p className="rounded-xl border border-[#466046] bg-[#26382a] px-4 py-3 text-xs leading-5 text-lime-100">
-            La eliminación aún no está disponible en el backend: no se borrará nada sin confirmación real.
+            La eliminación lógica se confirmará únicamente cuando responda el backend.
           </p>
 
           <div className="min-w-0">

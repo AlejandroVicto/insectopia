@@ -27,6 +27,9 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 import com.insectopia.dtos.ErrorResponseDTO;
 import com.insectopia.dtos.ErrorResponseDTO.FieldErrorDTO;
 import com.insectopia.exceptions.BusinessRuleException;
+import com.insectopia.exceptions.ImagenInvalidaException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import com.insectopia.exceptions.CatalogoNoDisponibleException;
 import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.exceptions.ResourceNotFoundException;
@@ -37,6 +40,21 @@ import tools.jackson.core.JacksonException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    @ExceptionHandler(ImagenInvalidaException.class)
+    public ResponseEntity<ErrorResponseDTO> handleImagen(ImagenInvalidaException exception, WebRequest request) {
+        return build(exception.getStatus(), exception.getMessage(), path(request));
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMaxUpload(MaxUploadSizeExceededException exception, WebRequest request) {
+        return build(HttpStatus.CONTENT_TOO_LARGE, "La imagen supera el límite permitido", path(request));
+    }
+
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ErrorResponseDTO> handleMissingPart(MissingServletRequestPartException exception, WebRequest request) {
+        return build(HttpStatus.BAD_REQUEST, "Falta el archivo de imagen", path(request));
+    }
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 	private static final HttpStatusCode UNPROCESSABLE_ENTITY = HttpStatusCode.valueOf(422);

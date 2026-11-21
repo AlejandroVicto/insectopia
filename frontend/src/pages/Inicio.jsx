@@ -23,7 +23,7 @@ export const INICIO_DEMO = import.meta.env.VITE_INICIO_MOCK === 'true'
 
 export default function Inicio({ demo = INICIO_DEMO }) {
   const { user } = useAuth()
-  const { abierto: crearAbierto, abrir: abrirCrear, cerrar: cerrarCrear } = useCrearPublicacion()
+  const { abierto: crearAbierto, cerrar: cerrarCrear } = useCrearPublicacion()
   const [params, setParams] = useSearchParams()
   const feed = params.get('feed') === 'global' ? 'global' : 'para-ti'
   const q = params.get('q')?.trim() ?? ''
@@ -146,7 +146,7 @@ export default function Inicio({ demo = INICIO_DEMO }) {
         role="region" aria-label="Publicaciones del inicio" tabIndex={0}>
         <FeedFilters value={feed} onChange={(next) => updateParams({ feed: next, page: 0 })} />
         {demo && <p className="text-[10px] text-[var(--inicio-muted)]">Vista de demostración · publicaciones ilustrativas, no datos de MySQL</p>}
-        <PostComposer user={user} demo={demo} onOpen={abrirCrear} />
+        <PostComposer user={user} demo={demo} onSuccess={recargar} />
         {!demo && accionError && <div role="alert" className="rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-xs text-red-200">{accionError}</div>}
         {visible.status === 'loading' && <FeedLoading />}
         {visible.status === 'error' && <FeedError onRetry={() => setRetry((value) => value + 1)} />}
