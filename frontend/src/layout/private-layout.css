@@ -28,15 +28,16 @@
 .private-shell .nav-entry:focus-visible { outline: 2px solid var(--nav-lime); outline-offset: 2px; }
 .private-shell .nav-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--nav-muted); }
 .private-shell .nav-entry-active .nav-dot { background: var(--nav-lime); }
+.private-shell .nav-badge { display: inline-block; margin-left: 5px; border: 1px solid #a8e22355; border-radius: 999px; background: #a8e22322; padding: 1px 7px; color: var(--nav-lime); font-size: 11px; font-weight: 800; }
 
 /* En Inicio solo se desplaza el feed; otras rutas conservan el flujo normal. */
-.private-shell--inicio, .private-shell--mensajes {
+.private-shell--inicio, .private-shell--mensajes, .private-shell--notificaciones, .private-shell--publicacion {
   display: flex;
   height: 100dvh;
   flex-direction: column;
   overflow: hidden;
 }
 
-.private-shell--inicio > header, .private-shell--mensajes > header { flex-shrink: 0; }
-.private-shell--inicio > div > aside, .private-shell--mensajes > div > aside { min-height: 0; }
-.private-shell--inicio #private-content, .private-shell--mensajes #private-content { min-height: 0; overflow: hidden; }
+.private-shell--inicio > header, .private-shell--mensajes > header, .private-shell--notificaciones > header, .private-shell--publicacion > header { flex-shrink: 0; }
+.private-shell--inicio > div > aside, .private-shell--mensajes > div > aside, .private-shell--notificaciones > div > aside, .private-shell--publicacion > div > aside { min-height: 0; }
+.private-shell--inicio #private-content, .private-shell--mensajes #private-content, .private-shell--notificaciones #private-content, .private-shell--publicacion #private-content { min-height: 0; overflow: hidden; }

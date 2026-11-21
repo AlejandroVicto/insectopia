@@ -10,6 +10,10 @@ import logo from '../assets/logo.png'
 import PrivateLayout from './PrivateLayout'
 import SectionPlaceholder from '../pages/SectionPlaceholder'
 
+vi.mock('../services/notificacionesService', async (original) => ({
+  ...await original(), contarNoLeidas: () => Promise.resolve({ data: { count: 0 } }),
+}))
+
 const originalAdapter = api.defaults.adapter
 afterEach(() => {
   api.defaults.adapter = originalAdapter

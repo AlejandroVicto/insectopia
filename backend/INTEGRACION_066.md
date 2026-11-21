@@ -1,5 +1,7 @@
 # Integración 066 — Gestión de conversaciones (backend)
 
+> Actualización posterior 063–068: `GET /api/conversaciones/{id}` expone de forma autorizada el DTO de 066; `PATCH /api/conversaciones/{id}/lectura` confirma la lectura propia hasta `{ "mensajeId": ID_RECIBIDO }`. Detalles y pruebas en `frontend/INTEGRACION_MENSAJES.md` y `backend/INTEGRACION_NOTIFICACIONES_068.md`.
+
 Actividad 066: listar usuarios seguidos, abrir/recuperar chats directos y ocultar conversaciones por participante. Compatible con el frontend 063/065 y con la bandeja 064 ya publicada (`5ec1f1f`).
 
 ## 1. Endpoints

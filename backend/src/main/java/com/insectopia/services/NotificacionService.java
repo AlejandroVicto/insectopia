@@ -13,6 +13,7 @@ import com.insectopia.dtos.notificaciones.RecursoNotificacionDTO;
 import com.insectopia.dtos.publicaciones.AutorResumenDTO;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Notificacion;
+import com.insectopia.models.Mensaje;
 import com.insectopia.models.Publicacion;
 import com.insectopia.models.Reporte;
 import com.insectopia.models.Usuario;
@@ -26,6 +27,7 @@ import com.insectopia.security.InsectopiaUserDetails;
 public class NotificacionService {
     public static final String COMENTARIO = "COMENTARIO";
     public static final String REACCION = "REACCION";
+    public static final String MENSAJE = "MENSAJE";
     public static final String REPORTE_RESUELTO = "REPORTE_RESUELTO";
     public static final String REPORTE_RECHAZADO = "REPORTE_RECHAZADO";
 
@@ -100,7 +102,14 @@ public class NotificacionService {
                             ? reporte.getIdReporte() : null, false, null);
         } else if (n.getEvento() != null || n.getTipo().startsWith("EVENTO_")) {
             recurso = new RecursoNotificacionDTO("EVENTO", null, false, null);
-        } else if (n.getMensaje() != null || "NUEVO_MENSAJE".equals(n.getTipo())) {
+        } else if (n.getMensaje() != null && (MENSAJE.equals(n.getTipo()) || "NUEVO_MENSAJE".equals(n.getTipo()))) {
+            Mensaje mensaje = n.getMensaje();
+            // Solo un aviso dirigido al interlocutor del mensaje permite navegar al chat.
+            boolean propio = !mensaje.getRemitente().getIdUsuario().equals(principal.idUsuario());
+            recurso = new RecursoNotificacionDTO("MENSAJE", propio ? mensaje.getIdMensaje() : null,
+                    propio, propio ? "/api/conversaciones/" + mensaje.getConversacion().getIdConversacion() : null,
+                    propio ? mensaje.getConversacion().getIdConversacion() : null);
+        } else if (MENSAJE.equals(n.getTipo()) || "NUEVO_MENSAJE".equals(n.getTipo())) {
             recurso = new RecursoNotificacionDTO("MENSAJE", null, false, null);
         }
         Usuario actor = n.getActor();
@@ -119,6 +128,18 @@ public class NotificacionService {
             guardar(publicacion.getUsuario(), actor, publicacion, null, COMENTARIO,
                     "Alguien comentó tu publicación");
         }
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void porMensaje(Mensaje mensaje, Usuario destinatario, Usuario remitente) {
+        if (destinatario.getIdUsuario().equals(remitente.getIdUsuario())) return;
+        Notificacion n = new Notificacion();
+        n.setDestinatario(destinatario);
+        n.setActor(remitente);
+        n.setMensaje(mensaje);
+        n.setTipo(MENSAJE);
+        n.setContenido("Te envió un mensaje privado");
+        notificaciones.save(n);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

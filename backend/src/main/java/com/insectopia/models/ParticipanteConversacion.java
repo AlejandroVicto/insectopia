@@ -37,6 +37,9 @@ public class ParticipanteConversacion {
     @Column(name = "fecha_ultima_lectura")
     private LocalDateTime fechaUltimaLectura;
 
+    @Column(name = "id_ultimo_mensaje_leido")
+    private Long idUltimoMensajeLeido;
+
     @Column(name = "oculta", nullable = false)
     private Boolean oculta = Boolean.FALSE;
 
@@ -91,6 +94,14 @@ public class ParticipanteConversacion {
 
     public void setFechaUltimaLectura(LocalDateTime fechaUltimaLectura) {
         this.fechaUltimaLectura = fechaUltimaLectura;
+    }
+
+    public Long getIdUltimoMensajeLeido() {
+        return idUltimoMensajeLeido;
+    }
+
+    public void setIdUltimoMensajeLeido(Long idUltimoMensajeLeido) {
+        this.idUltimoMensajeLeido = idUltimoMensajeLeido;
     }
 
     public Boolean getOculta() {

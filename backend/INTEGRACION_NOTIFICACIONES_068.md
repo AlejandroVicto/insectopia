@@ -1,5 +1,7 @@
 # Actividad 068 — Backend de notificaciones
 
+> Actualización de integración 063–068: los párrafos históricos que indican que mensajería no envía mensajes ni genera avisos quedan reemplazados por el contrato definitivo al final de este documento.
+
 La tabla `notificaciones` y sus relaciones son las de Flyway V5/V6/V7. No se cambia el esquema ni se ejecuta el seeder `demo`. Todas las operaciones requieren `Authorization: Bearer <JWT>`; el destinatario se obtiene exclusivamente del principal validado por Spring Security. No se acepta un `id_destinatario` de la petición.
 
 ## Contrato HTTP
@@ -91,3 +93,19 @@ if (!recurso?.disponible || !recurso.apiUrl) {
 Para integrar con MySQL, configurar **fuera de `backend/.env`** `DB_HOST`, `DB_PORT`, `DB_NAME=insectopia_test`, `DB_USER`, `DB_PASSWORD` y `JWT_SECRET` (según la configuración de `application.properties`) y verificar el nombre del esquema **antes** de arrancar Spring/Flyway. No apuntar a `insectopia_dev_v2`. Desde `backend/`: `./mvnw.cmd '-Dtest=NotificacionServiceTests,NotificacionMvcTests,PublicacionesServiceTests,ReportesServiceTests' test`; luego, solo con el entorno de prueba confirmado, `./mvnw.cmd test`.
 
 En MySQL de pruebas, para comprobar persistencia y estado sin mostrar secretos: `SELECT DATABASE();` (debe ser `insectopia_test`); `SELECT version, success FROM flyway_schema_history ORDER BY installed_rank;`; `SELECT id_notificacion, id_destinatario, tipo, leida, fecha_creacion FROM notificaciones ORDER BY id_notificacion DESC LIMIT 10;`; `SELECT COUNT(*) FROM notificaciones WHERE id_destinatario = <ID_PROPIO> AND leida = 0;`. Las pruebas de integración con rollback pueden dejar la tabla sin avisos al finalizar; ejecutar los endpoints con usuarios de prueba para observar registros persistidos.
+
+## Contrato definitivo de avisos de mensajes
+
+`POST /api/conversaciones/{id}/mensajes` crea en la **misma transacción** un aviso `MENSAJE` por destinatario diferente del remitente. La FK `id_mensaje` referencia el mensaje confirmado; `actor` es el remitente del JWT; `leida=false`. El contenido es «Te envió un mensaje privado», sin texto del mensaje. Consultar el historial nunca produce avisos. Si falla la operación, se revierten mensaje y aviso.
+
+Ejemplo de elemento de `GET /api/notificaciones` (también devuelto por `PATCH /api/notificaciones/{id}/leer` con `leida:true`):
+
+```json
+{ "id": 15, "tipo": "MENSAJE", "contenido": "Te envió un mensaje privado", "actor": { "id": 2, "nombre": "Ana", "nombreUsuario": "ana", "avatarUrl": null }, "leida": false, "recurso": { "tipo": "MENSAJE", "id": 80, "conversacionId": 5, "disponible": true, "apiUrl": "/api/conversaciones/5" } }
+```
+
+`recurso.id` identifica el **mensaje**; `recurso.conversacionId` identifica el chat. Para publicaciones, reportes y eventos el nuevo `conversacionId` vale `null`. Los avisos `NUEVO_MENSAJE` legados con FK verificable pueden resolver el chat; sin FK siguen indisponibles. `GET /api/conversaciones/{id}` vuelve a comprobar pertenencia antes de exponer datos. El cliente navega a `/app/mensajes?conversacion=5`, nunca a `apiUrl`.
+
+Se confirmó `SELECT DATABASE() = insectopia_test` y se aplicó V11 únicamente allí. `MensajesNotificacionesMySqlIntegrationTests` probó persistencia, desempate de mensajes con la misma fecha, independencia de estados y rollback. Prueba manual con las dos cuentas reales: **no ejecutada**.
+
+Verificación: suite completa de Maven en `insectopia_test`: **224 pruebas, 0 fallos, 0 errores, 1 omitida**. `mvnw.cmd -q -DskipTests package` correcto. No hay tarea de lint Java configurada en `pom.xml`.

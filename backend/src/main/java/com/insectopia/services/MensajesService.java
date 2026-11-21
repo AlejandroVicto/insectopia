@@ -1,6 +1,7 @@
 package com.insectopia.services;
 
 import java.time.LocalDateTime;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.insectopia.dtos.mensajes.ConversacionResponseDTO;
 import com.insectopia.dtos.mensajes.InterlocutorDTO;
+import com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO;
 import com.insectopia.dtos.mensajes.MensajeCreateRequestDTO;
 import com.insectopia.dtos.mensajes.MensajeResponseDTO;
 import com.insectopia.dtos.mensajes.UltimoMensajeDTO;
@@ -53,18 +55,21 @@ public class MensajesService {
     private final MensajeRepository mensajes;
     private final UsuarioRepository usuarios;
     private final SeguidorRepository seguidores;
+    private final NotificacionService notificaciones;
 
     public MensajesService(
             ConversacionRepository conversaciones,
             ParticipanteConversacionRepository participantes,
             MensajeRepository mensajes,
             UsuarioRepository usuarios,
-            SeguidorRepository seguidores) {
+            SeguidorRepository seguidores,
+            NotificacionService notificaciones) {
         this.conversaciones = conversaciones;
         this.participantes = participantes;
         this.mensajes = mensajes;
         this.usuarios = usuarios;
         this.seguidores = seguidores;
+        this.notificaciones = notificaciones;
     }
 
     /** Bandeja: filtro, orden y paginación resueltos en MySQL; datos complementarios en 5 consultas. */
@@ -218,21 +223,49 @@ public class MensajesService {
         mensaje.setConversacion(conversacion);
         mensaje.setRemitente(remitente);
         mensaje.setContenido(contenido);
-        mensaje.setFechaEnvio(LocalDateTime.now());
+        // V4 utiliza DATETIME(0): el límite leído debe comparar exactamente con MySQL.
+        mensaje.setFechaEnvio(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
         Mensaje guardado = mensajes.saveAndFlush(mensaje);
 
         // Política 066: un mensaje nuevo reaparece solo para el destinatario.
         // El remitente conserva su estado (oculta/no oculta) aunque envíe.
-        participantes.findConUsuariosPorConversaciones(List.of(idConversacion)).stream()
+        List<ParticipanteConversacion> destinatarios = participantes.findConUsuariosPorConversaciones(List.of(idConversacion)).stream()
                 .filter(fila -> fila.getUsuario() != null
-                        && !remitente.getIdUsuario().equals(fila.getUsuario().getIdUsuario())
-                        && Boolean.TRUE.equals(fila.getOculta()))
-                .forEach(fila -> {
-                    fila.setOculta(false);
-                    participantes.save(fila);
-                });
+                        && !remitente.getIdUsuario().equals(fila.getUsuario().getIdUsuario()))
+                .toList();
+        for (ParticipanteConversacion fila : destinatarios) {
+            if (Boolean.TRUE.equals(fila.getOculta())) {
+                fila.setOculta(false);
+                participantes.save(fila);
+            }
+            notificaciones.porMensaje(guardado, fila.getUsuario(), remitente);
+        }
 
         return MensajeResponseDTO.from(guardado);
+    }
+
+    /** Avanza solo hasta un mensaje recibido y visualizado; nunca hasta la hora actual. */
+    @Transactional
+    public ConversacionResponseDTO registrarLectura(Long idConversacion,
+            LecturaConversacionRequestDTO datos, InsectopiaUserDetails principal) {
+        conversacionAccesible(idConversacion, principal);
+        Mensaje limite = mensajes.findByIdMensajeAndConversacion_IdConversacion(datos.mensajeId(), idConversacion)
+                .orElseThrow(() -> new ResourceNotFoundException("mensaje", datos.mensajeId()));
+        if (limite.getRemitente().getIdUsuario().equals(principal.idUsuario())) {
+            throw new BusinessRuleException("La lectura debe referirse a un mensaje recibido");
+        }
+        ParticipanteConversacion propia = participantes.bloquearParaLectura(idConversacion, principal.idUsuario())
+                .orElseThrow(() -> new AccessDeniedException("No tienes acceso a esta conversación"));
+        LocalDateTime fecha = limite.getFechaEnvio();
+        LocalDateTime anterior = propia.getFechaUltimaLectura();
+        if (anterior == null || fecha.isAfter(anterior)
+                || (fecha.equals(anterior) && propia.getIdUltimoMensajeLeido() != null
+                    && limite.getIdMensaje() > propia.getIdUltimoMensajeLeido())) {
+            propia.setFechaUltimaLectura(fecha);
+            propia.setIdUltimoMensajeLeido(limite.getIdMensaje());
+            participantes.saveAndFlush(propia);
+        }
+        return conversacionPorId(idConversacion, principal);
     }
 
     private Conversacion conversacionAccesible(

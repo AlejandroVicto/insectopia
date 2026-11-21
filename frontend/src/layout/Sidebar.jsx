@@ -16,7 +16,7 @@ function MenuLink({ label, to, end, count }) {
   return (
     <NavLink to={to} end={end} className={({ isActive }) => `nav-entry ${isActive ? 'nav-entry-active' : ''}`}>
       <span aria-hidden="true" className="nav-dot" />
-      <span>{label}{count != null && count > 0 ? ` · ${count}` : ''}</span>
+      <span>{label}{count != null && count > 0 && <span className="nav-badge"> · {count}</span>}</span>
     </NavLink>
   )
 }

@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { adaptarConversacion, adaptarMensaje, adaptarPagina, combinarMensajes } from '../adapters/mensajesAdapter'
 import { consultarConversacionesDemo, consultarMensajesDemo, conversacionesDemo } from '../data/mensajesDemo'
-import { abrirConversacion, consultarConversaciones, ocultarConversacion } from '../services/conversacionesService'
+import { abrirConversacion, consultarConversacion, consultarConversaciones, ocultarConversacion, registrarLectura } from '../services/conversacionesService'
 import { consultarMensajes, enviarMensaje } from '../services/mensajesService'
 import ConversationsList from '../components/mensajes/ConversationsList'
 import ConversationPanel from '../components/mensajes/ConversationPanel'
@@ -19,6 +20,13 @@ const mergeChats = (current, incoming) => [...new Map([...current, ...incoming].
 
 export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
   const { user } = useAuth()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const requestedChat = searchParams.get('conversacion')
+  const [routeError, setRouteError] = useState('')
+  const [visibleTab, setVisibleTab] = useState(document.visibilityState !== 'hidden')
+  const routeController = useRef(null)
+  const readController = useRef(null)
+  const readUpTo = useRef(null)
   const [draftSearch, setDraftSearch] = useState('')
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState('todos')
@@ -51,6 +59,33 @@ export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
   }, [draftSearch])
 
   useEffect(() => {
+    function onVisibility() { setVisibleTab(document.visibilityState !== 'hidden') }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
+  }, [])
+
+  useEffect(() => {
+    if (demo || requestedChat === null) return undefined
+    const controller = new AbortController()
+    routeController.current = controller
+    queueMicrotask(() => { if (!controller.signal.aborted) { setSelected(null); setRouteError('') } })
+    if (!/^[1-9]\d*$/.test(requestedChat) || !Number.isSafeInteger(Number(requestedChat))) {
+      queueMicrotask(() => { if (!controller.signal.aborted) setRouteError('Conversación no disponible.') })
+      return () => controller.abort()
+    } else {
+      consultarConversacion(requestedChat, { signal: controller.signal }).then(({ data }) => {
+        const chat = adaptarConversacion(data)
+        if (String(chat.id) !== requestedChat) throw new Error('Conversación incorrecta')
+        if (!controller.signal.aborted) setSelected(chat)
+      }).catch((error) => {
+        if (!controller.signal.aborted) setRouteError(error.response?.status === 403 || error.response?.status === 404
+          ? 'Conversación no disponible.' : 'No se pudo abrir la conversación.')
+      })
+    }
+    return () => controller.abort()
+  }, [demo, requestedChat])
+
+  useEffect(() => {
     const controller = new AbortController()
     if (!demo) {
       consultarConversaciones({ q: query, noLeidos: filter === 'no-leidos', size: PAGE_SIZE, signal: controller.signal })
@@ -73,6 +108,33 @@ export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
     }
     return () => { controller.abort(); historyMoreController.current?.abort() }
   }, [demo, selected, historyRetry, historyKey])
+
+  // Confirmar únicamente hasta el último mensaje recibido que aparece en el historial cargado.
+  const latestReceived = visibleHistory?.status === 'success' && selected
+    ? [...visibleHistory.messages].reverse().find((msg) => String(msg.remitenteId) !== String(user?.id)) : null
+  const receivedId = latestReceived?.id
+  const selectedId = selected?.id
+  useEffect(() => {
+    if (demo || !selectedId || !visibleTab || visibleHistory?.status !== 'success' || !receivedId) return undefined
+    const marker = `${selectedId}:${receivedId}`
+    if (readUpTo.current === marker) return undefined
+    const controller = new AbortController()
+    readController.current?.abort()
+    readController.current = controller
+    registrarLectura(selectedId, receivedId, { signal: controller.signal }).then(({ data }) => {
+      const confirmed = adaptarConversacion(data)
+      if (String(confirmed.id) !== String(selectedId)) throw new Error('Lectura de otra conversación')
+      if (!controller.signal.aborted) {
+        readUpTo.current = marker
+        setSelected((current) => String(current?.id) === String(confirmed.id) ? { ...current, noLeidos: confirmed.noLeidos } : current)
+        setList((prev) => prev?.status === 'success' ? { ...prev,
+          chats: prev.chats.map((chat) => String(chat.id) === String(confirmed.id)
+            ? { ...chat, noLeidos: confirmed.noLeidos } : chat) } : prev)
+        setListRetry((n) => n + 1)
+      }
+    }).catch(() => { /* El contador sigue siendo el del servidor; podrá reintentarse al reabrir el chat. */ })
+    return () => controller.abort()
+  }, [demo, selectedId, visibleHistory?.status, receivedId, visibleTab])
 
   // A single delayed request at a time; no polling in demo, hidden tabs, or without a session/chat.
   useEffect(() => {
@@ -104,6 +166,13 @@ export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
 
   function choose(chat, force = false) {
     if (!force && String(chat.id) === String(selected?.id)) return
+    routeController.current?.abort()
+    if (requestedChat !== null) {
+      const next = new URLSearchParams(searchParams)
+      next.delete('conversacion')
+      setSearchParams(next, { replace: true })
+    }
+    setRouteError('')
     sendController.current?.abort()
     sendingRef.current = false
     setSending(false)
@@ -213,7 +282,8 @@ export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
   }
 
   return <div className="mensajes">
-    <div className="msg-heading"><div><h1 className="font-display">Mensajes</h1></div></div>
+    <div className="msg-heading"><div><h1 className="font-display">Mensajes</h1>
+      {routeError && <p role="alert" className="msg-inline-error">{routeError}</p>}</div></div>
     <div className="msg-grid"><ConversationsList chats={visibleList.chats} selectedId={selected?.id} onSelect={choose}
       draft={draftSearch} onSearch={setDraftSearch} filter={filter} onFilter={setFilter} status={visibleList.status}
       onRetry={() => setListRetry((n) => n + 1)} onMore={loadChats} hasMore={visibleList.hasMore} loadingMore={visibleList.loadingMore} moreError={visibleList.moreError}

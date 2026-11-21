@@ -7,21 +7,27 @@ import Sidebar from './Sidebar'
 import LogoutConfirmModal from './LogoutConfirmModal'
 import { cerrarSesion } from '../services/logoutService'
 import { CrearPublicacionProvider } from '../context/CrearPublicacionProvider'
+import { NotificacionesProvider } from '../context/NotificacionesProvider'
+import { useNotificaciones } from '../context/useNotificaciones'
 import './private-layout.css'
 
-export default function PrivateLayout({ notificationCount }) {
+function PrivateLayoutContent({ notificationCount }) {
   const [logoutOpen, setLogoutOpen] = useState(false)
   const [logoutState, setLogoutState] = useState('idle')
   const [logoutError, setLogoutError] = useState('')
   const inFlight = useRef(false)
 
   const { clearSession } = useAuth()
+  const { count } = useNotificaciones()
+  const visibleCount = notificationCount ?? count
   const navigate = useNavigate()
   const pathname = useLocation().pathname
 
   const isInicio = pathname === '/app'
   const isMensajes = pathname === '/app/mensajes'
-  const isScrollableSection = isInicio || isMensajes
+  const isNotificaciones = pathname === '/app/notificaciones'
+  const isPublicacion = pathname.startsWith('/app/publicaciones/')
+  const isScrollableSection = isInicio || isMensajes || isNotificaciones || isPublicacion
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return
@@ -79,11 +85,15 @@ export default function PrivateLayout({ notificationCount }) {
             ? 'private-shell--inicio'
             : isMensajes
               ? 'private-shell--mensajes'
+              : isNotificaciones
+                ? 'private-shell--notificaciones'
+                : isPublicacion
+                  ? 'private-shell--publicacion'
               : 'min-h-screen'
           }`}
       >
         <Navbar
-          notificationCount={notificationCount}
+          notificationCount={visibleCount}
           inactive={logoutOpen}
           onLogout={openLogout}
         />
@@ -96,7 +106,7 @@ export default function PrivateLayout({ notificationCount }) {
           inert={logoutOpen ? true : undefined}
         >
           <Sidebar
-            notificationCount={notificationCount}
+            notificationCount={visibleCount}
             onLogout={openLogout}
           />
 
@@ -123,4 +133,9 @@ export default function PrivateLayout({ notificationCount }) {
       </div>
     </CrearPublicacionProvider>
   )
+}
+
+export default function PrivateLayout({ notificationCount }) {
+  const { token } = useAuth()
+  return <NotificacionesProvider key={token}><PrivateLayoutContent notificationCount={notificationCount} /></NotificacionesProvider>
 }

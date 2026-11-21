@@ -10,6 +10,10 @@ import ProtectedRoute from '../auth/ProtectedRoute'
 import PrivateLayout from '../layout/PrivateLayout'
 import Inicio from './Inicio'
 
+vi.mock('../services/notificacionesService', async (original) => ({
+  ...await original(), contarNoLeidas: () => Promise.resolve({ data: { count: 0 } }),
+}))
+
 const originalAdapter = api.defaults.adapter
 afterEach(() => { cleanup(); api.defaults.adapter = originalAdapter })
 

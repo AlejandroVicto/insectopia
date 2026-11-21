@@ -60,6 +60,7 @@ class MensajesServiceTests {
     @Mock private MensajeRepository mensajes;
     @Mock private UsuarioRepository usuarios;
     @Mock private SeguidorRepository seguidores;
+    @Mock private NotificacionService notificaciones;
     @InjectMocks private MensajesService service;
 
     private InsectopiaUserDetails principal;
@@ -238,6 +239,8 @@ class MensajesServiceTests {
         assertFalse(mia.getOculta(), "el remitente conserva su estado");
         assertFalse(ajena.getOculta(), "el mensaje reaparece solo para el destinatario");
         verify(participantes).save(ajena);
+        verify(notificaciones).porMensaje(any(Mensaje.class), eq(interlocutor), eq(yo));
+        verify(notificaciones, never()).porMensaje(any(), eq(yo), any());
     }
 
     @Test
@@ -251,6 +254,58 @@ class MensajesServiceTests {
         assertThrows(BusinessRuleException.class,
                 () -> service.enviar(15L, new MensajeCreateRequestDTO("x".repeat(5001)), principal));
         verify(mensajes, never()).saveAndFlush(any());
+        verify(notificaciones, never()).porMensaje(any(), any(), any());
+    }
+
+    @Test
+    void falloAlGuardarNoGeneraAviso() {
+        when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
+        when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L)).thenReturn(true);
+        when(usuarios.findById(7L)).thenReturn(Optional.of(yo));
+        when(mensajes.saveAndFlush(any())).thenThrow(new IllegalStateException("falló MySQL"));
+        assertThrows(IllegalStateException.class,
+                () -> service.enviar(15L, new MensajeCreateRequestDTO("Hola"), principal));
+        verify(notificaciones, never()).porMensaje(any(), any(), any());
+    }
+
+    @Test
+    void lecturaAvanzaSoloHastaMensajeRecibidoYNoRetrocede() {
+        when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
+        when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L)).thenReturn(true);
+        ParticipanteConversacion mia = participante(conversacion, yo, false);
+        when(participantes.bloquearParaLectura(15L, 7L)).thenReturn(Optional.of(mia));
+        when(participantes.findConUsuariosPorConversaciones(List.of(15L)))
+                .thenReturn(List.of(mia, participante(conversacion, interlocutor, false)));
+        when(mensajes.findUltimosPorConversacion(List.of(15L))).thenReturn(List.of(mensaje(102L)));
+        ConteoNoLeidosProjection cero = conteo(15L, 0L);
+        when(mensajes.contarNoLeidos(7L, List.of(15L))).thenReturn(List.of(cero));
+        Mensaje primero = mensaje(101L);
+        Mensaje posterior = mensaje(102L); posterior.setFechaEnvio(primero.getFechaEnvio());
+        when(mensajes.findByIdMensajeAndConversacion_IdConversacion(101L, 15L)).thenReturn(Optional.of(primero));
+        when(mensajes.findByIdMensajeAndConversacion_IdConversacion(102L, 15L)).thenReturn(Optional.of(posterior));
+        assertEquals(0L, service.registrarLectura(15L,
+                new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(101L), principal).noLeidos());
+        assertEquals(101L, mia.getIdUltimoMensajeLeido());
+        service.registrarLectura(15L, new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(102L), principal);
+        service.registrarLectura(15L, new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(101L), principal);
+        assertEquals(102L, mia.getIdUltimoMensajeLeido());
+        verify(participantes, org.mockito.Mockito.times(2)).saveAndFlush(mia);
+    }
+
+    @Test
+    void lecturaRechazaMensajePropioODeOtroChatYParticipanteAjeno() {
+        when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
+        when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L)).thenReturn(true);
+        Mensaje propio = mensaje(101L); propio.setRemitente(yo);
+        when(mensajes.findByIdMensajeAndConversacion_IdConversacion(101L, 15L)).thenReturn(Optional.of(propio));
+        assertThrows(BusinessRuleException.class, () -> service.registrarLectura(15L,
+                new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(101L), principal));
+        assertThrows(ResourceNotFoundException.class, () -> service.registrarLectura(15L,
+                new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(999L), principal));
+        when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L)).thenReturn(false);
+        assertThrows(AccessDeniedException.class, () -> service.registrarLectura(15L,
+                new com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO(101L), principal));
+        verify(participantes, never()).saveAndFlush(any());
     }
 
     @Test

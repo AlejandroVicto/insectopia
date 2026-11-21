@@ -9,6 +9,8 @@ import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
 import Inicio from './pages/Inicio'
 import Mensajes from './pages/Mensajes'
+import Notificaciones from './pages/Notificaciones'
+import PublicacionDetalle from './pages/PublicacionDetalle'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -139,7 +141,8 @@ export default function App() {
         <Route element={<PrivateLayout />}>
           <Route path="/app" element={<Inicio />} />
           <Route path="/app/mensajes" element={<Mensajes />} />
-          <Route path="/app/notificaciones" element={<SectionPlaceholder title="Notificaciones" />} />
+          <Route path="/app/notificaciones" element={<Notificaciones />} />
+          <Route path="/app/publicaciones/:id" element={<PublicacionDetalle />} />
           <Route path="/app/eventos" element={<SectionPlaceholder title="Eventos" />} />
           <Route path="/app/perfil" element={<SectionPlaceholder title="Mi perfil" />} />
           <Route path="/app/configuracion" element={<SectionPlaceholder title="Configuración" />} />

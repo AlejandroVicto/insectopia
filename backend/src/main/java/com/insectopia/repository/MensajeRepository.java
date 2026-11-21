@@ -2,6 +2,7 @@ package com.insectopia.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -61,14 +62,17 @@ public interface MensajeRepository
 
     /**
      * No leídos por conversación: mensajes de otros remitentes posteriores a
-     * {@code fechaUltimaLectura}. Empate en la misma fecha se considera leído.
+     * {@code fechaUltimaLectura}; el ID desempata fechas iguales para lecturas nuevas.
+     * Las lecturas históricas sin ID conservan su comportamiento anterior.
      */
     @Query("""
             select pc.conversacion.idConversacion as conversacionId,
                    (select count(m) from Mensaje m
                     where m.conversacion.idConversacion = pc.conversacion.idConversacion
                       and m.remitente.idUsuario <> pc.usuario.idUsuario
-                      and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura)) as total
+                       and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura
+                            or (m.fechaEnvio = pc.fechaUltimaLectura and pc.idUltimoMensajeLeido is not null
+                                and m.idMensaje > pc.idUltimoMensajeLeido))) as total
             from ParticipanteConversacion pc
             where pc.usuario.idUsuario = :idUsuario
               and pc.conversacion.idConversacion in :ids
@@ -76,4 +80,6 @@ public interface MensajeRepository
     List<ConteoNoLeidosProjection> contarNoLeidos(
             @Param("idUsuario") Long idUsuario,
             @Param("ids") Collection<Long> ids);
+
+    Optional<Mensaje> findByIdMensajeAndConversacion_IdConversacion(Long idMensaje, Long idConversacion);
 }

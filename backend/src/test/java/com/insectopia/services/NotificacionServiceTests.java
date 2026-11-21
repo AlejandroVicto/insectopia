@@ -130,4 +130,25 @@ class NotificacionServiceTests {
         assertNull(dto.actor()); assertNull(dto.recurso().apiUrl());
         assertEquals(8L, dto.recurso().id()); assertFalse(dto.recurso().disponible());
     }
+
+    @Test void mensajeGeneraAvisoPrivadoConConversacionRealYNoParaRemitente() {
+        Conversacion conversacion = new Conversacion(); conversacion.setIdConversacion(5L);
+        Mensaje mensaje = new Mensaje(); mensaje.setIdMensaje(80L); mensaje.setConversacion(conversacion);
+        mensaje.setRemitente(actor); mensaje.setContenido("Secreto");
+        service.porMensaje(mensaje, autor, actor);
+        service.porMensaje(mensaje, actor, actor);
+        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+        verify(repository, times(1)).save(captor.capture());
+        Notificacion creada = captor.getValue();
+        assertSame(mensaje, creada.getMensaje()); assertSame(actor, creada.getActor());
+        assertSame(autor, creada.getDestinatario()); assertFalse(creada.getLeida());
+        assertEquals("MENSAJE", creada.getTipo()); assertFalse(creada.getContenido().contains("Secreto"));
+        when(repository.findByDestinatario_IdUsuario(eq(1L), any()))
+                .thenReturn(new PageImpl<>(List.of(creada)));
+        var dto = service.listar(0, 10, "todas", principal(1)).getContent().getFirst();
+        assertEquals(5L, dto.recurso().conversacionId());
+        assertEquals(80L, dto.recurso().id());
+        assertEquals("/api/conversaciones/5", dto.recurso().apiUrl());
+        assertEquals("a", dto.actor().nombreUsuario());
+    }
 }

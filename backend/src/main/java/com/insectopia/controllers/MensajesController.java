@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.insectopia.dtos.mensajes.AbrirConversacionRequestDTO;
 import com.insectopia.dtos.mensajes.ConversacionResponseDTO;
+import com.insectopia.dtos.mensajes.LecturaConversacionRequestDTO;
 import com.insectopia.dtos.mensajes.MensajeCreateRequestDTO;
 import com.insectopia.dtos.mensajes.MensajeResponseDTO;
 import com.insectopia.dtos.publicaciones.PaginaDTO;
@@ -64,6 +65,19 @@ public class MensajesController {
             @RequestParam(defaultValue = "30") @Min(1) @Max(100) int size,
             @AuthenticationPrincipal InsectopiaUserDetails principal) {
         return PaginaDTO.from(service.listarMensajes(id, page, size, principal));
+    }
+
+    @GetMapping("/{id}")
+    public ConversacionResponseDTO consultar(@PathVariable Long id,
+            @AuthenticationPrincipal InsectopiaUserDetails principal) {
+        return service.conversacionPorId(id, principal);
+    }
+
+    @PatchMapping("/{id}/lectura")
+    public ConversacionResponseDTO leer(@PathVariable Long id,
+            @Valid @RequestBody LecturaConversacionRequestDTO datos,
+            @AuthenticationPrincipal InsectopiaUserDetails principal) {
+        return service.registrarLectura(id, datos, principal);
     }
 
     @PostMapping("/{id}/mensajes")

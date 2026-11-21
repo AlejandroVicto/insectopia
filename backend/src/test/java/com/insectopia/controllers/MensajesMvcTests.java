@@ -133,6 +133,9 @@ class MensajesMvcTests {
         mvc.perform(get("/api/conversaciones")).andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.status").value(401));
         mvc.perform(get("/api/conversaciones/15/mensajes")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/conversaciones/15")).andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/conversaciones/15/lectura").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"mensajeId\":101}")).andExpect(status().isUnauthorized());
         mvc.perform(post("/api/conversaciones/15/mensajes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contenido\":\"Hola\"}"))
@@ -197,6 +200,33 @@ class MensajesMvcTests {
                 .andExpect(jsonPath("$.number").value(0))
                 .andExpect(jsonPath("$.size").value(30))
                 .andExpect(jsonPath("$.last").value(true));
+    }
+
+    @Test void consultaYLecturaIndividualExigenPrincipalYConfirmanContador() throws Exception {
+        when(service.conversacionPorId(eq(15L), any(InsectopiaUserDetails.class))).thenReturn(conversacion());
+        when(service.registrarLectura(eq(15L), any(), any(InsectopiaUserDetails.class)))
+                .thenReturn(new ConversacionResponseDTO(15L, conversacion().interlocutor(),
+                        conversacion().ultimoMensaje(), 0, false));
+        mvc.perform(bearer(get("/api/conversaciones/15")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.id").value(15));
+        mvc.perform(bearer(patch("/api/conversaciones/15/lectura")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"mensajeId\":101}")))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.noLeidos").value(0));
+        mvc.perform(bearer(patch("/api/conversaciones/15/lectura")
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"mensajeId\":0}")))
+                .andExpect(status().isBadRequest());
+        verify(service).conversacionPorId(eq(15L), any(InsectopiaUserDetails.class));
+    }
+
+    @Test void lecturaYConsultaAjenasNoDevuelvenDatos() throws Exception {
+        when(service.conversacionPorId(eq(25L), any(InsectopiaUserDetails.class)))
+                .thenThrow(new AccessDeniedException("No tienes acceso"));
+        when(service.registrarLectura(eq(25L), any(), any(InsectopiaUserDetails.class)))
+                .thenThrow(new AccessDeniedException("No tienes acceso"));
+        mvc.perform(bearer(get("/api/conversaciones/25"))).andExpect(status().isForbidden());
+        mvc.perform(bearer(patch("/api/conversaciones/25/lectura")
+                .contentType(MediaType.APPLICATION_JSON).content("{\"mensajeId\":101}")))
+                .andExpect(status().isForbidden());
     }
 
     @Test

@@ -12,6 +12,11 @@ import Inicio from './Inicio'
 import { adaptarPaginaPublicaciones, adaptarPublicacion } from '../adapters/publicacionesAdapter'
 import { consultarPublicaciones } from '../services/publicacionesService'
 
+// Las pruebas de Inicio aíslan la consulta global del layout, que se cubre en Notificaciones.
+vi.mock('../services/notificacionesService', async (original) => ({
+  ...await original(), contarNoLeidas: () => Promise.resolve({ data: { count: 0 } }),
+}))
+
 const originalAdapter = api.defaults.adapter
 afterEach(() => { cleanup(); api.defaults.adapter = originalAdapter })
 

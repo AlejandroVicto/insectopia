@@ -1,5 +1,7 @@
 # Integración backend 064 — conversaciones y mensajes JWT
 
+> Actualización posterior 063–068: las frases históricas de este documento sobre ausencia de avisos y lectura se sustituyen por el contrato definitivo en `backend/INTEGRACION_NOTIFICACIONES_068.md` y `frontend/INTEGRACION_MENSAJES.md`. Envío ahora crea aviso `MENSAJE` transaccional, y V11 habilita `PATCH /api/conversaciones/{id}/lectura` con límite por mensaje recibido.
+
 Actividad 064: API de bandeja de conversaciones, historial de mensajes y envío, compatible con el contrato de la actividad 063 (`frontend/INTEGRACION_MENSAJES.md`) y con el adaptador `frontend/src/adapters/mensajesAdapter.js`.
 
 **Sin WebSockets.** El frontend puede mantener el polling acordado; 064 solo expone HTTP paginado. No se crea ni oculta conversaciones (eso queda para 066) y no se generan notificaciones (068).

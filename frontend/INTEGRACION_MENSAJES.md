@@ -1,4 +1,6 @@
-# Mensajes 063 + 065 → backend 064 + 066 (contrato propuesto, NO implementado)
+# Mensajes 063 + 065 → backend 064 + 066 (propuesta histórica)
+
+> Contrato definitivo de lectura y navegación al final del documento. Las afirmaciones históricas de endpoints «no implementados» y lectura «por acordar» ya no describen el estado actual.
 
 **Estado:** las tres columnas y los modales 065 están implementados en React; **ninguno** de los endpoints siguientes está verificado ni existe todavía en el backend. Las entidades JPA y repositorios existentes no son DTOs públicos. El frontend usa `services/api.js` (JWT en memoria de `AuthProvider`) y no accede a MySQL directamente. Configurar `VITE_API_URL` igual que para Inicio. Las solicitudes a estas rutas solo ocurren con `VITE_MENSAJES_MOCK=false`; en demo no se llama al backend de Mensajes.
 
@@ -61,3 +63,14 @@ Errores sugeridos en las tres operaciones: `400` parámetros/texto inválidos o 
 5. Verificar búsqueda por nombre y alias **en servidor** tanto en bandeja como entre seguidos, filtro no leídos antes de paginar, múltiples páginas, cambio de chat/búsqueda mientras hay solicitudes pendientes, polling con pestaña oculta, envío fallido/reintento y cierre de sesión. Verificar reglas de lectura solo después de acordar endpoint/semántica.
 
 **Regla fundamental:** seguir restringe el *inicio* de chats nuevos, no la consulta ni continuidad de conversaciones existentes. La seguridad nunca depende de ocultar botones en React.
+
+## H. Integración puntual definitiva: notificaciones y lectura
+
+- `POST /api/conversaciones/{id}/mensajes` → 201 con mensaje guardado y aviso privado `MENSAJE` transaccional para cada destinatario; el aviso no revela su texto.
+- `GET /api/conversaciones/{id}` → 200 con el DTO de bandeja (`id`, `interlocutor`, `ultimoMensaje`, `noLeidos`, `oculta`), 403 si no participa, 404 si no existe. Permite abrir directamente un chat aunque no aparezca en la página actual.
+- `GET /api/conversaciones/{id}/mensajes?page=0&size=30` → historial existente, sin efecto sobre lecturas.
+- `PATCH /api/conversaciones/{id}/lectura` con `{ "mensajeId": 80 }` → 200 con DTO de conversación y `noLeidos` actualizado. El mensaje de límite debe pertenecer al chat y ser **recibido**, no propio. 400 para cuerpo inválido, 403 para no participante, 404 para chat/mensaje inexistente o de otro chat, 422 para mensaje propio. Se conserva `fechaUltimaLectura` y V11 añade `idUltimoMensajeLeido` para desempatar la precisión `DATETIME(0)` de MySQL; nunca se avanza hasta la hora actual ni se retrocede ante peticiones retrasadas. Un registro anterior a V11 con fecha y sin ID mantiene la semántica previa.
+
+El frontend lee `?conversacion=ID`, obtiene el DTO autorizado, selecciona el chat y muestra su historial. Tras cargarlo y **solo si la pestaña está visible**, confirma lectura hasta el último mensaje recibido visible; el círculo verde y el filtro se actualizan desde el contador confirmado y se recarga la bandeja. La lectura del chat **no marca** notificaciones; pulsar un aviso marca ese aviso mediante su PATCH antes de navegar. No se muestra «Visto».
+
+Pruebas dirigidas de frontend, backend y MySQL aislado en `insectopia_test` cubren este contrato. La comprobación manual de los dos usuarios reales no se ha ejecutado.

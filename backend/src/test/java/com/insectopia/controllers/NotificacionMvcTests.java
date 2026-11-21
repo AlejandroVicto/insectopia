@@ -112,6 +112,19 @@ class NotificacionMvcTests {
         verifyNoInteractions(service);
     }
 
+    @Test void mensajeExponeIdsDistintosDeMensajeYConversacion() throws Exception {
+        var n = new NotificacionResponseDTO(15L, "MENSAJE", "Te envió un mensaje privado",
+                new AutorResumenDTO(2L, "Ana", "ana", null), LocalDateTime.of(2026, 11, 20, 9, 0), false,
+                new RecursoNotificacionDTO("MENSAJE", 80L, true, "/api/conversaciones/5", 5L));
+        when(service.listar(0, 10, "todas", principal))
+                .thenReturn(new PageImpl<>(List.of(n), PageRequest.of(0, 10), 1));
+        mvc.perform(auth(get("/api/notificaciones"))).andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].tipo").value("MENSAJE"))
+                .andExpect(jsonPath("$.content[0].recurso.id").value(80))
+                .andExpect(jsonPath("$.content[0].recurso.conversacionId").value(5))
+                .andExpect(jsonPath("$.content[0].leida").value(false));
+    }
+
     @Test void contadorLecturaBorradoYAjenoIgualQueInexistente() throws Exception {
         when(service.contar(principal)).thenReturn(new NoLeidasCountDTO(2));
         mvc.perform(auth(get("/api/notificaciones/no-leidas/count"))).andExpect(status().isOk())

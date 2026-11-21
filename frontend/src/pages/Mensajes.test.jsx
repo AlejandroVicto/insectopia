@@ -10,6 +10,10 @@ import Mensajes from './Mensajes'
 import { adaptarConversacion, adaptarMensaje, adaptarPagina } from '../adapters/mensajesAdapter'
 import NewMessageModal from '../components/mensajes/NewMessageModal'
 
+vi.mock('../services/notificacionesService', async (original) => ({
+  ...await original(), contarNoLeidas: () => Promise.resolve({ data: { count: 0 } }),
+}))
+
 const originalAdapter = api.defaults.adapter
 afterEach(() => { cleanup(); api.defaults.adapter = originalAdapter; vi.useRealTimers() })
 const chat = (id, name = `Persona ${id}`, unread = 0) => ({ id, interlocutor: { id: id + 100, nombre: name, nombreUsuario: `alias${id}` }, noLeidos: unread, ultimoMensaje: null, oculta: false })
@@ -173,6 +177,76 @@ describe('Mensajes 063', () => {
     await waitFor(() => expect(screen.getByText('Mensaje 1')).toBeTruthy())
   })
 
+  it('abrir directamente un chat registra lectura real, borra la insignia y persiste tras remontar', async () => {
+    let unread = 1
+    const adapter = vi.fn((config) => {
+      if (config.url === '/api/conversaciones' && config.params.noLeidos) return ok(config, page(unread ? [chat(5, 'Ana', unread)] : [], 0, unread ? 1 : 0, 20))
+      if (config.url === '/api/conversaciones') return ok(config, page([chat(5, 'Ana', unread)], 0, 1, 20))
+      if (config.url === '/api/conversaciones/5/mensajes') return ok(config, page([msg(80, 5, 105)]))
+      if (config.url === '/api/conversaciones/5/lectura') {
+        expect(JSON.parse(config.data)).toEqual({ mensajeId: 80 })
+        unread = 0
+        return ok(config, chat(5, 'Ana', unread))
+      }
+      throw new Error(`Solicitud inesperada: ${config.url}`)
+    })
+    start({ demo: false, adapter })
+    const row = await screen.findByRole('button', { name: /Ana.*Sin mensajes/ })
+    expect(within(row).getByLabelText('1 mensajes no leídos')).toBeTruthy()
+    fireEvent.click(row)
+    expect(await screen.findByText('Mensaje 80')).toBeTruthy()
+    await waitFor(() => expect(within(screen.getByRole('button', { name: /Ana.*Sin mensajes/ })).queryByLabelText('1 mensajes no leídos')).toBeNull())
+    fireEvent.click(screen.getByRole('button', { name: 'No leídos' }))
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Sin resultados' })).toBeTruthy())
+    expect(adapter.mock.calls.filter(([c]) => c.url === '/api/conversaciones/5/lectura')).toHaveLength(1)
+    cleanup()
+    start({ demo: false, adapter })
+    const persisted = await screen.findByRole('button', { name: /Ana.*Sin mensajes/ })
+    expect(within(persisted).queryByLabelText('1 mensajes no leídos')).toBeNull()
+  })
+
+  it('enlace de chat consulta por ID aunque no esté en la bandeja; 403, 404 e ID inválido no seleccionan otro', async () => {
+    const adapter = vi.fn((config) => {
+      if (config.url === '/api/conversaciones') return ok(config, page([chat(1)], 0, 1, 20))
+      if (config.url === '/api/conversaciones/5') return ok(config, chat(5, 'Destino'))
+      if (config.url === '/api/conversaciones/5/mensajes') return ok(config, page([msg(80, 5, 105)]))
+      if (config.url === '/api/conversaciones/5/lectura') return ok(config, chat(5, 'Destino'))
+      return fail(config, 403)
+    })
+    start({ demo: false, adapter, path: '/app/mensajes?conversacion=5' })
+    expect(await screen.findByText('Mensaje 80')).toBeTruthy()
+    expect(screen.getByRole('complementary', { name: 'Perfil del interlocutor' }).textContent).toContain('Destino')
+    expect(adapter.mock.calls.some(([c]) => c.url === '/api/conversaciones/5')).toBe(true)
+    cleanup()
+    start({ demo: false, adapter, path: '/app/mensajes?conversacion=999' })
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Conversación no disponible.')
+    expect(screen.getByRole('heading', { name: 'Selecciona una conversación' })).toBeTruthy()
+    cleanup()
+    start({ demo: false, adapter: vi.fn((config) => config.url === '/api/conversaciones'
+      ? ok(config, page([chat(1)], 0, 1, 20)) : fail(config, 404)), path: '/app/mensajes?conversacion=999' })
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Conversación no disponible.')
+    cleanup()
+    start({ demo: false, adapter, path: '/app/mensajes?conversacion=abc' })
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Conversación no disponible.')
+    expect(adapter.mock.calls.some(([c]) => c.url === '/api/conversaciones/abc')).toBe(false)
+  })
+
+  it('la pestaña oculta no registra lectura aunque haya cargado historial', async () => {
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden')
+    const adapter = vi.fn((config) => config.url === '/api/conversaciones'
+      ? ok(config, page([chat(5, 'Ana', 1)], 0, 1, 20))
+      : config.url === '/api/conversaciones/5/mensajes' ? ok(config, page([msg(80, 5, 105)]))
+        : ok(config, chat(5, 'Ana', 0)))
+    start({ demo: false, adapter })
+    fireEvent.click(await screen.findByRole('button', { name: /Ana.*Sin mensajes/ }))
+    expect(await screen.findByText('Mensaje 80')).toBeTruthy()
+    expect(adapter.mock.calls.filter(([c]) => c.url.endsWith('/lectura'))).toHaveLength(0)
+    vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('visible')
+    fireEvent(document, new Event('visibilitychange'))
+    await waitFor(() => expect(adapter.mock.calls.filter(([c]) => c.url.endsWith('/lectura'))).toHaveLength(1))
+    vi.restoreAllMocks()
+  })
+
   it('401 de la bandeja limpia la sesión por el interceptor existente', async () => {
     start({ demo: false, adapter: vi.fn((config) => fail(config, 401)) })
     await waitFor(() => expect(screen.getByText('Login público')).toBeTruthy())
@@ -209,6 +283,7 @@ describe('Mensajes 063', () => {
     const adapter = vi.fn((config) => {
       if (config.url === '/api/conversaciones') return ok(config, page([chat(1)], 0, 1, 20))
       if (config.method === 'get') return ok(config, page([msg(1, 1)]))
+      if (config.method !== 'post') return ok(config, chat(1))
       attempts++
       if (attempts === 1) return fail(config, 500)
       return new Promise((resolve) => { complete = () => resolve(ok(config, msg(2, 1, 7), 201)) })

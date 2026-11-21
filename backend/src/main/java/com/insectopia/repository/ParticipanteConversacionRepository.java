@@ -8,6 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.jpa.repository.Lock;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Conversacion;
@@ -62,7 +64,9 @@ public interface ParticipanteConversacionRepository
                   select 1 from Mensaje m
                   where m.conversacion.idConversacion = c.idConversacion
                     and m.remitente.idUsuario <> :idUsuario
-                    and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura)))
+                     and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura
+                          or (m.fechaEnvio = pc.fechaUltimaLectura and pc.idUltimoMensajeLeido is not null
+                              and m.idMensaje > pc.idUltimoMensajeLeido))))
             order by (select max(m2.fechaEnvio) from Mensaje m2
                       where m2.conversacion.idConversacion = c.idConversacion) desc,
                      c.fechaCreacion desc,
@@ -82,7 +86,9 @@ public interface ParticipanteConversacionRepository
                   select 1 from Mensaje m
                   where m.conversacion.idConversacion = c.idConversacion
                     and m.remitente.idUsuario <> :idUsuario
-                    and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura)))
+                     and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura
+                          or (m.fechaEnvio = pc.fechaUltimaLectura and pc.idUltimoMensajeLeido is not null
+                              and m.idMensaje > pc.idUltimoMensajeLeido))))
             """)
     Page<ParticipanteConversacion> buscarBandeja(
             @Param("idUsuario") Long idUsuario,
@@ -104,6 +110,10 @@ public interface ParticipanteConversacionRepository
     Optional<ParticipanteConversacion> findByConversacion_IdConversacionAndUsuario_IdUsuario(
             Long idConversacion,
             Long idUsuario);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select pc from ParticipanteConversacion pc where pc.conversacion.idConversacion = :id and pc.usuario.idUsuario = :usuario")
+    Optional<ParticipanteConversacion> bloquearParaLectura(@Param("id") Long id, @Param("usuario") Long usuario);
 
     /** Comprobación de que una conversación directa tiene exactamente dos participantes. */
     long countByConversacion_IdConversacion(Long idConversacion);
