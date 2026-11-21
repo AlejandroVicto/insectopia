@@ -2,6 +2,7 @@ package com.insectopia.repository;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -9,6 +10,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import com.insectopia.models.Conversacion;
 import com.insectopia.models.ParticipanteConversacion;
 import com.insectopia.models.ids.ParticipanteConversacionId;
 
@@ -96,5 +98,36 @@ public interface ParticipanteConversacionRepository
             where pc.conversacion.idConversacion in :ids
             """)
     List<ParticipanteConversacion> findConUsuariosPorConversaciones(
+            @Param("ids") Collection<Long> ids);
+
+    /** Participación concreta de un usuario, necesaria para ocultar solo la suya. */
+    Optional<ParticipanteConversacion> findByConversacion_IdConversacionAndUsuario_IdUsuario(
+            Long idConversacion,
+            Long idUsuario);
+
+    /** Comprobación de que una conversación directa tiene exactamente dos participantes. */
+    long countByConversacion_IdConversacion(Long idConversacion);
+
+    /**
+     * Reutiliza conversaciones directas preexistentes aunque su clave no siga el
+     * formato generado por 066 (por ejemplo, datos semilla). Exige que ambos
+     * ids estén presentes y que no haya un tercer participante.
+     */
+    @Query("""
+            select pc.conversacion from ParticipanteConversacion pc
+            where pc.usuario.idUsuario = :idUno
+              and exists (
+                  select 1 from ParticipanteConversacion otro
+                  where otro.conversacion = pc.conversacion
+                    and otro.usuario.idUsuario = :idDos)
+              and not exists (
+                  select 1 from ParticipanteConversacion otro
+                  where otro.conversacion = pc.conversacion
+                    and otro.usuario.idUsuario not in :ids)
+            order by pc.conversacion.idConversacion asc
+            """)
+    List<Conversacion> findDirectasPorParticipantes(
+            @Param("idUno") Long idUno,
+            @Param("idDos") Long idDos,
             @Param("ids") Collection<Long> ids);
 }

@@ -1,13 +1,16 @@
 package com.insectopia.services;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -134,6 +137,33 @@ class MensajesServiceTests {
     }
 
     @Test
+    void conversacionPorIdDevuelveElMismoDtoCompletoQueLaBandeja() {
+        ParticipanteConversacion mia = participante(conversacion, yo, true);
+        ParticipanteConversacion ajena = participante(conversacion, interlocutor, false);
+        when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
+        when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L))
+                .thenReturn(true);
+        when(participantes.findConUsuariosPorConversaciones(List.of(15L)))
+                .thenReturn(List.of(mia, ajena));
+        when(seguidores.existsBySeguidor_IdUsuarioAndSeguido_IdUsuario(7L, 9L))
+                .thenReturn(false);
+        when(mensajes.findUltimosPorConversacion(List.of(15L)))
+                .thenReturn(List.of(mensaje(101L)));
+        ConteoNoLeidosProjection conteo = conteo(15L, 3L);
+        when(mensajes.contarNoLeidos(7L, List.of(15L)))
+                .thenReturn(List.of(conteo));
+
+        ConversacionResponseDTO dto = service.conversacionPorId(15L, principal);
+
+        assertEquals(15L, dto.id());
+        assertEquals(9L, dto.interlocutor().id());
+        assertEquals(Boolean.FALSE, dto.interlocutor().loSigo());
+        assertEquals(101L, dto.ultimoMensaje().id());
+        assertEquals(3L, dto.noLeidos());
+        assertTrue(dto.oculta());
+    }
+
+    @Test
     void historialVerificaPertenenciaYOrdenEstable() {
         when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
         when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L))
@@ -187,6 +217,10 @@ class MensajesServiceTests {
             guardado.setIdMensaje(102L);
             return guardado;
         });
+        ParticipanteConversacion mia = participante(conversacion, yo, false);
+        ParticipanteConversacion ajena = participante(conversacion, interlocutor, true);
+        when(participantes.findConUsuariosPorConversaciones(List.of(15L)))
+                .thenReturn(List.of(mia, ajena));
 
         MensajeResponseDTO dto = service.enviar(
                 15L, new MensajeCreateRequestDTO("  Hola, ¿qué especie?  "), principal);
@@ -201,6 +235,9 @@ class MensajesServiceTests {
         assertEquals(15L, dto.conversacionId());
         assertEquals(7L, dto.remitenteId());
         assertNull(dto.fechaLectura());
+        assertFalse(mia.getOculta(), "el remitente conserva su estado");
+        assertFalse(ajena.getOculta(), "el mensaje reaparece solo para el destinatario");
+        verify(participantes).save(ajena);
     }
 
     @Test
@@ -261,7 +298,7 @@ class MensajesServiceTests {
 
     private static ConteoNoLeidosProjection conteo(Long idConversacion, long total) {
         ConteoNoLeidosProjection projection = mock(ConteoNoLeidosProjection.class);
-        when(projection.getConversacionId()).thenReturn(idConversacion);
+        lenient().when(projection.getConversacionId()).thenReturn(idConversacion);
         when(projection.getTotal()).thenReturn(total);
         return projection;
     }

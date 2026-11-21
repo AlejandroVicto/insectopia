@@ -8,6 +8,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,7 +39,9 @@ import com.insectopia.dtos.mensajes.ConversacionResponseDTO;
 import com.insectopia.dtos.mensajes.InterlocutorDTO;
 import com.insectopia.dtos.mensajes.MensajeCreateRequestDTO;
 import com.insectopia.dtos.mensajes.MensajeResponseDTO;
+import com.insectopia.dtos.mensajes.SeguidoResponseDTO;
 import com.insectopia.dtos.mensajes.UltimoMensajeDTO;
+import com.insectopia.exceptions.RegistrationValidationException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Rol;
 import com.insectopia.models.Usuario;
@@ -51,9 +54,11 @@ import com.insectopia.security.JwtAuthenticationFilter;
 import com.insectopia.security.JwtService;
 import com.insectopia.security.Permissions;
 import com.insectopia.security.SecurityConfig;
+import com.insectopia.services.GestionConversacionesService;
+import com.insectopia.services.GestionConversacionesService.ResultadoAbrir;
 import com.insectopia.services.MensajesService;
 
-@WebMvcTest(MensajesController.class)
+@WebMvcTest({MensajesController.class, SeguidosController.class})
 @Import({SecurityConfig.class, JwtService.class, CustomUserDetailsService.class, JwtAuthenticationFilter.class})
 class MensajesMvcTests {
 
@@ -75,6 +80,7 @@ class MensajesMvcTests {
     @Autowired private JwtService jwt;
 
     @MockitoBean private MensajesService service;
+    @MockitoBean private GestionConversacionesService gestion;
     @MockitoBean private UsuarioRepository usuarios;
     @MockitoBean private TokenRevocadoRepository revocados;
 
@@ -259,6 +265,159 @@ class MensajesMvcTests {
         mvc.perform(bearer(post("/api/conversaciones/-1/mensajes")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("{\"contenido\":\"Hola\"}")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void endpoints066RequierenAutenticacion() throws Exception {
+        mvc.perform(get("/api/usuarios/seguidos")).andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":9}"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(patch("/api/conversaciones/15/ocultar"))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/usuarios/seguidos")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer token-invalido"))
+                .andExpect(status().isUnauthorized());
+        verify(gestion, never()).abrir(any(), any());
+    }
+
+    @Test
+    void seguidosEsCompatibleConElAdaptadorYNoExponeDatosSensibles() throws Exception {
+        when(gestion.listarSeguidos(eq(0), eq(20), eq("tinky"), any(InsectopiaUserDetails.class)))
+                .thenReturn(new PageImpl<>(List.of(new SeguidoResponseDTO(
+                        9L, "TinkyW", "tinky", null, "Observación de escarabajos", true)),
+                        PageRequest.of(0, 20), 1));
+
+        mvc.perform(bearer(get("/api/usuarios/seguidos")
+                        .param("page", "0").param("size", "20").param("q", "tinky")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(9))
+                .andExpect(jsonPath("$.content[0].nombre").value("TinkyW"))
+                .andExpect(jsonPath("$.content[0].nombreUsuario").value("tinky"))
+                .andExpect(jsonPath("$.content[0].descripcion").value("Observación de escarabajos"))
+                .andExpect(jsonPath("$.content[0].loSigo").value(true))
+                .andExpect(jsonPath("$.number").value(0))
+                .andExpect(jsonPath("$.size").value(20))
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.totalPages").value(1))
+                .andExpect(jsonPath("$.last").value(true))
+                .andExpect(jsonPath("$.first").value(true))
+                .andExpect(jsonPath("$.content[0].correo").doesNotExist())
+                .andExpect(jsonPath("$.content[0].contrasena").doesNotExist())
+                .andExpect(jsonPath("$.content[0].telefono").doesNotExist());
+    }
+
+    @Test
+    void seguidosValidaPaginacion() throws Exception {
+        when(gestion.listarSeguidos(eq(0), eq(20), eq(null), any(InsectopiaUserDetails.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 20), 0));
+        mvc.perform(bearer(get("/api/usuarios/seguidos").param("page", "-1")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(bearer(get("/api/usuarios/seguidos").param("size", "51")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(bearer(get("/api/usuarios/seguidos").param("userId", "99")))
+                .andExpect(status().isOk());
+        verify(gestion).listarSeguidos(eq(0), eq(20), eq(null), any(InsectopiaUserDetails.class));
+    }
+
+    @Test
+    void abrirCreaDevuelve201YRemitenteNoVieneDelCuerpo() throws Exception {
+        when(gestion.abrir(eq(9L), any(InsectopiaUserDetails.class)))
+                .thenReturn(new ResultadoAbrir(conversacion(), true));
+
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":9}")))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").value(15))
+                .andExpect(jsonPath("$.interlocutor.id").value(9))
+                .andExpect(jsonPath("$.oculta").value(false));
+
+        org.mockito.ArgumentCaptor<InsectopiaUserDetails> captor =
+                org.mockito.ArgumentCaptor.forClass(InsectopiaUserDetails.class);
+        verify(gestion).abrir(eq(9L), captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(7L, captor.getValue().idUsuario());
+    }
+
+    @Test
+    void abrirRechazaRemitenteDelCuerpoYDatosInvalidos() throws Exception {
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":9,\"remitenteId\":7}")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":-1}")))
+                .andExpect(status().isBadRequest());
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")))
+                .andExpect(status().isBadRequest());
+        verify(gestion, never()).abrir(any(), any());
+    }
+
+    @Test
+    void abrirReutilizaDevuelve200() throws Exception {
+        when(gestion.abrir(eq(9L), any(InsectopiaUserDetails.class)))
+                .thenReturn(new ResultadoAbrir(conversacion(), false));
+
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":9}")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(15));
+    }
+
+    @Test
+    void abrirMapeaReglasDeNegocioAEstadoHttp() throws Exception {
+        when(gestion.abrir(eq(7L), any(InsectopiaUserDetails.class)))
+                .thenThrow(new RegistrationValidationException(
+                        "destinatarioId", "No puedes iniciar una conversación contigo mismo"));
+        when(gestion.abrir(eq(8L), any(InsectopiaUserDetails.class)))
+                .thenThrow(new AccessDeniedException("No sigues a esa persona"));
+        when(gestion.abrir(eq(99L), any(InsectopiaUserDetails.class)))
+                .thenThrow(new ResourceNotFoundException("usuario", 99L));
+
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":7}")))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.details[0].field").value("destinatarioId"));
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":8}")))
+                .andExpect(status().isForbidden());
+        mvc.perform(bearer(post("/api/conversaciones")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"destinatarioId\":99}")))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void ocultarConfirma200ConOcultaTrue() throws Exception {
+        mvc.perform(bearer(patch("/api/conversaciones/15/ocultar")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.oculta").value(true));
+
+        org.mockito.ArgumentCaptor<InsectopiaUserDetails> captor =
+                org.mockito.ArgumentCaptor.forClass(InsectopiaUserDetails.class);
+        verify(gestion).ocultar(eq(15L), captor.capture());
+        org.junit.jupiter.api.Assertions.assertEquals(7L, captor.getValue().idUsuario());
+    }
+
+    @Test
+    void ocultarAjenoOInexistenteNoConfirma() throws Exception {
+        org.mockito.Mockito.doThrow(new AccessDeniedException("No tienes acceso"))
+                .when(gestion).ocultar(eq(25L), any(InsectopiaUserDetails.class));
+        org.mockito.Mockito.doThrow(new ResourceNotFoundException("conversación", 99L))
+                .when(gestion).ocultar(eq(99L), any(InsectopiaUserDetails.class));
+
+        mvc.perform(bearer(patch("/api/conversaciones/25/ocultar")))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.oculta").doesNotExist());
+        mvc.perform(bearer(patch("/api/conversaciones/99/ocultar")))
                 .andExpect(status().isNotFound());
     }
 }

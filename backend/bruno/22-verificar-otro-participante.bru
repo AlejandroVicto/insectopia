@@ -1,0 +1,19 @@
+meta {
+  name: 066 - Verificar que el otro participante sigue viendo la conversación
+  type: http
+  seq: 22
+}
+
+get {
+  url: {{baseUrl}}/api/conversaciones?page=0&size=20
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenInterlocutor}}
+}
+
+headers {
+  Accept: application/json
+}

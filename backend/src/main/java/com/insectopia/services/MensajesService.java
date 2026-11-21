@@ -140,6 +140,52 @@ public class MensajesService {
         return new PageImpl<>(contenido, pagina, filas.getTotalElements());
     }
 
+    /**
+     * DTO completo de una conversación para 066. Reutiliza exactamente el mismo
+     * mapeo que la bandeja 064; la identidad y la pertenencia se verifican aquí.
+     */
+    @Transactional(readOnly = true)
+    public ConversacionResponseDTO conversacionPorId(
+            Long idConversacion, InsectopiaUserDetails principal) {
+        conversacionAccesible(idConversacion, principal);
+        List<Long> ids = List.of(idConversacion);
+        List<ParticipanteConversacion> filas =
+                participantes.findConUsuariosPorConversaciones(ids);
+
+        ParticipanteConversacion propia = filas.stream()
+                .filter(fila -> fila.getUsuario() != null
+                        && principal.idUsuario().equals(fila.getUsuario().getIdUsuario()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No se pudo resolver tu participación en la conversación"));
+
+        Usuario interlocutor = filas.stream()
+                .map(ParticipanteConversacion::getUsuario)
+                .filter(usuario -> usuario != null
+                        && !principal.idUsuario().equals(usuario.getIdUsuario()))
+                .findFirst()
+                .orElseThrow(() -> new BusinessRuleException(
+                        "No se pudo resolver el interlocutor de la conversación"));
+
+        boolean loSigo = seguidores.existsBySeguidor_IdUsuarioAndSeguido_IdUsuario(
+                principal.idUsuario(), interlocutor.getIdUsuario());
+        UltimoMensajeDTO ultimo = mensajes.findUltimosPorConversacion(ids).stream()
+                .findFirst()
+                .map(UltimoMensajeDTO::from)
+                .orElse(null);
+        long noLeidos = mensajes.contarNoLeidos(principal.idUsuario(), ids).stream()
+                .findFirst()
+                .map(ConteoNoLeidosProjection::getTotal)
+                .orElse(0L);
+
+        return new ConversacionResponseDTO(
+                idConversacion,
+                InterlocutorDTO.from(interlocutor, loSigo),
+                ultimo,
+                noLeidos,
+                Boolean.TRUE.equals(propia.getOculta()));
+    }
+
     /** Página 0 = mensajes más recientes; orden estable por fecha y id. */
     @Transactional(readOnly = true)
     public Page<MensajeResponseDTO> listarMensajes(
@@ -173,7 +219,20 @@ public class MensajesService {
         mensaje.setRemitente(remitente);
         mensaje.setContenido(contenido);
         mensaje.setFechaEnvio(LocalDateTime.now());
-        return MensajeResponseDTO.from(mensajes.saveAndFlush(mensaje));
+        Mensaje guardado = mensajes.saveAndFlush(mensaje);
+
+        // Política 066: un mensaje nuevo reaparece solo para el destinatario.
+        // El remitente conserva su estado (oculta/no oculta) aunque envíe.
+        participantes.findConUsuariosPorConversaciones(List.of(idConversacion)).stream()
+                .filter(fila -> fila.getUsuario() != null
+                        && !remitente.getIdUsuario().equals(fila.getUsuario().getIdUsuario())
+                        && Boolean.TRUE.equals(fila.getOculta()))
+                .forEach(fila -> {
+                    fila.setOculta(false);
+                    participantes.save(fila);
+                });
+
+        return MensajeResponseDTO.from(guardado);
     }
 
     private Conversacion conversacionAccesible(

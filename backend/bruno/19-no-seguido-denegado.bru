@@ -1,0 +1,26 @@
+meta {
+  name: 066 - Crear con usuario no seguido (403)
+  type: http
+  seq: 19
+}
+
+post {
+  url: {{baseUrl}}/api/conversaciones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "destinatarioId": {{noSeguidoId}}
+  }
+}

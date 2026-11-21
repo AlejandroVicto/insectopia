@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Seguidor;
+import com.insectopia.models.enums.EstadoUsuario;
 import com.insectopia.models.ids.SeguidorId;
 
 public interface SeguidorRepository
@@ -52,4 +53,33 @@ public interface SeguidorRepository
     List<Long> findIdsSeguidos(
             @Param("idSeguidor") Long idSeguidor,
             @Param("ids") Collection<Long> ids);
+
+    /**
+     * Seguidos de la actividad 066: búsqueda y paginación se resuelven en MySQL
+     * sobre la tabla real {@code seguidores}. Nunca devuelve al propio usuario
+     * ni cuentas que no estén activas. El orden es estable.
+     */
+    @Query(value = """
+            select s from Seguidor s
+            join s.seguido u
+            where s.seguidor.idUsuario = :idSeguidor
+              and s.seguido.idUsuario <> :idSeguidor
+              and u.estado = :estado
+              and (:busqueda is null or lower(u.nombre) like :busqueda escape '\\'
+                   or lower(u.nombreUsuario) like :busqueda escape '\\')
+            order by lower(u.nombre) asc, lower(u.nombreUsuario) asc, u.idUsuario asc
+            """, countQuery = """
+            select count(s) from Seguidor s
+            join s.seguido u
+            where s.seguidor.idUsuario = :idSeguidor
+              and s.seguido.idUsuario <> :idSeguidor
+              and u.estado = :estado
+              and (:busqueda is null or lower(u.nombre) like :busqueda escape '\\'
+                   or lower(u.nombreUsuario) like :busqueda escape '\\')
+            """)
+    Page<Seguidor> buscarSeguidos(
+            @Param("idSeguidor") Long idSeguidor,
+            @Param("busqueda") String busqueda,
+            @Param("estado") EstadoUsuario estado,
+            Pageable pageable);
 }
