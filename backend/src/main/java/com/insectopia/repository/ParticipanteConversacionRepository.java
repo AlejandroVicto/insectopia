@@ -1,8 +1,13 @@
 package com.insectopia.repository;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.ParticipanteConversacion;
 import com.insectopia.models.ids.ParticipanteConversacionId;
@@ -33,4 +38,63 @@ public interface ParticipanteConversacionRepository
             Long idConversacion,
             Long idUsuario
     );
+
+    /**
+     * Bandeja de la actividad 064: filtra en base de datos antes de paginar.
+     * El orden por última actividad se calcula con subconsulta escalar y se
+     * desempata por fecha de creación e id de conversación. El {@code Pageable}
+     * solo aporta offset/limit (sin Sort) para no duplicar el ORDER BY.
+     */
+    @Query(value = """
+            select pc from ParticipanteConversacion pc
+            join pc.conversacion c
+            where pc.usuario.idUsuario = :idUsuario
+              and pc.oculta = false
+              and (:busqueda is null or exists (
+                  select 1 from ParticipanteConversacion otro
+                  where otro.conversacion.idConversacion = c.idConversacion
+                    and otro.usuario.idUsuario <> :idUsuario
+                    and (lower(otro.usuario.nombre) like :busqueda escape '\\'
+                         or lower(otro.usuario.nombreUsuario) like :busqueda escape '\\')))
+              and (:soloNoLeidos = false or exists (
+                  select 1 from Mensaje m
+                  where m.conversacion.idConversacion = c.idConversacion
+                    and m.remitente.idUsuario <> :idUsuario
+                    and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura)))
+            order by (select max(m2.fechaEnvio) from Mensaje m2
+                      where m2.conversacion.idConversacion = c.idConversacion) desc,
+                     c.fechaCreacion desc,
+                     c.idConversacion desc
+            """, countQuery = """
+            select count(pc) from ParticipanteConversacion pc
+            join pc.conversacion c
+            where pc.usuario.idUsuario = :idUsuario
+              and pc.oculta = false
+              and (:busqueda is null or exists (
+                  select 1 from ParticipanteConversacion otro
+                  where otro.conversacion.idConversacion = c.idConversacion
+                    and otro.usuario.idUsuario <> :idUsuario
+                    and (lower(otro.usuario.nombre) like :busqueda escape '\\'
+                         or lower(otro.usuario.nombreUsuario) like :busqueda escape '\\')))
+              and (:soloNoLeidos = false or exists (
+                  select 1 from Mensaje m
+                  where m.conversacion.idConversacion = c.idConversacion
+                    and m.remitente.idUsuario <> :idUsuario
+                    and (pc.fechaUltimaLectura is null or m.fechaEnvio > pc.fechaUltimaLectura)))
+            """)
+    Page<ParticipanteConversacion> buscarBandeja(
+            @Param("idUsuario") Long idUsuario,
+            @Param("busqueda") String busqueda,
+            @Param("soloNoLeidos") boolean soloNoLeidos,
+            Pageable pageable);
+
+    /** Todos los participantes de las conversaciones de la página, con usuario cargado (sin N+1). */
+    @Query("""
+            select pc from ParticipanteConversacion pc
+            join fetch pc.usuario
+            join fetch pc.conversacion
+            where pc.conversacion.idConversacion in :ids
+            """)
+    List<ParticipanteConversacion> findConUsuariosPorConversaciones(
+            @Param("ids") Collection<Long> ids);
 }

@@ -1,0 +1,26 @@
+meta {
+  name: 064 - Tercero ajeno NO puede enviar (403/404)
+  type: http
+  seq: 13
+}
+
+post {
+  url: {{baseUrl}}/api/conversaciones/{{conversacionId}}/mensajes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{tokenTercero}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": "Este envío debe ser rechazado"
+  }
+}

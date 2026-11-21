@@ -1,0 +1,26 @@
+meta {
+  name: 064 - Enviar mensaje (remitente desde JWT, 201)
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/conversaciones/{{conversacionId}}/mensajes
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "contenido": "Mensaje de prueba 064"
+  }
+}
