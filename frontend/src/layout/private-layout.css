@@ -30,13 +30,13 @@
 .private-shell .nav-entry-active .nav-dot { background: var(--nav-lime); }
 
 /* En Inicio solo se desplaza el feed; otras rutas conservan el flujo normal. */
-.private-shell--inicio {
+.private-shell--inicio, .private-shell--mensajes {
   display: flex;
   height: 100dvh;
   flex-direction: column;
   overflow: hidden;
 }
 
-.private-shell--inicio > header { flex-shrink: 0; }
-.private-shell--inicio > div > aside { min-height: 0; }
-.private-shell--inicio #private-content { min-height: 0; overflow: hidden; }
+.private-shell--inicio > header, .private-shell--mensajes > header { flex-shrink: 0; }
+.private-shell--inicio > div > aside, .private-shell--mensajes > div > aside { min-height: 0; }
+.private-shell--inicio #private-content, .private-shell--mensajes #private-content { min-height: 0; overflow: hidden; }
