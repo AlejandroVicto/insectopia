@@ -1,0 +1,6 @@
+{
+  "version": "1",
+  "name": "Insectopia 060 - Inicio",
+  "type": "collection",
+  "ignore": ["node_modules", ".git"]
+}

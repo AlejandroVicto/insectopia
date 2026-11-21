@@ -1,0 +1,19 @@
+meta {
+  name: Estado de reacción del usuario autenticado
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/publicaciones/1/reaccion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}

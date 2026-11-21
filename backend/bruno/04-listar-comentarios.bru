@@ -1,0 +1,19 @@
+meta {
+  name: Listar comentarios paginados
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/publicaciones/1/comentarios?page=0&size=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}

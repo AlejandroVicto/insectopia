@@ -3,12 +3,13 @@ package com.insectopia.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.insectopia.models.Publicacion;
 import com.insectopia.models.enums.EstadoPublicacion;
 
 public interface PublicacionRepository
-        extends JpaRepository<Publicacion, Long> {
+        extends JpaRepository<Publicacion, Long>, JpaSpecificationExecutor<Publicacion> {
 
     boolean existsByIdPublicacionAndUsuario_IdUsuario(Long idPublicacion, Long idUsuario);
 
