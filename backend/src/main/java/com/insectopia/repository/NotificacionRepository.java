@@ -3,6 +3,10 @@ package com.insectopia.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import java.util.Optional;
 
 import com.insectopia.models.Notificacion;
 
@@ -31,4 +35,17 @@ public interface NotificacionRepository
             Long idNotificacion,
             Long idUsuario
     );
+
+    Page<Notificacion> findByDestinatario_IdUsuario(Long idUsuario, Pageable pageable);
+
+    Page<Notificacion> findByDestinatario_IdUsuarioAndLeida(Long idUsuario, Boolean leida, Pageable pageable);
+
+    Optional<Notificacion> findByIdNotificacionAndDestinatario_IdUsuario(Long id, Long destinatario);
+
+    boolean existsByDestinatario_IdUsuarioAndActor_IdUsuarioAndPublicacion_IdPublicacionAndTipo(
+            Long destinatario, Long actor, Long publicacion, String tipo);
+
+    @Modifying(flushAutomatically = true, clearAutomatically = true)
+    @Query("update Notificacion n set n.leida = true where n.destinatario.idUsuario = :destinatario and n.leida = false")
+    int marcarTodasLeidas(@Param("destinatario") Long destinatario);
 }

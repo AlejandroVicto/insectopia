@@ -61,18 +61,20 @@ public class PublicacionesService {
     private final ReaccionRepository reacciones;
     private final UsuarioRepository usuarios;
     private final AlmacenamientoImagenesService imagenes;
+    private final NotificacionService notificaciones;
 
     public PublicacionesService(
             PublicacionRepository publicaciones,
             ComentarioRepository comentarios,
             ReaccionRepository reacciones,
             UsuarioRepository usuarios,
-            AlmacenamientoImagenesService imagenes) {
+            AlmacenamientoImagenesService imagenes, NotificacionService notificaciones) {
         this.publicaciones = publicaciones;
         this.comentarios = comentarios;
         this.reacciones = reacciones;
         this.usuarios = usuarios;
         this.imagenes = imagenes;
+        this.notificaciones = notificaciones;
     }
 
     @Transactional(readOnly = true)
@@ -274,9 +276,11 @@ public class PublicacionesService {
         }
         Comentario comentario = new Comentario();
         comentario.setPublicacion(publicacion);
-        comentario.setUsuario(usuario(principal));
+        Usuario actor = usuario(principal);
+        comentario.setUsuario(actor);
         comentario.setContenido(contenido);
         comentarios.save(comentario);
+        notificaciones.porComentario(publicacion, actor);
         return ComentarioResponseDTO.from(comentario);
     }
 
@@ -298,7 +302,8 @@ public class PublicacionesService {
         }
         Reaccion reaccion = new Reaccion();
         reaccion.setPublicacion(publicacion);
-        reaccion.setUsuario(usuario(principal));
+        Usuario actor = usuario(principal);
+        reaccion.setUsuario(actor);
         reaccion.setTipo(TIPO_REACCION);
         try {
             reacciones.saveAndFlush(reaccion);
@@ -306,6 +311,7 @@ public class PublicacionesService {
             // La unicidad de la base manda si dos peticiones llegan a la vez.
             throw new DuplicateResourceException("publicacionId", "Ya reaccionaste a esta publicación");
         }
+        notificaciones.porReaccion(publicacion, actor);
         return estado(publicacion.getIdPublicacion(), principal.idUsuario());
     }
 

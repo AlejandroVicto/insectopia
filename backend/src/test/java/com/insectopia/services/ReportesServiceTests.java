@@ -27,6 +27,7 @@ class ReportesServiceTests {
     @Mock ReporteRepository reportes;
     @Mock PublicacionRepository publicaciones;
     @Mock UsuarioRepository usuarios;
+    @Mock NotificacionService notificaciones;
     ReportesService service;
     Publicacion publicacion;
     Usuario autor, reportante;
@@ -36,7 +37,7 @@ class ReportesServiceTests {
     }
 
     @BeforeEach void setup() {
-        service = new ReportesService(reportes, publicaciones, usuarios);
+        service = new ReportesService(reportes, publicaciones, usuarios, notificaciones);
         autor = new Usuario(); autor.setIdUsuario(1L);
         reportante = new Usuario(); reportante.setIdUsuario(2L);
         publicacion = new Publicacion(); publicacion.setIdPublicacion(24L); publicacion.setUsuario(autor);
@@ -75,15 +76,17 @@ class ReportesServiceTests {
                 .thenReturn(new PageImpl<>(List.of(r)));
         assertEquals(2L, service.listar(0,20,EstadoReporte.PENDIENTE,principal(3,"MODERADOR"))
                 .getContent().getFirst().reportanteId());
-        when(reportes.findById(5L)).thenReturn(Optional.of(r));
+        when(reportes.bloquearParaResolucion(5L)).thenReturn(Optional.of(r));
         Usuario mod = new Usuario(); mod.setIdUsuario(3L);
         when(usuarios.findById(3L)).thenReturn(Optional.of(mod));
         when(reportes.saveAndFlush(r)).thenReturn(r);
         var dto = service.resolver(5L, new ReporteResolverRequestDTO(EstadoReporte.RESUELTO,"Revisado"), principal(3,"MODERADOR"));
         assertEquals(3L, dto.moderadorId()); assertNotNull(dto.fechaResolucion());
         assertEquals(EstadoPublicacion.VISIBLE, publicacion.getEstado());
+        verify(notificaciones).porResolucion(r, mod);
         assertThrows(BusinessRuleException.class, () -> service.resolver(5L,
                 new ReporteResolverRequestDTO(EstadoReporte.RECHAZADO,"Otra vez"), principal(3,"MODERADOR")));
+        verifyNoMoreInteractions(notificaciones);
     }
 
     @Test void usuarioNormalNoConsultaNiResuelveY404Especifico() {
@@ -92,5 +95,6 @@ class ReportesServiceTests {
                 new ReporteResolverRequestDTO(EstadoReporte.RESUELTO,"x"), principal(2,"USUARIO")));
         assertThrows(ResourceNotFoundException.class, () -> service.resolver(5L,
                 new ReporteResolverRequestDTO(EstadoReporte.RESUELTO,"x"), principal(3,"MODERADOR")));
+        verifyNoInteractions(notificaciones);
     }
 }

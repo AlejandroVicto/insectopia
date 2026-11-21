@@ -3,12 +3,21 @@ package com.insectopia.repository;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
+import jakarta.persistence.LockModeType;
+import java.util.Optional;
 
 import com.insectopia.models.Reporte;
 import com.insectopia.models.enums.EstadoReporte;
 
 public interface ReporteRepository
         extends JpaRepository<Reporte, Long> {
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select r from Reporte r where r.idReporte = :id")
+    Optional<Reporte> bloquearParaResolucion(@Param("id") Long id);
 
     Page<Reporte> findAllByOrderByFechaReporteDesc(Pageable pageable);
 

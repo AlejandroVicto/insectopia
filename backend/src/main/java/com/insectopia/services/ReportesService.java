@@ -29,11 +29,14 @@ public class ReportesService {
     private final ReporteRepository reportes;
     private final PublicacionRepository publicaciones;
     private final UsuarioRepository usuarios;
+    private final NotificacionService notificaciones;
 
-    public ReportesService(ReporteRepository reportes, PublicacionRepository publicaciones, UsuarioRepository usuarios) {
+    public ReportesService(ReporteRepository reportes, PublicacionRepository publicaciones,
+            UsuarioRepository usuarios, NotificacionService notificaciones) {
         this.reportes = reportes;
         this.publicaciones = publicaciones;
         this.usuarios = usuarios;
+        this.notificaciones = notificaciones;
     }
 
     @Transactional
@@ -75,7 +78,8 @@ public class ReportesService {
     @Transactional
     public ReporteResponseDTO resolver(Long id, ReporteResolverRequestDTO datos, InsectopiaUserDetails principal) {
         permiso(principal, Permissions.REPORTE_RESOLVER);
-        Reporte reporte = reportes.findById(id).orElseThrow(() -> new ResourceNotFoundException("reporte", id));
+        Reporte reporte = reportes.bloquearParaResolucion(id)
+                .orElseThrow(() -> new ResourceNotFoundException("reporte", id));
         if (reporte.getEstado() != EstadoReporte.PENDIENTE && reporte.getEstado() != EstadoReporte.EN_REVISION) {
             throw new BusinessRuleException("El reporte ya tiene una resolución final");
         }
@@ -90,7 +94,9 @@ public class ReportesService {
         reporte.setEstado(datos.estado());
         reporte.setResolucion(datos.resolucion().trim());
         reporte.setFechaResolucion(LocalDateTime.now());
-        return ReporteResponseDTO.from(reportes.saveAndFlush(reporte), true);
+        ReporteResponseDTO respuesta = ReporteResponseDTO.from(reportes.saveAndFlush(reporte), true);
+        notificaciones.porResolucion(reporte, reporte.getModerador());
+        return respuesta;
     }
 
     private void permiso(InsectopiaUserDetails principal, String authority) {

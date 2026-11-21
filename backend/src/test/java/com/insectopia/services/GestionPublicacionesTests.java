@@ -33,6 +33,7 @@ class GestionPublicacionesTests {
     @Mock ReaccionRepository reacciones;
     @Mock UsuarioRepository usuarios;
     @Mock AlmacenamientoImagenesService imagenes;
+    @Mock NotificacionService notificaciones;
     PublicacionesService service;
     Publicacion publicacion;
 
@@ -41,7 +42,7 @@ class GestionPublicacionesTests {
     }
 
     @BeforeEach void setup() {
-        service = new PublicacionesService(publicaciones, comentarios, reacciones, usuarios, imagenes);
+        service = new PublicacionesService(publicaciones, comentarios, reacciones, usuarios, imagenes, notificaciones);
         Usuario autor = new Usuario(); autor.setIdUsuario(1L); autor.setNombre("Autor"); autor.setNombreUsuario("autor");
         publicacion = new Publicacion(); publicacion.setIdPublicacion(24L); publicacion.setUsuario(autor);
         publicacion.setEstado(EstadoPublicacion.VISIBLE); publicacion.setContenido("Anterior");

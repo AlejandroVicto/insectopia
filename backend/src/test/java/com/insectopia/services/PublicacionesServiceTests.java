@@ -11,6 +11,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_MOCKS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -65,6 +66,7 @@ class PublicacionesServiceTests {
     @Mock private ComentarioRepository comentarios;
     @Mock private ReaccionRepository reacciones;
     @Mock private UsuarioRepository usuarios;
+    @Mock private NotificacionService notificaciones;
     @InjectMocks private PublicacionesService service;
 
     private InsectopiaUserDetails principal;
@@ -231,6 +233,7 @@ class PublicacionesServiceTests {
         assertEquals(7L, captor.getValue().getUsuario().getIdUsuario());
         assertEquals("Muy interesante", captor.getValue().getContenido());
         assertEquals("Muy interesante", creado.contenido());
+        verify(notificaciones).porComentario(publicacion, autor);
     }
 
     @Test
@@ -239,6 +242,7 @@ class PublicacionesServiceTests {
         assertThrows(BusinessRuleException.class,
                 () -> service.crearComentario(24L, new ComentarioCreateRequestDTO("   "), principal));
         verify(comentarios, never()).save(any());
+        verifyNoInteractions(notificaciones);
     }
 
     @Test
@@ -258,6 +262,7 @@ class PublicacionesServiceTests {
         verify(reacciones).saveAndFlush(captor.capture());
         assertEquals(7L, captor.getValue().getUsuario().getIdUsuario());
         assertEquals(24L, captor.getValue().getPublicacion().getIdPublicacion());
+        verify(notificaciones).porReaccion(publicacion, autor);
     }
 
     @Test
@@ -265,6 +270,7 @@ class PublicacionesServiceTests {
         when(publicaciones.findById(24L)).thenReturn(Optional.of(publicacion));
         when(reacciones.existsByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L)).thenReturn(true);
         assertThrows(DuplicateResourceException.class, () -> service.reaccionar(24L, principal));
+        verifyNoInteractions(notificaciones);
         verify(reacciones, never()).saveAndFlush(any());
 
         when(reacciones.existsByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L)).thenReturn(false);
