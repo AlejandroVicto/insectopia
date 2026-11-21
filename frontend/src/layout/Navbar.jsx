@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import UserAccount from './UserAccount'
+import { useCrearPublicacion } from '../context/useCrearPublicacion'
 
 export default function Navbar({ notificationCount, inactive = false, onLogout }) {
   const hasCount = Number.isInteger(notificationCount) && notificationCount > 0
+  const { abrir: abrirCrear } = useCrearPublicacion()
   const isInicio = useLocation().pathname === '/app'
   const [params, setParams] = useSearchParams()
   const query = params.get('q') ?? ''
@@ -41,7 +43,7 @@ export default function Navbar({ notificationCount, inactive = false, onLogout }
         <span id="search-pending" className="sr-only">{isInicio ? 'Busca publicaciones; usuarios y eventos estarán disponibles más adelante' : 'Búsqueda disponible próximamente'}</span>
       </div>
       <div className="flex min-w-0 items-center justify-end gap-3">
-        <button type="button" disabled title="Crear publicación estará disponible próximamente" className="h-10 w-36 rounded-full bg-[var(--nav-lime)] text-xs font-semibold text-[var(--nav-ink)] disabled:cursor-not-allowed">+ Crear publicación</button>
+        <button type="button" onClick={abrirCrear} aria-haspopup="dialog" title="Registrar observación" className="h-10 w-36 rounded-full bg-[var(--nav-lime)] text-xs font-semibold text-[var(--nav-ink)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--nav-lime)]">+ Crear publicación</button>
         <Link to="/app/notificaciones" aria-label={hasCount ? `Notificaciones: ${notificationCount}` : 'Notificaciones'} className="relative flex size-10 items-center justify-center rounded-full text-[var(--nav-muted)] hover:bg-[var(--nav-active)] focus-visible:outline-2 focus-visible:outline-[var(--nav-lime)]">
           <svg aria-hidden="true" viewBox="0 0 24 24" fill="currentColor" className="size-5"><path d="M12 2a2 2 0 0 0-2 2v.2A7 7 0 0 0 5 11v4l-1.5 2.5A1 1 0 0 0 4.4 19h15.2a1 1 0 0 0 .9-1.5L19 15v-4a7 7 0 0 0-5-6.8V4a2 2 0 0 0-2-2Zm-2 19a2 2 0 0 0 4 0h-4Z" /></svg>
           {hasCount && <span className="absolute -right-1 -top-1 rounded-full bg-[var(--nav-lime)] px-1.5 text-[10px] font-bold text-[var(--nav-ink)]">{notificationCount}</span>}

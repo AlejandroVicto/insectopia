@@ -125,7 +125,7 @@ describe('layout de escritorio', () => {
     expect(screen.getAllByRole('link', { name: 'Notificaciones' })).toHaveLength(2)
     expect(navigation().textContent).not.toContain('· 5')
     expect(screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' }).disabled).toBe(false)
-    expect(screen.getByRole('button', { name: '+ Crear publicación' }).disabled).toBe(true)
+    expect(screen.getByRole('button', { name: '+ Crear publicación' }).disabled).toBe(false)
     const header = document.querySelector('.private-shell > header')
     const search = screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' })
     const actions = screen.getByRole('button', { name: '+ Crear publicación' }).parentElement
@@ -134,6 +134,23 @@ describe('layout de escritorio', () => {
     expect(header.lastElementChild).toBe(actions)
     expect(actions.className).toContain('justify-end')
     expect(actions.lastElementChild.textContent).toContain('Persona Real')
+  })
+
+  it('el botón superior abre el mismo modal Crear y vuelve al inicio desde otra sección', () => {
+    start('USUARIO')
+    const boton = screen.getByRole('button', { name: '+ Crear publicación' })
+    expect(boton.disabled).toBe(false)
+    fireEvent.click(boton)
+    expect(screen.getByRole('dialog', { name: 'Registrar observación' })).toBeTruthy()
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+
+    fireEvent.click(screen.getByRole('link', { name: 'Mensajes' }))
+    expect(screen.getByRole('heading', { name: 'Mensajes' })).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: '+ Crear publicación' }))
+    expect(screen.getByRole('heading', { name: 'Inicio' })).toBeTruthy()
+    expect(screen.getByRole('dialog', { name: 'Registrar observación' })).toBeTruthy()
   })
 
   it('muestra estados neutros sin nombre ni correo y vuelve al avatar predeterminado si la imagen falla', () => {

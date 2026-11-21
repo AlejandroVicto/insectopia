@@ -5,6 +5,7 @@ import Navbar from './Navbar'
 import Sidebar from './Sidebar'
 import LogoutConfirmModal from './LogoutConfirmModal'
 import { cerrarSesion } from '../services/logoutService'
+import { CrearPublicacionProvider } from '../context/CrearPublicacionProvider'
 import './private-layout.css'
 
 export default function PrivateLayout({ notificationCount }) {
@@ -57,18 +58,20 @@ export default function PrivateLayout({ notificationCount }) {
   }
 
   return (
-    <div className={`private-shell min-w-[1100px] ${isInicio ? 'private-shell--inicio' : 'min-h-screen'}`}>
-      <Navbar notificationCount={notificationCount} inactive={logoutOpen} onLogout={openLogout} />
-      <div className={`flex ${isInicio ? 'min-h-0 flex-1' : 'min-h-[calc(100vh-80px)]'}`} inert={logoutOpen ? true : undefined}>
-        <Sidebar notificationCount={notificationCount} onLogout={openLogout} />
-        <main className={`min-w-0 flex-1 ${isInicio ? 'bg-[#111713]' : 'bg-[#f2f6ef] p-8'}`} id="private-content">
-          <Outlet />
-        </main>
+    <CrearPublicacionProvider>
+      <div className={`private-shell min-w-[1100px] ${isInicio ? 'private-shell--inicio' : 'min-h-screen'}`}>
+        <Navbar notificationCount={notificationCount} inactive={logoutOpen} onLogout={openLogout} />
+        <div className={`flex ${isInicio ? 'min-h-0 flex-1' : 'min-h-[calc(100vh-80px)]'}`} inert={logoutOpen ? true : undefined}>
+          <Sidebar notificationCount={notificationCount} onLogout={openLogout} />
+          <main className={`min-w-0 flex-1 ${isInicio ? 'bg-[#111713]' : 'bg-[#f2f6ef] p-8'}`} id="private-content">
+            <Outlet />
+          </main>
+        </div>
+        {logoutOpen && (
+          <LogoutConfirmModal onCancel={closeLogout} onConfirm={confirmLogout}
+            onLocalLogout={finishLocalLogout} state={logoutState} error={logoutError} />
+        )}
       </div>
-      {logoutOpen && (
-        <LogoutConfirmModal onCancel={closeLogout} onConfirm={confirmLogout}
-          onLocalLogout={finishLocalLogout} state={logoutState} error={logoutError} />
-      )}
-    </div>
+    </CrearPublicacionProvider>
   )
 }
