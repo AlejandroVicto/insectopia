@@ -1,0 +1,29 @@
+.perfil { --inicio-bg: #111713; --inicio-card: #19261e; --inicio-inset: #15211a; --inicio-soft: #2a4330; --inicio-lime: #a8e223; --inicio-text: #f3f8ef; --inicio-muted: #a5b7a7; --inicio-border: #2f4737; }
+.perfil-grid { display: grid; grid-template-columns: minmax(0,1fr) 260px; gap: 16px; }
+.perfil-header { display: flex; min-height: 116px; align-items: center; gap: 24px; padding: 20px 24px; }
+.perfil-big-avatar .inicio-avatar { width: 76px; height: 76px; font-size: 24px; }
+.perfil-primary { display: inline-flex; min-height: 36px; align-items: center; justify-content: center; border-radius: 999px; background: var(--inicio-lime); padding: 8px 18px; color: #111713; font-size: 12px; font-weight: 800; }
+.perfil-info { min-height: 80px; padding: 14px 24px; }
+.perfil-info h2 { color: var(--inicio-muted); font-size: 14px; font-weight: 700; }
+.perfil-info p { margin-top: 8px; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--inicio-muted); font-size: 12px; line-height: 1.6; }
+.perfil-stat { display: flex; min-height: 52px; flex-direction: column; align-items: flex-start; justify-content: center; border: 1px solid var(--inicio-border); border-radius: 12px; padding: 8px 10px; text-align: left; font-size: 12px; }
+.perfil-stat strong { font-size: 16px; color: var(--inicio-text); }
+.perfil-stat span { color: var(--inicio-muted); }
+button.perfil-stat:hover, .perfil-secondary:hover:not(:disabled) { background: var(--inicio-soft); }
+.perfil-note { border: 1px solid var(--inicio-border); border-radius: 12px; background: var(--inicio-inset); padding: 12px; color: var(--inicio-muted); font-size: 12px; }
+.perfil-state { border: 1px solid var(--inicio-border); border-radius: 16px; background: var(--inicio-inset); padding: 20px; font-size: 14px; }
+.perfil-state p { margin-top: 12px; color: var(--inicio-muted); font-size: 12px; line-height: 1.6; }
+.perfil-overlay { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; overflow-y: auto; background: rgb(0 0 0 / 70%); padding: 16px; color: var(--inicio-text, #f3f8ef); font-family: Mulish, Arial, sans-serif; }
+.perfil-dialog { --inicio-text: #f3f8ef; --inicio-muted: #a5b7a7; --inicio-lime: #a8e223; --inicio-border: #2f4737; --inicio-inset: #15211a; --inicio-soft: #2a4330; width: min(664px, 100%); max-height: min(734px, calc(100dvh - 32px)); overflow-y: auto; border: 1px solid var(--inicio-border); border-radius: 20px; background: #19261e; padding: 24px 32px; box-shadow: 0 22px 42px rgb(0 0 0 / 42%); }
+.perfil-eyebrow { color: var(--inicio-lime); font-size: 11px; font-weight: 800; letter-spacing: .04em; }
+.perfil-close { display: grid; width: 40px; height: 40px; place-items: center; border: 1px solid var(--inicio-border); border-radius: 12px; background: var(--inicio-inset); font-size: 22px; }
+.perfil-search { display: flex; height: 44px; align-items: center; gap: 12px; border: 1px solid var(--inicio-border); border-radius: 12px; background: var(--inicio-inset); padding: 0 16px; color: var(--inicio-muted); }
+.perfil-search input { min-width: 0; flex: 1; outline: none; color: var(--inicio-text); font-size: 12px; }
+.perfil-list { max-height: 360px; min-height: 110px; overflow-y: auto; margin-top: 12px; }
+.perfil-persona { display: flex; min-height: 64px; align-items: center; gap: 14px; border-radius: 12px; background: var(--inicio-inset); padding: 10px 14px; }
+.perfil-secondary { min-height: 36px; border: 1px solid var(--inicio-border); border-radius: 12px; background: var(--inicio-soft); padding: 8px 14px; color: var(--inicio-lime); font-size: 12px; font-weight: 700; }
+.perfil-skeleton { height: 32px; margin-top: 12px; border-radius: 8px; background: var(--inicio-soft); animation: perfil-pulse 1.4s ease-in-out infinite alternate; }
+@keyframes perfil-pulse { to { opacity: .45; } }
+.perfil button:focus-visible, .perfil a:focus-visible, .perfil-dialog button:focus-visible, .perfil-dialog input:focus-visible, .perfil-dialog:focus-visible, .perfil-list:focus-visible { outline: 2px solid #a8e223; outline-offset: 2px; }
+@media (max-width: 1050px) { .perfil-grid { grid-template-columns: minmax(0,1fr); } .perfil-aside { grid-row: 1; } }
+@media (max-width: 540px) { .perfil-header { flex-wrap: wrap; gap: 12px; padding: 16px; } .perfil-header .perfil-primary { width: 100%; } .perfil-dialog { padding: 20px 16px; } .perfil-persona { gap: 8px; padding: 8px; } }

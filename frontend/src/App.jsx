@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react'
 import { Route, Routes } from 'react-router-dom'
 import api from './services/api'
@@ -12,6 +13,7 @@ import Mensajes from './pages/Mensajes'
 import Notificaciones from './pages/Notificaciones'
 import PublicacionDetalle from './pages/PublicacionDetalle'
 import Eventos from './pages/Eventos'
+import MiPerfil from './pages/MiPerfil'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -49,12 +51,16 @@ function ConnectionCheck() {
 
         if (data?.status !== 'ok') {
           setEstado('error')
-          setMensaje('La respuesta del backend no tiene el formato esperado. Revisa VITE_API_URL.')
+          setMensaje(
+            'La respuesta del backend no tiene el formato esperado. Revisa VITE_API_URL.'
+          )
           return
         }
 
         setEstado('exito')
-        setMensaje(data.message ?? 'Backend conectado correctamente')
+        setMensaje(
+          data.message ?? 'Backend conectado correctamente'
+        )
       } catch (error) {
         if (!activo) return
 
@@ -63,11 +69,15 @@ function ConnectionCheck() {
         if (error.userMessage) {
           setMensaje(error.userMessage)
         } else if (error.response) {
-          setMensaje(`El backend respondió con estado HTTP ${error.response.status}.`)
+          setMensaje(
+            `El backend respondió con estado HTTP ${error.response.status}.`
+          )
         } else if (error.code === 'ECONNABORTED') {
           setMensaje('La solicitud al backend agotó el tiempo de espera.')
         } else {
-          setMensaje('No se pudo conectar con el backend. Verifica VITE_API_URL y que el servidor esté en ejecución.')
+          setMensaje(
+            'No se pudo conectar con el backend. Verifica VITE_API_URL y que el servidor esté en ejecución.'
+          )
         }
       }
     }
@@ -107,11 +117,13 @@ function ConnectionCheck() {
           aria-live="polite"
         >
           <div className="flex items-center gap-3">
-            <span className={`h-3 w-3 shrink-0 rounded-full ${estilo.indicador}`} />
+            <span className={`h-3 w-3 shrink-0 ${estilo.indicador}`} />
             <h2 className="font-semibold">{estilo.titulo}</h2>
           </div>
 
-          <p className="mt-2 text-sm">{mensaje}</p>
+          <p className="mt-2 text-sm opacity-75">
+            {mensaje}
+          </p>
 
           <p className="mt-1 text-xs opacity-75">
             Endpoint: GET /api/health
@@ -136,26 +148,89 @@ export default function App() {
     <Routes>
       <Route path="/" element={<ConnectionCheck />} />
       <Route path="/health" element={<ConnectionCheck />} />
+
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
-      <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />}>
+
+      <Route
+        element={
+          <ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />
+        }
+      >
         <Route element={<PrivateLayout />}>
           <Route path="/app" element={<Inicio />} />
-          <Route path="/app/mensajes" element={<Mensajes />} />
-          <Route path="/app/notificaciones" element={<Notificaciones />} />
-          <Route path="/app/publicaciones/:id" element={<PublicacionDetalle />} />
-          <Route path="/app/eventos" element={<Eventos />} />
-          <Route path="/app/perfil" element={<SectionPlaceholder title="Mi perfil" />} />
-          <Route path="/app/configuracion" element={<SectionPlaceholder title="Configuración" />} />
-          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />}>
-            <Route path="/moderacion" element={<SectionPlaceholder title="Moderación" />} />
+
+          <Route
+            path="/app/mensajes"
+            element={<Mensajes />}
+          />
+
+          <Route
+            path="/app/notificaciones"
+            element={<Notificaciones />}
+          />
+
+          <Route
+            path="/app/publicaciones/:id"
+            element={<PublicacionDetalle />}
+          />
+
+          {/* Actividades 069 y 071 - Eventos */}
+          <Route
+            path="/app/eventos"
+            element={<Eventos />}
+          />
+
+          {/* Actividades 073 y 075 - Mi Perfil */}
+          <Route
+            path="/app/perfil"
+            element={<MiPerfil />}
+          />
+
+          {/* Actividades 077 y 079 - Configuración */}
+          <Route
+            path="/app/configuracion"
+            element={
+              <SectionPlaceholder title="Configuración" />
+            }
+          />
+
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />
+            }
+          >
+            <Route
+              path="/moderacion"
+              element={
+                <SectionPlaceholder title="Moderación" />
+              }
+            />
           </Route>
-          <Route element={<ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />}>
-            <Route path="/administracion" element={<SectionPlaceholder title="Administración" />} />
+
+          <Route
+            element={
+              <ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />
+            }
+          >
+            <Route
+              path="/administracion"
+              element={
+                <SectionPlaceholder title="Administración" />
+              }
+            />
           </Route>
         </Route>
       </Route>
-      <Route path="*" element={<main className="p-6">Página no encontrada.</main>} />
+
+      <Route
+        path="*"
+        element={
+          <main className="p-6">
+            Página no encontrada.
+          </main>
+        }
+      />
     </Routes>
   )
 }

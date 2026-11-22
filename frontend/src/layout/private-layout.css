@@ -9,7 +9,9 @@
   font-family: Mulish, Arial, sans-serif;
 }
 
-.private-shell .font-display { font-family: 'Plus Jakarta Sans', Mulish, Arial, sans-serif; }
+.private-shell .font-display {
+  font-family: 'Plus Jakarta Sans', Mulish, Arial, sans-serif;
+}
 
 .private-shell .nav-entry {
   display: flex;
@@ -24,20 +26,132 @@
   font-weight: 600;
 }
 
-.private-shell .nav-entry:hover, .private-shell .nav-entry-active { background: var(--nav-active); }
-.private-shell .nav-entry:focus-visible { outline: 2px solid var(--nav-lime); outline-offset: 2px; }
-.private-shell .nav-dot { width: 6px; height: 6px; flex-shrink: 0; border-radius: 50%; background: var(--nav-muted); }
-.private-shell .nav-entry-active .nav-dot { background: var(--nav-lime); }
-.private-shell .nav-badge { display: inline-block; margin-left: 5px; border: 1px solid #a8e22355; border-radius: 999px; background: #a8e22322; padding: 1px 7px; color: var(--nav-lime); font-size: 11px; font-weight: 800; }
+.private-shell .nav-entry:hover,
+.private-shell .nav-entry-active {
+  background: var(--nav-active);
+}
 
-/* En Inicio, Mensajes, Notificaciones, Publicaciones y Eventos se desplaza el contenido; otras rutas conservan el flujo normal. */
-.private-shell--inicio, .private-shell--mensajes, .private-shell--notificaciones, .private-shell--publicacion, .private-shell--eventos {
+.private-shell .nav-entry:focus-visible {
+  outline: 2px solid var(--nav-lime);
+  outline-offset: 2px;
+}
+
+.private-shell .nav-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--nav-muted);
+}
+
+.private-shell .nav-entry-active .nav-dot {
+  background: var(--nav-lime);
+}
+
+.private-shell .nav-badge {
+  display: inline-block;
+  margin-left: 5px;
+  border: 1px solid #a8e22355;
+  border-radius: 999px;
+  background: #a8e22322;
+  padding: 1px 7px;
+  color: var(--nav-lime);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/*
+ * Inicio, Mensajes, Notificaciones,
+ * Publicaciones y Eventos:
+ * el contenido se desplaza internamente.
+ */
+.private-shell--inicio,
+.private-shell--mensajes,
+.private-shell--notificaciones,
+.private-shell--publicacion,
+.private-shell--eventos {
   display: flex;
   height: 100dvh;
   flex-direction: column;
   overflow: hidden;
 }
 
-.private-shell--inicio > header, .private-shell--mensajes > header, .private-shell--notificaciones > header, .private-shell--publicacion > header, .private-shell--eventos > header { flex-shrink: 0; }
-.private-shell--inicio > div > aside, .private-shell--mensajes > div > aside, .private-shell--notificaciones > div > aside, .private-shell--publicacion > div > aside, .private-shell--eventos > div > aside { min-height: 0; }
-.private-shell--inicio #private-content, .private-shell--mensajes #private-content, .private-shell--notificaciones #private-content, .private-shell--publicacion #private-content, .private-shell--eventos #private-content { min-height: 0; overflow: hidden; }
+/* Mantener visible la Navbar */
+.private-shell--inicio>header,
+.private-shell--mensajes>header,
+.private-shell--notificaciones>header,
+.private-shell--publicacion>header,
+.private-shell--eventos>header {
+  flex-shrink: 0;
+}
+
+/* Ajustar el Sidebar compartido */
+.private-shell--inicio>div>aside,
+.private-shell--mensajes>div>aside,
+.private-shell--notificaciones>div>aside,
+.private-shell--publicacion>div>aside,
+.private-shell--eventos>div>aside {
+  min-height: 0;
+}
+
+/* Controlar el desbordamiento del contenido */
+.private-shell--inicio #private-content,
+.private-shell--mensajes #private-content,
+.private-shell--notificaciones #private-content,
+.private-shell--publicacion #private-content,
+.private-shell--eventos #private-content {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/*
+ * Actividades 073 y 075 - Mi Perfil.
+ * Utiliza el mismo layout compartido,
+ * pero permite desplazamiento vertical
+ * en pantallas estrechas.
+ */
+.private-shell--perfil {
+  min-height: 100dvh;
+}
+
+.private-shell--perfil>div>aside {
+  min-height: calc(100dvh - 80px);
+}
+
+/* Adaptación responsiva de Mi Perfil */
+@media (max-width: 800px) {
+  .private-shell--perfil>header {
+    grid-template-columns: 1fr auto;
+    gap: 8px;
+    padding-inline: 12px;
+  }
+
+  .private-shell--perfil>header>div:nth-child(2) {
+    display: none;
+  }
+
+  .private-shell--perfil>header>a {
+    width: auto;
+  }
+
+  .private-shell--perfil>div>aside {
+    width: 64px;
+    padding-inline: 6px;
+  }
+
+  .private-shell--perfil>div>aside .nav-entry {
+    overflow: hidden;
+    white-space: nowrap;
+    font-size: 0;
+    padding-inline: 20px;
+  }
+
+  .private-shell--perfil>div>aside nav>p {
+    font-size: 0;
+  }
+
+  .private-shell--perfil>header button {
+    width: auto;
+    padding-inline: 10px;
+  }
+}

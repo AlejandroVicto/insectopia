@@ -28,7 +28,15 @@ function PrivateLayoutContent({ notificationCount }) {
   const isNotificaciones = pathname === '/app/notificaciones'
   const isPublicacion = pathname.startsWith('/app/publicaciones/')
   const isEventos = pathname === '/app/eventos'
-  const isScrollableSection = isInicio || isMensajes || isNotificaciones || isPublicacion || isEventos
+  const isPerfil = pathname === '/app/perfil'
+
+  const isScrollableSection =
+    isInicio ||
+    isMensajes ||
+    isNotificaciones ||
+    isPublicacion ||
+    isEventos ||
+    isPerfil
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return
@@ -82,7 +90,7 @@ function PrivateLayoutContent({ notificationCount }) {
   return (
     <CrearPublicacionProvider>
       <div
-        className={`private-shell min-w-[1100px] ${isInicio
+        className={`private-shell ${isPerfil ? '' : 'min-w-[1100px]'} ${isInicio
             ? 'private-shell--inicio'
             : isMensajes
               ? 'private-shell--mensajes'
@@ -92,7 +100,9 @@ function PrivateLayoutContent({ notificationCount }) {
                   ? 'private-shell--publicacion'
                   : isEventos
                     ? 'private-shell--eventos'
-                    : 'min-h-screen'
+                    : isPerfil
+                      ? 'private-shell--perfil'
+                      : 'min-h-screen'
           }`}
       >
         <Navbar
@@ -140,5 +150,10 @@ function PrivateLayoutContent({ notificationCount }) {
 
 export default function PrivateLayout({ notificationCount }) {
   const { token } = useAuth()
-  return <NotificacionesProvider key={token}><PrivateLayoutContent notificationCount={notificationCount} /></NotificacionesProvider>
+
+  return (
+    <NotificacionesProvider key={token}>
+      <PrivateLayoutContent notificationCount={notificationCount} />
+    </NotificacionesProvider>
+  )
 }
