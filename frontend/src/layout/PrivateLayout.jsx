@@ -27,7 +27,8 @@ function PrivateLayoutContent({ notificationCount }) {
   const isMensajes = pathname === '/app/mensajes'
   const isNotificaciones = pathname === '/app/notificaciones'
   const isPublicacion = pathname.startsWith('/app/publicaciones/')
-  const isScrollableSection = isInicio || isMensajes || isNotificaciones || isPublicacion
+  const isEventos = pathname === '/app/eventos'
+  const isScrollableSection = isInicio || isMensajes || isNotificaciones || isPublicacion || isEventos
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return
@@ -89,7 +90,9 @@ function PrivateLayoutContent({ notificationCount }) {
                 ? 'private-shell--notificaciones'
                 : isPublicacion
                   ? 'private-shell--publicacion'
-              : 'min-h-screen'
+                  : isEventos
+                    ? 'private-shell--eventos'
+                    : 'min-h-screen'
           }`}
       >
         <Navbar

@@ -62,7 +62,7 @@ describe('Mensajes 063', () => {
     expect(screen.getAllByRole('navigation', { name: 'Navegación principal' })).toHaveLength(1)
     expect(screen.getByRole('heading', { name: 'Selecciona una conversación' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salir de mensajes' }))
-    expect(screen.getByRole('heading', { name: 'Eventos' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Eventos y Bioblitz Entomológicos' })).toBeTruthy()
   })
 
   it('bloquea la ruta sin sesión', () => {
