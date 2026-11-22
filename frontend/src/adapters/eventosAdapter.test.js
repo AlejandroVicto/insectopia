@@ -74,4 +74,26 @@ describe('adaptador de eventos', () => {
     expect(pagina.totalElements).toBe(1)
     expect(pagina.last).toBe(true)
   })
+
+  it('conserva el cupo y expone motivoResolucion y propiedad sólo con datos reales', () => {
+    const propio = adaptarEvento({ ...basico, esPropio: true, motivoResolucion: '  Falta el permiso  ' })
+    expect(propio.cupoMaximo).toBe(30)
+    expect(propio.cupoDisponible).toBe(true)
+    expect(propio.esPropio).toBe(true)
+    expect(propio.motivoResolucion).toBe('Falta el permiso')
+
+    const ajeno = adaptarEvento({ ...basico, idProponente: 99, motivoResolucion: 'Motivo ajeno' }, { idUsuario: 7 })
+    expect(ajeno.esPropio).toBe(false)
+    expect(ajeno.motivoResolucion).toBe('Motivo ajeno')
+
+    const sinMotivo = adaptarEvento({ ...basico, motivoResolucion: '   ' })
+    expect(sinMotivo.motivoResolucion).toBeNull()
+  })
+
+  it('propaga las opciones de propiedad a todos los eventos de la página', () => {
+    const pagina = adaptarPaginaEventos({
+      content: [basico], number: 0, size: 10, totalPages: 1, totalElements: 1, first: true, last: true,
+    }, { idUsuario: 12, propia: true })
+    expect(pagina.content[0].esPropio).toBe(true)
+  })
 })

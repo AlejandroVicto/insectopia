@@ -126,14 +126,26 @@ describe('Eventos 069', () => {
   it('modo demo está etiquetado, filtra en local y jamás ejecuta escrituras', async () => {
     const adapter = renderEventos({ demo: true })
     expect(screen.getByText(/Vista de demostración/)).toBeTruthy()
-    fireEvent.click(screen.getByRole('button', { name: '+ Proponer Evento' }))
-    expect(screen.getByRole('status').textContent).toMatch(/actividad 071/)
-    fireEvent.click(screen.getAllByRole('button', { name: 'Inscribirme' })[0])
-    expect(screen.getByRole('status').textContent).toMatch(/071 y 072/)
-    expect(screen.queryByText('Inscrito')).toBeNull()
-    expect(adapter).not.toHaveBeenCalled()
+    const inscritosAntes = screen.queryAllByText('Inscrito').length
 
-    const busqueda = screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, taxón o localidad' })
+    const proponer = screen.getByRole('button', { name: '+ Proponer Evento' })
+    proponer.focus()
+    fireEvent.click(proponer)
+    expect(screen.getByRole('dialog', { name: 'Proponer nuevo evento / bioblitz' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toMatch(/backend de eventos \(actividad 070\)/)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(document.activeElement).toBe(proponer)
+
+    const inscribir = screen.getAllByRole('button', { name: 'Inscribirme' })[0]
+    fireEvent.click(inscribir)
+    expect(screen.getByRole('dialog', { name: 'Confirmar inscripción' })).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('La inscripción se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).')
+    expect(screen.queryAllByText('Inscrito')).toHaveLength(inscritosAntes)
+    expect(adapter).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+
+    const busqueda = screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, descripción o localidad' })
     fireEvent.change(busqueda, { target: { value: 'Coleópteros' } })
     await waitFor(() => expect(screen.queryByRole('article', { name: /Bioblitz nocturno/ })).toBeNull())
     expect(screen.getByRole('article', { name: /Simposio Internacional/ })).toBeTruthy()
@@ -154,7 +166,7 @@ describe('Eventos 069', () => {
     const adapter = vi.fn((config) => ok(config, pagina([raw(1)])))
     renderEventos({ adapter })
     await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 1' })).toBeTruthy())
-    const busqueda = screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, taxón o localidad' })
+    const busqueda = screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, descripción o localidad' })
     fireEvent.change(busqueda, { target: { value: 'polillas' } })
     await waitFor(() => expect(screen.getByTestId('params').textContent).toContain('q=polillas'))
     expect(screen.getByText(/Los filtros están pendientes del contrato del backend 070/)).toBeTruthy()
@@ -194,7 +206,7 @@ describe('Eventos 069', () => {
     const adapter = vi.fn((config) => ok(config, pagina([])))
     renderEventos({ adapter })
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Aún no hay eventos disponibles' })).toBeTruthy())
-    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, taxón o localidad' }), { target: { value: 'nada' } })
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, descripción o localidad' }), { target: { value: 'nada' } })
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Sin coincidencias de búsqueda' })).toBeTruthy())
     fireEvent.click(screen.getAllByRole('button', { name: 'Limpiar filtros' }).at(-1))
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Aún no hay eventos disponibles' })).toBeTruthy())
@@ -246,5 +258,64 @@ describe('Eventos 069', () => {
     expect(document.querySelector('.evt-resultados')).toBeTruthy()
     expect(shell.querySelector('header').contains(document.querySelector('.evt-lista'))).toBe(false)
     expect(shell.querySelector('aside').contains(document.querySelector('.evt-lista'))).toBe(false)
+  })
+
+  it('ya no ofrece filtros ni campos que no existen en el modelo persistente', () => {
+    renderEventos({ demo: true })
+    const filtros = screen.getByRole('region', { name: 'Búsqueda y filtros de eventos' })
+    expect(within(filtros).queryByText(/Modalidad/i)).toBeNull()
+    expect(within(filtros).queryByText(/Categoría\s*\/\s*tipo/i)).toBeNull()
+    expect(within(filtros).queryByPlaceholderText(/taxón objetivo/i)).toBeNull()
+    expect(screen.queryByText(/Coordenadas GPS, mapa de monitoreo, equipo técnico y etiquetas taxonómicas/)).toBeNull()
+    const detalle = screen.getByRole('complementary', { name: 'Detalle del evento' })
+    expect(within(detalle).queryByText(/Coordenadas GPS|mapa de monitoreo|equipo técnico|etiquetas taxonómicas/i)).toBeNull()
+  })
+
+  it('muestra el motivo de rechazo únicamente en una propuesta propia rechazada', async () => {
+    renderEventos({ demo: true })
+    fireEvent.click(screen.getByRole('tab', { name: 'Mis propuestas' }))
+    const rechazada = screen.getAllByRole('article')
+      .find((articulo) => articulo.getAttribute('aria-label')?.includes('expedición'))
+    expect(rechazada).toBeTruthy()
+    fireEvent.click(within(rechazada).getByRole('button', { name: 'Ver detalles' }))
+    const detalle = screen.getByRole('complementary', { name: 'Detalle del evento' })
+    expect(within(detalle).getByRole('region', { name: 'Motivo del rechazo' })).toBeTruthy()
+    expect(within(detalle).getByText(/permiso de colecta científica vigente/)).toBeTruthy()
+
+    cleanup()
+    const adapter = vi.fn((config) => ok(config, pagina([
+      raw(11, { estado: 'RECHAZADO', motivoResolucion: 'Motivo privado de otro proponente' }),
+    ])))
+    renderEventos({ adapter })
+    await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 11' })).toBeTruthy())
+    expect(screen.queryByText('Motivo privado de otro proponente')).toBeNull()
+    expect(screen.queryByRole('region', { name: 'Motivo del rechazo' })).toBeNull()
+  })
+
+  it('conecta los cinco modales desde un único gestor en la página', () => {
+    renderEventos({ demo: true })
+    fireEvent.click(screen.getByRole('button', { name: '+ Proponer Evento' }))
+    expect(screen.getByRole('dialog', { name: 'Proponer nuevo evento / bioblitz' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Ver detalles' })[0])
+    expect(screen.getByRole('dialog', { name: 'Detalles del evento' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Mis propuestas' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Editar' })[0])
+    expect(screen.getByRole('dialog', { name: 'Editar propuesta' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Todos los eventos' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Inscribirme' })[0])
+    expect(screen.getByRole('dialog', { name: 'Confirmar inscripción' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancelar inscripción' })[0])
+    expect(screen.getByRole('dialog', { name: 'Cancelar inscripción' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })

@@ -3,12 +3,18 @@ import { useSearchParams } from 'react-router-dom'
 import { adaptarPaginaEventos } from '../adapters/eventosAdapter'
 import { CONTRATO_FILTROS_CONFIRMADO, consultarEventos, consultarMisPropuestas } from '../services/eventosService'
 import { consultarEventosDemo, consultarMisPropuestasDemo } from '../data/eventosDemo'
-import EventoCard, { AVISO_ACCIONES_ID } from '../components/eventos/EventoCard'
+import { useAuth } from '../auth/useAuth'
+import EventoCard from '../components/eventos/EventoCard'
 import EventoDetalle from '../components/eventos/EventoDetalle'
 import EventosFiltros from '../components/eventos/EventosFiltros'
 import EventosPaginacion from '../components/eventos/EventosPaginacion'
 import EventosTabs from '../components/eventos/EventosTabs'
 import { EventosCargando, EventosError, EventosVacio, FiltroPendiente } from '../components/eventos/EventosStates'
+import ProponerEventoModal from '../components/eventos/ProponerEventoModal'
+import EditarEventoModal from '../components/eventos/EditarEventoModal'
+import EventoDetallesModal from '../components/eventos/EventoDetallesModal'
+import ConfirmarInscripcionModal from '../components/eventos/ConfirmarInscripcionModal'
+import CancelarInscripcionModal from '../components/eventos/CancelarInscripcionModal'
 import './eventos.css'
 
 export const EVENTOS_DEMO = import.meta.env.VITE_EVENTOS_MOCK === 'true'
@@ -32,6 +38,7 @@ function clasificarError(error) {
 
 export default function Eventos({ demo = EVENTOS_DEMO }) {
   const [params, setParams] = useSearchParams()
+  const { user } = useAuth()
   const tab = TABS.some((opcion) => opcion.id === params.get('tab')) ? params.get('tab') : 'todos'
   const q = params.get('q')?.trim() ?? ''
   const estadoParam = params.get('estado') ?? ''
@@ -53,13 +60,15 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   const [retry, setRetry] = useState(0)
   const [resultado, setResultado] = useState(null)
   const [seleccionadoId, setSeleccionadoId] = useState(null)
-  const [aviso, setAviso] = useState({ clave: '', texto: '' })
+  const [modal, setModal] = useState(null)
   const listaRef = useRef(null)
 
   const filtros = useMemo(() => ({ q, estado, periodo, fechaDesde, fechaHasta }),
     [q, estado, periodo, fechaDesde, fechaHasta])
-  const claveNavegacion = JSON.stringify([tab, page, q, estado, periodo, fechaDesde, fechaHasta])
-  const avisoVisible = aviso.clave === claveNavegacion ? aviso.texto : ''
+  const opcionesAdaptacion = useMemo(() => ({
+    idUsuario: user?.id ?? null,
+    propia: tab === 'mis-propuestas',
+  }), [user?.id, tab])
   const key = JSON.stringify([demo, tab, q, estado, periodo, fechaDesde, fechaHasta, page, retry])
 
   const actualizarParams = useCallback((cambios, options) => {
@@ -73,6 +82,19 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
     }, options)
   }, [setParams])
 
+  const abrirModal = useCallback((tipo, evento) => {
+    setModal({ tipo, eventoId: evento?.id ?? null })
+  }, [])
+
+  const cerrarModal = useCallback(() => setModal(null), [])
+
+  const recargar = useCallback(() => setRetry((valor) => valor + 1), [])
+
+  const trasProponer = useCallback(() => {
+    actualizarParams({ tab: 'mis-propuestas', page: 0 })
+    setRetry((valor) => valor + 1)
+  }, [actualizarParams])
+
   useEffect(() => {
     if (busqueda.trim() === q) return undefined
     const temporizador = setTimeout(() => {
@@ -82,10 +104,6 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
     }, 350)
     return () => clearTimeout(temporizador)
   }, [busqueda, q, actualizarParams])
-
-  function mostrarAviso(texto) {
-    setAviso({ clave: claveNavegacion, texto })
-  }
 
   const datosDemo = useMemo(() => {
     if (!demo || tabPendiente) return null
@@ -102,7 +120,11 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
     consultar({ page, size, filtros, signal: controller.signal })
       .then(({ data }) => {
         if (!controller.signal.aborted) {
-          setResultado({ key, status: 'success', data: adaptarPaginaEventos(data) })
+          setResultado({
+            key,
+            status: 'success',
+            data: adaptarPaginaEventos(data, opcionesAdaptacion),
+          })
         }
       })
       .catch((error) => {
@@ -111,13 +133,16 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
         }
       })
     return () => controller.abort()
-  }, [demo, tabPendiente, tab, page, size, filtros, key, retry])
+  }, [demo, tabPendiente, tab, page, size, filtros, key, retry, opcionesAdaptacion])
 
   const visible = demo
     ? { key, status: tabPendiente ? 'pendiente' : 'success', data: datosDemo }
     : resultado?.key === key ? resultado : { key, status: 'loading', data: null }
   const eventos = visible.status === 'success' ? visible.data.content : []
   const seleccionado = eventos.find((evento) => String(evento.id) === String(seleccionadoId)) ?? eventos[0] ?? null
+  const eventoModal = modal?.eventoId != null
+    ? eventos.find((evento) => String(evento.id) === String(modal.eventoId)) ?? seleccionado
+    : null
 
   function limpiarFiltros() {
     actualizarParams({ q: null, estado: null, periodo: null, fechaDesde: null, fechaHasta: null, page: 0 })
@@ -127,6 +152,11 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   function irAPagina(siguiente) {
     actualizarParams({ page: siguiente })
     listaRef.current?.scrollTo?.({ top: 0, behavior: 'smooth' })
+  }
+
+  function verDetalle(evento) {
+    setSeleccionadoId(evento.id)
+    abrirModal('detalles', evento)
   }
 
   return (
@@ -143,8 +173,7 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
               <button
                 type="button"
                 className="evt-btn evt-btn--primary evt-proponer"
-                aria-describedby={AVISO_ACCIONES_ID}
-                onClick={() => mostrarAviso('El formulario para proponer eventos estará disponible cuando se integre la actividad 071.')}
+                onClick={() => abrirModal('proponer')}
               >
                 + Proponer Evento
               </button>
@@ -159,7 +188,6 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
               Los filtros están pendientes del contrato del backend 070; el listado no los aplica todavía.
             </p>
           )}
-          <p id={AVISO_ACCIONES_ID} role="status" aria-live="polite" className={avisoVisible ? 'evt-aviso' : 'sr-only'}>{avisoVisible}</p>
 
           <div id="eventos-panel" role="tabpanel" aria-labelledby={`evt-tab-${tab}`} tabIndex={0} className="evt-tabpanel">
             {tabPendiente ? <FiltroPendiente etiqueta={TABS.find((opcion) => opcion.id === tab).label} /> : (
@@ -193,8 +221,10 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
                           key={evento.id}
                           evento={evento}
                           seleccionado={String(seleccionado?.id) === String(evento.id)}
-                          onVerDetalle={(elegido) => setSeleccionadoId(elegido.id)}
-                          onInscribir={() => mostrarAviso('La inscripción estará disponible cuando se integren las actividades 071 y 072.')}
+                          onVerDetalle={verDetalle}
+                          onInscribir={(elegido) => abrirModal('inscribir', elegido)}
+                          onEditar={(elegido) => abrirModal('editar', elegido)}
+                          onCancelarInscripcion={(elegido) => abrirModal('cancelar', elegido)}
                         />
                       ))}
                     </div>)}
@@ -215,9 +245,27 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
 
         <EventoDetalle
           evento={seleccionado}
-          onInscribir={() => mostrarAviso('La inscripción estará disponible cuando se integren las actividades 071 y 072.')}
+          onInscribir={(elegido) => abrirModal('inscribir', elegido)}
+          onEditar={(elegido) => abrirModal('editar', elegido)}
+          onCancelarInscripcion={(elegido) => abrirModal('cancelar', elegido)}
         />
       </div>
+
+      {modal?.tipo === 'proponer' && (
+        <ProponerEventoModal onClose={cerrarModal} onSuccess={trasProponer} />
+      )}
+      {modal?.tipo === 'editar' && (
+        <EditarEventoModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+      )}
+      {modal?.tipo === 'detalles' && (
+        <EventoDetallesModal evento={eventoModal} onClose={cerrarModal} />
+      )}
+      {modal?.tipo === 'inscribir' && (
+        <ConfirmarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+      )}
+      {modal?.tipo === 'cancelar' && (
+        <CancelarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+      )}
     </div>
   )
 }

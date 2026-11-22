@@ -1,12 +1,7 @@
-import { AVISO_ACCIONES_ID } from './EventoCard'
+import { puedeCancelarInscripcion, puedeEditarEvento, puedeInscribirseEvento } from './eventosPermisos'
+import EventoDetalleContenido from './EventoDetalleContenido'
 
-function nombreProponente(proponente) {
-  if (!proponente) return null
-  if (typeof proponente === 'string') return proponente
-  return proponente.nombre ?? proponente.usuario ?? null
-}
-
-export default function EventoDetalle({ evento, onInscribir }) {
+export default function EventoDetalle({ evento, onInscribir, onEditar, onCancelarInscripcion }) {
   return (
     <aside aria-label="Detalle del evento" className="evt-detail evt-panel">
       {!evento ? (
@@ -17,47 +12,25 @@ export default function EventoDetalle({ evento, onInscribir }) {
         </div>
       ) : (
         <>
-          <div className="evt-detail-head">
-            <span className={`evt-chip evt-chip--${evento.estadoTono}`}>{evento.estadoEtiqueta}</span>
-            <h2 className="evt-detail-titulo">{evento.titulo}</h2>
-            {evento.esPasado && <span className="evt-chip evt-chip--pasado">Evento finalizado</span>}
+          <EventoDetalleContenido evento={evento} />
+
+          <div className="evt-detail-actions">
+            {puedeEditarEvento(evento) && (
+              <button type="button" className="evt-btn evt-btn--ghost evt-detail-action" onClick={() => onEditar?.(evento)}>
+                Editar propuesta
+              </button>
+            )}
+            {puedeCancelarInscripcion(evento) && (
+              <button type="button" className="evt-btn evt-btn--ghost evt-detail-action" onClick={() => onCancelarInscripcion?.(evento)}>
+                Cancelar inscripción
+              </button>
+            )}
+            {puedeInscribirseEvento(evento) && (
+              <button type="button" className="evt-btn evt-btn--primary evt-detail-action" onClick={() => onInscribir?.(evento)}>
+                Inscribirme
+              </button>
+            )}
           </div>
-
-          <p className="evt-detail-descripcion">
-            {evento.descripcion ?? 'El backend no ha proporcionado una descripción para este evento.'}
-          </p>
-
-          <dl className="evt-detail-list">
-            <div>
-              <dt>Fecha y horario</dt>
-              <dd>{evento.rangoFechas}{evento.horaInicio ? ` · ${evento.horaInicio}${evento.horaFin ? ` – ${evento.horaFin}` : ''} h` : ''}</dd>
-            </div>
-            {evento.ubicacion && <div><dt>Ubicación</dt><dd>{evento.ubicacion}</dd></div>}
-            {evento.cupoMaximo !== null && <div><dt>Cupo máximo</dt><dd>{evento.cupoMaximo} plazas</dd></div>}
-            {evento.participantesConfirmados !== null && (
-              <div><dt>Participantes confirmados</dt><dd>{evento.participantesConfirmados}</dd></div>
-            )}
-            {nombreProponente(evento.proponente) && (
-              <div><dt>Proponente</dt><dd>{nombreProponente(evento.proponente)}</dd></div>
-            )}
-            <div><dt>Estado del evento</dt><dd>{evento.estadoEtiqueta}</dd></div>
-            {evento.inscripcionEtiqueta && <div><dt>Tu inscripción</dt><dd>{evento.inscripcionEtiqueta}</dd></div>}
-          </dl>
-
-          <p className="evt-detail-note">
-            Coordenadas GPS, mapa de monitoreo, equipo técnico y etiquetas taxonómicas se incorporarán cuando el backend los exponga.
-          </p>
-
-          {evento.estado === 'APROBADO' && evento.cupoDisponible !== false && !evento.esPasado && !evento.inscripcionEstado && (
-            <button
-              type="button"
-              className="evt-btn evt-btn--primary evt-detail-action"
-              aria-describedby={AVISO_ACCIONES_ID}
-              onClick={() => onInscribir?.(evento)}
-            >
-              Inscribirme
-            </button>
-          )}
         </>
       )}
     </aside>

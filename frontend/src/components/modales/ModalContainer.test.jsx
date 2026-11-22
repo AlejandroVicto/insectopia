@@ -81,4 +81,24 @@ describe('ModalContainer', () => {
     cleanup()
     expect(document.body.style.overflow).not.toBe('hidden')
   })
+
+  it('envuelve el contenido en un cuerpo flex sin fijar altura por defecto', () => {
+    renderContainer()
+    const dialog = screen.getByRole('dialog', { name: 'Título accesible' })
+    const contenido = dialog.querySelector('[data-modal-content]')
+
+    expect(contenido).toBeTruthy()
+    expect(contenido.parentElement).toBe(dialog)
+    expect(contenido.className).toContain('min-h-0')
+    expect(contenido.className).toContain('flex-1')
+    expect(dialog.style.height).toBe('')
+    expect(dialog.style.maxHeight).toBe('')
+  })
+
+  it('aplica una altura explícita sólo cuando el modal la solicita', () => {
+    renderContainer({ alto: '700px' })
+    const dialog = screen.getByRole('dialog', { name: 'Título accesible' })
+    expect(dialog.style.height).toBe('700px')
+    expect(dialog.style.maxHeight).toBe('700px')
+  })
 })

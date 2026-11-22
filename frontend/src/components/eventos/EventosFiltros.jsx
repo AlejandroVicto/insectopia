@@ -28,13 +28,13 @@ export default function EventosFiltros({
     <section aria-label="Búsqueda y filtros de eventos" className="evt-filtros evt-panel">
       <div className="evt-busqueda">
         <span aria-hidden="true" className="evt-lupa">⌕</span>
-        <label htmlFor="eventos-q" className="sr-only">Buscar eventos por nombre, taxón o localidad</label>
+        <label htmlFor="eventos-q" className="sr-only">Buscar eventos por nombre, descripción o localidad</label>
         <input
           id="eventos-q"
           type="search"
           value={busqueda}
           onChange={(evento) => onBusqueda(evento.target.value)}
-          placeholder="Buscar por nombre, taxón objetivo (Sphingidae, Apis...) o localidad..."
+          placeholder="Buscar por nombre, descripción o localidad..."
         />
       </div>
 
@@ -61,20 +61,6 @@ export default function EventosFiltros({
         <label>
           <span>Hasta</span>
           <input className="evt-select" type="date" value={fechaHasta} onChange={(evento) => onFecha('fechaHasta', evento.target.value)} />
-        </label>
-
-        <label>
-          <span>Modalidad</span>
-          <select className="evt-select" disabled value="">
-            <option value="">Pendiente de integración</option>
-          </select>
-        </label>
-
-        <label>
-          <span>Categoría / tipo</span>
-          <select className="evt-select" disabled value="">
-            <option value="">Pendiente de integración</option>
-          </select>
         </label>
       </div>
 

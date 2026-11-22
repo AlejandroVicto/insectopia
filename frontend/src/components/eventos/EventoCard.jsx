@@ -1,20 +1,26 @@
-export const AVISO_ACCIONES_ID = 'eventos-acciones-pendientes'
+import { puedeCancelarInscripcion, puedeEditarEvento, puedeInscribirseEvento } from './eventosPermisos'
 
 function diaYMes(fechaTexto) {
   const partes = (fechaTexto ?? '').split(/\s+/)
   return { dia: partes[0] ?? '', mes: partes[1] ?? '' }
 }
 
-export default function EventoCard({ evento, seleccionado = false, onVerDetalle, onInscribir }) {
+export default function EventoCard({
+  evento,
+  seleccionado = false,
+  onVerDetalle,
+  onInscribir,
+  onEditar,
+  onCancelarInscripcion,
+}) {
   const { dia, mes } = diaYMes(evento.fechaInicioTexto)
   const tieneCupo = evento.cupoMaximo !== null && evento.participantesConfirmados !== null
   const porcentaje = tieneCupo && evento.cupoMaximo > 0
     ? Math.min(100, Math.round((evento.participantesConfirmados / evento.cupoMaximo) * 100))
     : 0
-  const puedeInscribirse = evento.estado === 'APROBADO'
-    && evento.cupoDisponible !== false
-    && !evento.esPasado
-    && !evento.inscripcionEstado
+  const puedeInscribirse = puedeInscribirseEvento(evento)
+  const puedeEditar = puedeEditarEvento(evento)
+  const puedeCancelar = puedeCancelarInscripcion(evento)
 
   return (
     <article
@@ -70,11 +76,20 @@ export default function EventoCard({ evento, seleccionado = false, onVerDetalle,
             <button type="button" className="evt-btn evt-btn--ghost" onClick={() => onVerDetalle?.(evento)}>
               Ver detalles
             </button>
+            {puedeEditar && (
+              <button type="button" className="evt-btn evt-btn--ghost" onClick={() => onEditar?.(evento)}>
+                Editar
+              </button>
+            )}
+            {puedeCancelar && (
+              <button type="button" className="evt-btn evt-btn--ghost" onClick={() => onCancelarInscripcion?.(evento)}>
+                Cancelar inscripción
+              </button>
+            )}
             {puedeInscribirse && (
               <button
                 type="button"
                 className="evt-btn evt-btn--primary"
-                aria-describedby={AVISO_ACCIONES_ID}
                 onClick={() => onInscribir?.(evento)}
               >
                 Inscribirme

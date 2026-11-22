@@ -16,7 +16,7 @@ export default function EventosTabs({ tabs, value, onChange }) {
   }
 
   return (
-    <div role="tablist" aria-label="Categorías de eventos" className="evt-tabs">
+    <div role="tablist" aria-label="Pestañas de eventos" className="evt-tabs">
       {tabs.map((tab, indice) => (
         <button
           key={tab.id}

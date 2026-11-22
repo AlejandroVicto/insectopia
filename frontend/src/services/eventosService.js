@@ -4,8 +4,39 @@ import api from './api'
 // sólo EventoRepository y las entidades Java. Hasta que el compañero confirme los
 // parámetros, se envían exclusivamente page y size (nunca parámetros inventados).
 export const RUTA_EVENTOS = '/api/eventos'
-export const FILTROS_PROPUESTOS = Object.freeze(['q', 'estado', 'fechaDesde', 'fechaHasta', 'tipo', 'modalidad'])
+export const FILTROS_PROPUESTOS = Object.freeze(['q', 'estado', 'fechaDesde', 'fechaHasta'])
 export const CONTRATO_FILTROS_CONFIRMADO = false
+
+// Escrituras 071/072: hoy no hay controller ni DTO en el backend. Las funciones
+// existen para conectar el contrato definitivo, pero NO llaman a Axios ni
+// simulan éxito mientras no exista el endpoint.
+export const OPERACIONES_EVENTOS_DISPONIBLES = false
+export const ENDPOINTS_ESCRITURA_PROPUESTOS = Object.freeze({
+  crear: null,
+  editar: null,
+  inscribir: null,
+  cancelarInscripcion: null,
+})
+
+function operacionNoDisponible(mensaje) {
+  return Promise.reject(Object.assign(new Error(mensaje), { userMessage: mensaje, tipo: 'info' }))
+}
+
+export function crearEvento() {
+  return operacionNoDisponible('La propuesta estará disponible cuando se integre el servicio de eventos.')
+}
+
+export function actualizarEvento() {
+  return operacionNoDisponible('La edición estará disponible cuando se integre el servicio de eventos.')
+}
+
+export function inscribirmeEnEvento() {
+  return operacionNoDisponible('La inscripción estará disponible cuando se integre el servicio de participación (actividad 072).')
+}
+
+export function cancelarMiInscripcion() {
+  return operacionNoDisponible('La cancelación estará disponible cuando se integre el servicio de participación (actividad 072).')
+}
 
 function texto(valor) {
   return typeof valor === 'string' && valor.trim() ? valor.trim() : ''
@@ -32,11 +63,9 @@ export function construirParametrosEventos({
   const parametros = { page, size }
   if (!incluirFiltrosPropuestos) return parametros
 
-  const { q, estado, fechaDesde, fechaHasta, tipo, modalidad, periodo } = filtros
+  const { q, estado, fechaDesde, fechaHasta, periodo } = filtros
   if (texto(q)) parametros.q = texto(q)
   if (texto(estado)) parametros.estado = texto(estado).toUpperCase()
-  if (texto(tipo)) parametros.tipo = texto(tipo)
-  if (texto(modalidad)) parametros.modalidad = texto(modalidad)
 
   // "Próximos y pasados" se traduce al contrato propuesto de fechas, nunca se
   // filtra en React. Las fechas explícitas tienen prioridad sobre el periodo.

@@ -52,7 +52,7 @@
 .evt-lupa { color: var(--evt-muted); font-size: 20px; line-height: 1; }
 .evt-busqueda input { width: 100%; min-width: 0; background: none; color: var(--evt-text); font-size: 12px; outline: none; }
 .evt-busqueda input::placeholder { color: var(--evt-muted); }
-.evt-filtros-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
+.evt-filtros-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-top: 9px; }
 .evt-filtros-grid label { display: flex; min-width: 0; flex-direction: column; gap: 3px; color: var(--evt-muted); font-size: 10px; font-weight: 700; }
 .evt-select { width: 100%; min-width: 0; height: 34px; border: 1px solid var(--evt-border); border-radius: 9px; padding: 0 8px; background: var(--evt-inset); color: var(--evt-text); font-size: 11px; }
 .evt-select:disabled { color: var(--evt-muted); opacity: .7; }
@@ -128,5 +128,30 @@
 .evt-detail-list > div { display: flex; flex-direction: column; gap: 3px; }
 .evt-detail-list dt { color: var(--evt-muted); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
 .evt-detail-list dd { margin: 0; color: var(--evt-text); font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
-.evt-detail-note { margin: 0; color: var(--evt-muted); font-size: 10px; line-height: 1.5; }
+.evt-detail-imagen { width: 100%; height: 150px; border: 1px solid var(--evt-border); border-radius: 12px; object-fit: cover; background: var(--evt-inset); }
+.evt-detail-imagen--vacia { display: flex; align-items: center; justify-content: center; color: var(--evt-muted); font-size: 11px; font-weight: 700; }
+.evt-rechazo { border: 1px solid #8b4a45; border-left: 3px solid var(--evt-rojo); border-radius: 12px; padding: 12px; background: rgba(246, 185, 168, .08); }
+.evt-rechazo h3 { margin: 0 0 5px; color: var(--evt-rojo); font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.evt-rechazo p { margin: 0; color: var(--evt-text); font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+.evt-detail-actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
 .evt-detail-action { flex: none; width: 100%; min-height: 38px; }
+
+/* Modales 071: se montan en un portal, por eso usan sus propias variables. */
+.evt-modal { --evt-bg: #111713; --evt-card: #1d2820; --evt-inset: #141d17; --evt-soft: #2a4330; --evt-lime: #a8e223; --evt-text: #f3f8ef; --evt-muted: #a5b7a7; --evt-border: #40584a; }
+.evt-modal > header { flex: 0 0 auto; }
+.evt-modal > [data-modal-content] { display: flex; min-height: 0; flex: 1 1 auto; flex-direction: column; }
+.evt-modal .evt-formulario-modal { min-height: 0; flex: 1 1 auto; overflow: hidden; }
+.evt-modal .evt-formulario-cuerpo { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 48px; }
+.evt-modal [data-evento-cuerpo] { min-height: 0; flex: 1 1 auto; overflow-y: auto; overscroll-behavior: contain; }
+.evt-modal [data-evento-pie] { position: relative; z-index: 1; flex: 0 0 auto; background: var(--evt-card); box-shadow: 0 -8px 18px rgba(8, 17, 11, .35); }
+.evt-modal-body { scrollbar-width: thin; scrollbar-color: var(--evt-border) transparent; }
+.evt-modal-body::-webkit-scrollbar { width: 8px; }
+.evt-modal-body::-webkit-scrollbar-thumb { border-radius: 999px; background: var(--evt-border); }
+.evt-modal-datos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 16px; margin: 0; }
+.evt-modal-datos > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.evt-modal-datos dt { color: var(--evt-muted); font-size: 10px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; }
+.evt-modal-datos dd { margin: 0; color: var(--evt-text); font-size: 12px; font-weight: 700; overflow-wrap: anywhere; }
+.evt-modal-check { transition: border-color .15s ease, background .15s ease; }
+.evt-modal-check:hover { border-color: var(--evt-lime); background: #1a271e; }
+.evt-modal-check:focus-within { outline: 2px solid var(--evt-lime); outline-offset: 2px; }
+.evt-modal-descartar { scrollbar-width: thin; }

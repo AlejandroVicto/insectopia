@@ -41,6 +41,7 @@ export const eventosDemo = [
     cupoMaximo: 20,
     participantesConfirmados: 20,
     estado: 'APROBADO',
+    estadoInscripcion: 'INSCRITO',
     proponentePublico: null,
   },
   {
@@ -54,6 +55,7 @@ export const eventosDemo = [
     cupoMaximo: 15,
     participantesConfirmados: null,
     estado: 'PENDIENTE',
+    esPropio: true,
     proponentePublico: null,
   },
   {
@@ -67,6 +69,8 @@ export const eventosDemo = [
     cupoMaximo: 12,
     participantesConfirmados: 0,
     estado: 'RECHAZADO',
+    esPropio: true,
+    motivoResolucion: 'La propuesta no incluía el permiso de colecta científica vigente para el género solicitado.',
     proponentePublico: null,
   },
   {

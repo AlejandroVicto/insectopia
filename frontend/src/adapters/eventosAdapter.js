@@ -70,7 +70,7 @@ function proponentePublico(valor) {
   return { nombre, usuario }
 }
 
-export function adaptarEvento(raw) {
+export function adaptarEvento(raw, opciones = {}) {
   const id = raw?.id ?? raw?.idEvento
   const titulo = texto(raw?.titulo)
   const inicio = fechaUTC(raw?.fechaInicio)
@@ -87,6 +87,11 @@ export function adaptarEvento(raw) {
   const cupoMaximo = natural(raw?.cupoMaximo)
   const participantes = natural(raw?.participantesConfirmados ?? raw?.totalParticipantes ?? raw?.numeroParticipantes)
   const cupoDisponible = cupoMaximo !== null && participantes !== null ? participantes < cupoMaximo : null
+  const idUsuario = opciones.idUsuario
+  const esPropio = raw?.esPropio === true
+    || raw?.esMiPropuesta === true
+    || opciones.propia === true
+    || (idUsuario != null && raw?.idProponente != null && String(raw.idProponente) === String(idUsuario))
 
   return {
     id,
@@ -113,10 +118,14 @@ export function adaptarEvento(raw) {
     inscripcionEstado: inscripcionEtiqueta ? inscripcionServidor : null,
     inscripcionEtiqueta,
     proponente: proponentePublico(raw?.proponentePublico ?? raw?.proponente),
+    esPropio,
+    // Sólo se expone cuando el DTO lo incluye. Se muestra únicamente en
+    // propuestas propias rechazadas; nunca se inventa ni se edita.
+    motivoResolucion: texto(raw?.motivoResolucion),
   }
 }
 
-export function adaptarPaginaEventos(raw) {
+export function adaptarPaginaEventos(raw, opciones = {}) {
   if (!raw || !Array.isArray(raw.content) || !Number.isInteger(raw.number) || raw.number < 0
       || !Number.isInteger(raw.size) || raw.size <= 0 || !Number.isInteger(raw.totalPages)
       || raw.totalPages < 0 || !Number.isInteger(raw.totalElements) || raw.totalElements < 0
@@ -124,7 +133,7 @@ export function adaptarPaginaEventos(raw) {
     throw new Error('El formato de paginación de eventos no es válido')
   }
   return {
-    content: raw.content.map(adaptarEvento),
+    content: raw.content.map((evento) => adaptarEvento(evento, opciones)),
     number: raw.number,
     size: raw.size,
     totalPages: raw.totalPages,

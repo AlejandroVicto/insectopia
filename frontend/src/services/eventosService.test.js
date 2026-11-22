@@ -2,11 +2,17 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import api from './api'
 import {
   CONTRATO_FILTROS_CONFIRMADO,
+  ENDPOINTS_ESCRITURA_PROPUESTOS,
   FILTROS_PROPUESTOS,
+  OPERACIONES_EVENTOS_DISPONIBLES,
+  actualizarEvento,
+  cancelarMiInscripcion,
   construirParametrosEventos,
   consultarEvento,
   consultarEventos,
   consultarMisPropuestas,
+  crearEvento,
+  inscribirmeEnEvento,
 } from './eventosService'
 
 const originalAdapter = api.defaults.adapter
@@ -17,7 +23,7 @@ const responder = (config) => Promise.resolve({ status: 200, data: {}, config, h
 describe('servicio de eventos (contrato propuesto 070)', () => {
   it('el contrato de filtros sigue sin confirmarse y sólo se envían page y size', () => {
     expect(CONTRATO_FILTROS_CONFIRMADO).toBe(false)
-    expect(FILTROS_PROPUESTOS).toEqual(['q', 'estado', 'fechaDesde', 'fechaHasta', 'tipo', 'modalidad'])
+    expect(FILTROS_PROPUESTOS).toEqual(['q', 'estado', 'fechaDesde', 'fechaHasta'])
     expect(construirParametrosEventos({ page: 2, size: 5, filtros: { q: 'polillas', tipo: 'BIOBLITZ' } }))
       .toEqual({ page: 2, size: 5 })
   })
@@ -33,9 +39,10 @@ describe('servicio de eventos (contrato propuesto 070)', () => {
     })
     expect(params).toEqual({
       page: 0, size: 10, q: 'apis', estado: 'APROBADO', fechaDesde: '2026-01-01',
-      tipo: 'bioblitz', modalidad: 'presencial',
     })
     expect(params.orderBy).toBeUndefined()
+    expect(params.tipo).toBeUndefined()
+    expect(params.modalidad).toBeUndefined()
   })
 
   it('traduce próximos y pasados a fechas del contrato propuesto', () => {
@@ -61,5 +68,20 @@ describe('servicio de eventos (contrato propuesto 070)', () => {
     await consultarEvento(15, { signal: controller.signal })
     expect(adapter.mock.calls[2][0].url).toBe('/api/eventos/15')
     await expect(consultarEvento(null)).rejects.toThrow(TypeError)
+  })
+
+  it('mantiene las escrituras 071/072 pendientes sin llamar a Axios ni simular éxito', async () => {
+    expect(OPERACIONES_EVENTOS_DISPONIBLES).toBe(false)
+    expect(ENDPOINTS_ESCRITURA_PROPUESTOS).toEqual({
+      crear: null, editar: null, inscribir: null, cancelarInscripcion: null,
+    })
+
+    const adapter = vi.fn(responder)
+    api.defaults.adapter = adapter
+    await expect(crearEvento({})).rejects.toMatchObject({ tipo: 'info' })
+    await expect(actualizarEvento(1, {})).rejects.toMatchObject({ tipo: 'info' })
+    await expect(inscribirmeEnEvento(1)).rejects.toMatchObject({ tipo: 'info' })
+    await expect(cancelarMiInscripcion(1)).rejects.toMatchObject({ tipo: 'info' })
+    expect(adapter).not.toHaveBeenCalled()
   })
 })

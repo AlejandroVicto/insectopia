@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom'
 const FOCUSEABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
 
 // Contenedor accesible común: portal sobre toda la página, cabecera con título accesible,
-// cuerpo con scroll interno, atrapa el foco, cierra con Escape y restaura el foco anterior.
+// cuerpo flex con scroll interno, atrapa el foco, cierra con Escape y restaura el foco.
+// `alto` sólo se usa en diálogos con formularios largos; el resto mantiene su altura previa.
 export default function ModalContainer({
   titleId,
   descriptionId,
@@ -13,6 +14,12 @@ export default function ModalContainer({
   onClose,
   closeLabel = 'Cerrar diálogo',
   closeDisabled = false,
+  eyebrow,
+  icon,
+  acento = 'lima',
+  ancho,
+  alto,
+  className = '',
   children,
 }) {
   const dialogRef = useRef(null)
@@ -87,12 +94,36 @@ export default function ModalContainer({
         aria-modal="true"
         aria-labelledby={titleId}
         aria-describedby={descriptionId}
-        className="relative my-auto flex max-h-[min(90dvh,736px)] w-full max-w-[672px] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#415c48] bg-[#1d2820] text-[#f3f8ef] shadow-2xl focus:outline-none"
+        className={`relative my-auto flex max-h-[min(90dvh,736px)] w-full max-w-[672px] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#415c48] bg-[#1d2820] text-[#f3f8ef] shadow-2xl focus:outline-none ${className}`}
+        style={ancho || alto
+          ? {
+            ...(ancho ? { maxWidth: ancho } : {}),
+            ...(alto ? { height: alto, maxHeight: alto } : {}),
+          }
+          : undefined}
       >
         <header className="flex shrink-0 items-start justify-between gap-4 border-b border-[#35483a] px-6 py-5 sm:px-8">
-          <div className="min-w-0">
-            <h2 id={titleId} className="font-display text-xl font-bold leading-7 text-stone-100 sm:text-2xl">{title}</h2>
-            <p id={descriptionId} className="mt-1 text-xs leading-4 text-[#a5b7a7]">{description}</p>
+          <div className="flex min-w-0 items-start gap-4">
+            {icon && (
+              <span aria-hidden="true" className={`flex size-12 shrink-0 items-center justify-center rounded-xl ${
+                acento === 'rojo' ? 'bg-rose-300/15 text-rose-200' : 'bg-lime-400/10 text-lime-400'
+              }`}
+              >
+                {icon}
+              </span>
+            )}
+            <div className="min-w-0">
+              {eyebrow && (
+                <p className={`text-[10px] font-bold uppercase leading-4 tracking-widest ${
+                  acento === 'rojo' ? 'text-rose-300' : 'text-lime-400'
+                }`}
+                >
+                  {eyebrow}
+                </p>
+              )}
+              <h2 id={titleId} className="font-display text-xl font-bold leading-7 text-stone-100 sm:text-2xl">{title}</h2>
+              <p id={descriptionId} className="mt-1 text-xs leading-4 text-[#a5b7a7]">{description}</p>
+            </div>
           </div>
           <button
             type="button"
@@ -104,7 +135,9 @@ export default function ModalContainer({
             ×
           </button>
         </header>
-        {children}
+        <div data-modal-content="" className="flex min-h-0 flex-1 flex-col">
+          {children}
+        </div>
       </section>
     </div>,
     document.body,
