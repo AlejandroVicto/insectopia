@@ -1,0 +1,31 @@
+meta {
+  name: 025 - Consultar sesión protegida con JWT
+  type: http
+  seq: 25
+}
+
+get {
+  url: {{baseUrl}}/api/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("El JWT permite consultar /api/auth/me", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("La API devuelve el usuario autenticado", function () {
+    const body = res.getBody();
+    expect(body).to.have.property("id");
+    expect(body).to.have.property("email").that.is.a("string");
+    expect(body).to.have.property("role").that.is.a("string");
+  });
+}

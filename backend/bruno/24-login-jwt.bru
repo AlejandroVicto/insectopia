@@ -1,0 +1,48 @@
+meta {
+  name: 024 - Login y obtención de JWT
+  type: http
+  seq: 24
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "correo": "{{loginCorreo}}",
+    "contrasena": "{{loginContrasena}}"
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    if (body && typeof body.token === "string" && body.token.length > 0) {
+      bru.setVar("token", body.token);
+    } else {
+      bru.deleteVar("token");
+    }
+  } else {
+    bru.deleteVar("token");
+  }
+}
+
+tests {
+  test("Login válido devuelve HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("Login devuelve un JWT y usuario", function () {
+    const body = res.getBody();
+    expect(body).to.have.property("token").that.is.a("string").and.not.empty;
+    expect(body).to.have.property("user").that.is.an("object");
+    expect(body.user).to.have.property("role").that.is.a("string");
+  });
+}
