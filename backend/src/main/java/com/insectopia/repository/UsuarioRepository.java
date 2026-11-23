@@ -5,11 +5,16 @@ import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+
+import jakarta.persistence.LockModeType;
 
 import com.insectopia.models.Usuario;
 import com.insectopia.models.enums.EstadoUsuario;
 
-public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
+public interface UsuarioRepository extends JpaRepository<Usuario, Long>, JpaSpecificationExecutor<Usuario> {
 
     // Buscar usuario por correo electrónico
     Optional<Usuario> findByCorreo(String correo);
@@ -27,4 +32,12 @@ public interface UsuarioRepository extends JpaRepository<Usuario, Long> {
             String nombre,
             Pageable pageable
     );
+
+    long countByRol_Nombre(String nombre);
+    long countByEstado(EstadoUsuario estado);
+    long countByRol_NombreAndEstado(String nombre, EstadoUsuario estado);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select u from Usuario u join fetch u.rol where u.idUsuario = :id")
+    Optional<Usuario> bloquearPorId(Long id);
 }

@@ -23,8 +23,8 @@ public class Comentario {
     @Column(name = "id_comentario", nullable = false)
     private Long idComentario;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_publicacion", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_publicacion")
     private Publicacion publicacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

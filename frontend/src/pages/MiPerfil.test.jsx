@@ -112,6 +112,22 @@ const adapter = vi.fn((config) => {
 })
 
 describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
+  it('desplaza el contenido central sin desplazar el navbar, sidebar ni estadísticas', () => {
+    renderPerfil(adapter)
+    const shell = document.querySelector('.private-shell')
+    const feed = document.getElementById('perfil-feed')
+    expect(shell.classList.contains('private-shell--perfil')).toBe(true)
+    expect(feed.classList.contains('overflow-y-auto')).toBe(true)
+    expect(feed.classList.contains('inicio-scroll')).toBe(true)
+    expect(feed.tabIndex).toBe(0)
+    feed.focus()
+    expect(document.activeElement).toBe(feed)
+    expect(document.getElementById('private-content').classList.contains('overflow-y-auto')).toBe(false)
+    expect(shell.querySelector('header').contains(feed)).toBe(false)
+    expect(shell.querySelector('aside').contains(feed)).toBe(false)
+    expect(screen.getByRole('complementary', { name: 'Estadísticas de mi perfil' }).contains(feed)).toBe(false)
+  })
+
   it('usa el layout compartido, consulta identidad privada y muestra solo publicaciones propias reales', async () => {
     renderPerfil(adapter)
     expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeTruthy()

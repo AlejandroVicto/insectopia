@@ -86,8 +86,8 @@ class PublicacionesServiceTests {
     void listaPaginaEnBaseDeDatosConOrdenEstableYDatosPublicos() {
         when(publicaciones.findAll(any(Specification.class), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(publicacion)));
-        when(comentarios.countByPublicacion_IdPublicacion(24L)).thenReturn(2L);
-        when(reacciones.countByPublicacion_IdPublicacion(24L)).thenReturn(5L);
+        when(comentarios.countByPublicacion_IdPublicacionAndUsuario_Estado(24L, com.insectopia.models.enums.EstadoUsuario.ACTIVO)).thenReturn(2L);
+        when(reacciones.countByPublicacion_IdPublicacionAndUsuario_Estado(24L, com.insectopia.models.enums.EstadoUsuario.ACTIVO)).thenReturn(5L);
         when(reacciones.findByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L))
                 .thenReturn(Optional.of(reaccion("ME_GUSTA")));
 
@@ -157,8 +157,6 @@ class PublicacionesServiceTests {
     @Test
     void consultaPublicacionVisibleYOcultaSegunAutorOModerador() {
         when(publicaciones.findById(24L)).thenReturn(Optional.of(publicacion));
-        when(comentarios.countByPublicacion_IdPublicacion(24L)).thenReturn(0L);
-        when(reacciones.countByPublicacion_IdPublicacion(24L)).thenReturn(0L);
         when(reacciones.findByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L))
                 .thenReturn(Optional.empty());
 
@@ -218,7 +216,7 @@ class PublicacionesServiceTests {
         comentario.setFechaComentario(LocalDateTime.of(2026, 11, 20, 8, 0));
 
         when(publicaciones.findById(24L)).thenReturn(Optional.of(publicacion));
-        when(comentarios.findByPublicacion_IdPublicacionOrderByFechaComentarioAsc(24L, Pageable.ofSize(10)))
+        when(comentarios.findByPublicacion_IdPublicacionAndUsuario_EstadoOrderByFechaComentarioAsc(24L, com.insectopia.models.enums.EstadoUsuario.ACTIVO, Pageable.ofSize(10)))
                 .thenReturn(new PageImpl<>(List.of(comentario)));
         when(usuarios.findById(7L)).thenReturn(Optional.of(autor));
 
@@ -248,7 +246,7 @@ class PublicacionesServiceTests {
     @Test
     void reaccionOwnStateEsRealYEvitaDuplicados() {
         when(publicaciones.findById(24L)).thenReturn(Optional.of(publicacion));
-        when(reacciones.countByPublicacion_IdPublicacion(24L)).thenReturn(1L);
+        when(reacciones.countByPublicacion_IdPublicacionAndUsuario_Estado(24L, com.insectopia.models.enums.EstadoUsuario.ACTIVO)).thenReturn(1L);
         when(reacciones.findByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L))
                 .thenReturn(Optional.of(reaccion("ME_GUSTA")));
         when(usuarios.findById(7L)).thenReturn(Optional.of(autor));
@@ -286,7 +284,7 @@ class PublicacionesServiceTests {
         when(reacciones.findByPublicacion_IdPublicacionAndUsuario_IdUsuario(24L, 7L))
                 .thenReturn(Optional.of(propia))
                 .thenReturn(Optional.empty());
-        when(reacciones.countByPublicacion_IdPublicacion(24L)).thenReturn(0L);
+        when(reacciones.countByPublicacion_IdPublicacionAndUsuario_Estado(24L, com.insectopia.models.enums.EstadoUsuario.ACTIVO)).thenReturn(0L);
 
         ReaccionEstadoDTO estado = service.quitarReaccion(24L, principal);
         verify(reacciones).delete(propia);

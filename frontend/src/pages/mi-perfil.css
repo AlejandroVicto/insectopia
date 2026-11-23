@@ -25,5 +25,5 @@ button.perfil-stat:hover, .perfil-secondary:hover:not(:disabled) { background: v
 .perfil-skeleton { height: 32px; margin-top: 12px; border-radius: 8px; background: var(--inicio-soft); animation: perfil-pulse 1.4s ease-in-out infinite alternate; }
 @keyframes perfil-pulse { to { opacity: .45; } }
 .perfil button:focus-visible, .perfil a:focus-visible, .perfil-dialog button:focus-visible, .perfil-dialog input:focus-visible, .perfil-dialog:focus-visible, .perfil-list:focus-visible { outline: 2px solid #a8e223; outline-offset: 2px; }
-@media (max-width: 1050px) { .perfil-grid { grid-template-columns: minmax(0,1fr); } .perfil-aside { grid-row: 1; } }
+@media (max-width: 1050px) { .perfil-grid { grid-template-columns: minmax(0,1fr); grid-template-rows: auto minmax(0,1fr); } .perfil-aside { grid-row: 1; } }
 @media (max-width: 540px) { .perfil-header { flex-wrap: wrap; gap: 12px; padding: 16px; } .perfil-header .perfil-primary { width: 100%; } .perfil-dialog { padding: 20px 16px; } .perfil-persona { gap: 8px; padding: 8px; } }

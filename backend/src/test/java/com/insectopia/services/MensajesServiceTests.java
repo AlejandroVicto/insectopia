@@ -209,6 +209,7 @@ class MensajesServiceTests {
 
     @Test
     void enviarGuardaConRemitenteDelJwtYDevuelveDtoPersistido() {
+        when(participantes.countByConversacion_IdConversacion(15L)).thenReturn(2L);
         when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
         when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L))
                 .thenReturn(true);
@@ -259,6 +260,7 @@ class MensajesServiceTests {
 
     @Test
     void falloAlGuardarNoGeneraAviso() {
+        when(participantes.countByConversacion_IdConversacion(15L)).thenReturn(2L);
         when(conversaciones.findById(15L)).thenReturn(Optional.of(conversacion));
         when(participantes.existsByConversacion_IdConversacionAndUsuario_IdUsuario(15L, 7L)).thenReturn(true);
         when(usuarios.findById(7L)).thenReturn(Optional.of(yo));

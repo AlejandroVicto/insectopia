@@ -29,8 +29,8 @@ public class Reaccion {
     @Column(name = "id_reaccion", nullable = false)
     private Long idReaccion;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_publicacion", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_publicacion")
     private Publicacion publicacion;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)

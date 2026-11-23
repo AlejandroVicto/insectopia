@@ -52,6 +52,7 @@ import com.insectopia.repository.ReporteRepository;
 import com.insectopia.repository.RolRepository;
 import com.insectopia.repository.SeguidorRepository;
 import com.insectopia.repository.UsuarioRepository;
+import com.insectopia.security.ProtectedAccounts;
 
 @Component
 @Profile("demo")
@@ -148,7 +149,7 @@ public class DatabaseSeeder implements CommandLineRunner {
     private static final List<UsuarioDemo> USUARIOS_DEMO = List.of(
             new UsuarioDemo(
                     "Demo Marina Vega",
-                    "demo.marina.vega", LocalDate.of(1990, 4, 12), "ES", "Madrid",
+                    ProtectedAccounts.EVALUATION_ADMIN_USERNAME, LocalDate.of(1990, 4, 12), "ES", "Madrid",
                     "demo.marina.vega@insectopia.invalid",
                     "ADMINISTRADOR",
                     "+34600000001",

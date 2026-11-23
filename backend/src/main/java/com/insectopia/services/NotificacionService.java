@@ -85,11 +85,12 @@ public class NotificacionService {
         RecursoNotificacionDTO recurso = null;
         Publicacion p = n.getPublicacion();
         if (p != null) {
-            boolean accesible = p.getEstado() == EstadoPublicacion.VISIBLE
+            boolean accesible = p.getUsuario().getEstado() == EstadoUsuario.ACTIVO
+                    && (p.getEstado() == EstadoPublicacion.VISIBLE
                     || (p.getEstado() == EstadoPublicacion.OCULTA
                             && (p.getUsuario().getIdUsuario().equals(principal.idUsuario())
                                     || "MODERADOR".equals(principal.role())
-                                    || "ADMINISTRADOR".equals(principal.role())));
+                                    || "ADMINISTRADOR".equals(principal.role()))));
             // Una publicación ELIMINADA nunca tiene enlace, ni siquiera para el autor.
             recurso = new RecursoNotificacionDTO("PUBLICACION", accesible ? p.getIdPublicacion() : null,
                     accesible, accesible ? "/api/publicaciones/" + p.getIdPublicacion() : null);
@@ -102,7 +103,7 @@ public class NotificacionService {
             // No existe GET /api/reportes/{id} accesible al reportante.
             Reporte reporte = n.getReporte();
             recurso = new RecursoNotificacionDTO("REPORTE", reporte != null
-                    && reporte.getReportante().getIdUsuario().equals(principal.idUsuario())
+                    && reporte.getReportante() != null && reporte.getReportante().getIdUsuario().equals(principal.idUsuario())
                             ? reporte.getIdReporte() : null, false, null);
         } else if (n.getEvento() != null || n.getTipo().startsWith("EVENTO_")) {
             recurso = new RecursoNotificacionDTO("EVENTO", null, false, null);

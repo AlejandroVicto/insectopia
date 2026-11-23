@@ -259,7 +259,7 @@ export default function Mensajes({ demo = MENSAJES_DEMO, pollMs = POLL_MS }) {
   }
 
   async function send() {
-    if (demo || !selected || !draft.trim() || sendingRef.current || visibleHistory?.status !== 'success') return
+    if (demo || !selected || selected.interlocutor.id === null || !draft.trim() || sendingRef.current || visibleHistory?.status !== 'success') return
     const controller = new AbortController()
     sendController.current = controller
     sendingRef.current = true

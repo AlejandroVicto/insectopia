@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Reaccion;
+import com.insectopia.models.enums.EstadoUsuario;
 
 public interface ReaccionRepository
         extends JpaRepository<Reaccion, Long> {
@@ -25,6 +26,8 @@ public interface ReaccionRepository
     long countByPublicacion_IdPublicacion(
             Long idPublicacion
     );
+
+    long countByPublicacion_IdPublicacionAndUsuario_Estado(Long idPublicacion, EstadoUsuario estado);
 
     // Comprobar si un usuario reaccionó a una publicación
     boolean existsByPublicacion_IdPublicacionAndUsuario_IdUsuario(
@@ -48,7 +51,7 @@ public interface ReaccionRepository
     @Query("""
             select r.publicacion.idPublicacion, count(r)
             from Reaccion r
-            where r.publicacion.idPublicacion in :ids
+            where r.publicacion.idPublicacion in :ids and r.usuario.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
             group by r.publicacion.idPublicacion
             """)
     List<Object[]> contarPorPublicaciones(@Param("ids") Collection<Long> ids);

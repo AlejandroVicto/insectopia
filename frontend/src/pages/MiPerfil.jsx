@@ -158,10 +158,11 @@ export default function MiPerfil() {
     recargarPerfil()
   }
 
-  return <div className="inicio perfil min-h-full p-4 text-[var(--inicio-text)]" key={token}>
+  return <div className="inicio perfil h-full min-h-0 overflow-hidden p-4 text-[var(--inicio-text)]" key={token}>
     <h1 className="sr-only">Mi perfil</h1>
-    <div className="perfil-grid mx-auto max-w-[1500px]">
-      <div className="min-w-0 space-y-5">
+    <div className="perfil-grid mx-auto h-full min-h-0 max-w-[1500px]">
+      <div id="perfil-feed" className="inicio-scroll min-h-0 min-w-0 space-y-5 overflow-y-auto overscroll-contain"
+        role="region" aria-label="Contenido de mi perfil" tabIndex={0}>
         {identity?.status === 'error' && <div className="inicio-card perfil-state" role="alert"><strong>No pudimos cargar tu perfil</strong>
           <p>Tu información no está disponible. Comprueba la conexión e inténtalo de nuevo.</p>
           <button type="button" className="perfil-secondary mt-4" onClick={() => { setIdentity(null); setCountResult(null); setRetry((n) => n + 1) }}>Reintentar</button></div>}

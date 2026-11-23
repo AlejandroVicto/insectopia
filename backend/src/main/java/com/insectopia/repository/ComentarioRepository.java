@@ -10,6 +10,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Comentario;
+import com.insectopia.models.enums.EstadoUsuario;
 
 public interface ComentarioRepository
         extends JpaRepository<Comentario, Long> {
@@ -19,6 +20,9 @@ public interface ComentarioRepository
             Long idPublicacion,
             Pageable pageable
     );
+
+    Page<Comentario> findByPublicacion_IdPublicacionAndUsuario_EstadoOrderByFechaComentarioAsc(
+            Long idPublicacion, EstadoUsuario estado, Pageable pageable);
 
     // Consultar comentarios realizados por un usuario
     Page<Comentario> findByUsuario_IdUsuarioOrderByFechaComentarioDesc(
@@ -31,6 +35,8 @@ public interface ComentarioRepository
             Long idPublicacion
     );
 
+    long countByPublicacion_IdPublicacionAndUsuario_Estado(Long idPublicacion, EstadoUsuario estado);
+
     // Comprobar si un comentario pertenece a un usuario
     boolean existsByIdComentarioAndUsuario_IdUsuario(
             Long idComentario,
@@ -41,7 +47,7 @@ public interface ComentarioRepository
     @Query("""
             select c.publicacion.idPublicacion, count(c)
             from Comentario c
-            where c.publicacion.idPublicacion in :ids
+            where c.publicacion.idPublicacion in :ids and c.usuario.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
             group by c.publicacion.idPublicacion
             """)
     List<Object[]> contarPorPublicaciones(@Param("ids") Collection<Long> ids);

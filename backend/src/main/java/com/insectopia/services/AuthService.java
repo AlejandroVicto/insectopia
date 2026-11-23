@@ -148,12 +148,12 @@ public class AuthService {
                 usuario.getNombreUsuario(), usuario.getCorreo(), rol.getNombre(), "Cuenta creada correctamente");
     }
 
-    private static DuplicateResourceException duplicate(String field) {
+    static DuplicateResourceException duplicate(String field) {
         return new DuplicateResourceException(field, field.equals("correo")
                 ? "Este correo ya está registrado." : "Este nombre de usuario ya está en uso.");
     }
 
-    private static DuplicateResourceException uniqueConflict(DataIntegrityViolationException exception) {
+    static DuplicateResourceException uniqueConflict(DataIntegrityViolationException exception) {
         for (Throwable cause = exception; cause != null; cause = cause.getCause()) {
             if (cause instanceof SQLException sql && sql.getErrorCode() == 1062 && "23000".equals(sql.getSQLState())) {
                 Matcher matcher = MYSQL_KEY.matcher(sql.getMessage() == null ? "" : sql.getMessage());

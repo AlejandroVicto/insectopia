@@ -30,8 +30,8 @@ public class Evento {
     @Column(name = "id_evento", nullable = false)
     private Long idEvento;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_proponente", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_proponente")
     private Usuario proponente;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -107,7 +107,7 @@ describe('layout de escritorio', () => {
     expect(navigation().parentElement.lastElementChild).toBe(accountNavigation())
     expect(accountNavigation().className).toContain('mt-auto')
     expect(screen.queryByRole('link', { name: 'Moderación' })).toBeNull()
-    expect(screen.queryByRole('link', { name: 'Administración' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Usuarios y roles' })).toBeNull()
     fireEvent.click(screen.getByText('Abrir URL administrativa'))
     expect(screen.getByRole('heading', { name: 'Acceso restringido' })).toBeTruthy()
   })
@@ -115,7 +115,7 @@ describe('layout de escritorio', () => {
   it('MODERADOR ve moderación pero no administración y una URL escrita a mano sigue restringida', () => {
     start('MODERADOR')
     expect(screen.getByRole('link', { name: 'Moderación' })).toBeTruthy()
-    expect(screen.queryByRole('link', { name: 'Administración' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Usuarios y roles' })).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Moderación' }))
     expect(screen.getByRole('heading', { name: 'Moderación' })).toBeTruthy()
     fireEvent.click(screen.getByText('Abrir URL administrativa'))
@@ -126,9 +126,9 @@ describe('layout de escritorio', () => {
   it('ADMINISTRADOR accede a administración y moderación', () => {
     start('ADMINISTRADOR')
     expect(screen.getByRole('link', { name: 'Moderación' })).toBeTruthy()
-    fireEvent.click(screen.getByRole('link', { name: 'Administración' }))
-    expect(screen.getByRole('heading', { name: 'Administración' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Administración' }).getAttribute('aria-current')).toBe('page')
+    fireEvent.click(screen.getByRole('link', { name: 'Usuarios y roles' }))
+    expect(screen.getByRole('heading', { name: 'Administración de usuarios y roles' })).toBeTruthy()
+    expect(screen.getByRole('link', { name: 'Usuarios y roles' }).getAttribute('aria-current')).toBe('page')
   })
 
   it('muestra solo datos del contexto y un avatar predeterminado sin inventar notificaciones', () => {

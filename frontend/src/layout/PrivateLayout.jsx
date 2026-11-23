@@ -30,6 +30,7 @@ function PrivateLayoutContent({ notificationCount }) {
   const isEventos = pathname === '/app/eventos'
   const isPerfil = pathname === '/app/perfil'
   const isConfiguracion = pathname === '/app/configuracion'
+  const isAdministracion = pathname === '/administracion'
 
   const isScrollableSection =
     isInicio ||
@@ -38,7 +39,29 @@ function PrivateLayoutContent({ notificationCount }) {
     isPublicacion ||
     isEventos ||
     isPerfil ||
-    isConfiguracion
+    isConfiguracion ||
+    isAdministracion
+
+  const sectionClassName = isInicio
+    ? 'private-shell--inicio'
+    : isMensajes
+      ? 'private-shell--mensajes'
+      : isNotificaciones
+        ? 'private-shell--notificaciones'
+        : isPublicacion
+          ? 'private-shell--publicacion'
+          : isEventos
+            ? 'private-shell--eventos'
+            : isPerfil
+              ? 'private-shell--perfil'
+              : isConfiguracion
+                ? 'private-shell--configuracion'
+                : isAdministracion
+                  ? 'private-shell--administracion'
+                  : 'min-h-screen'
+
+  const minWidthClassName =
+    isPerfil || isConfiguracion ? '' : 'min-w-[1100px]'
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return
@@ -92,22 +115,7 @@ function PrivateLayoutContent({ notificationCount }) {
   return (
     <CrearPublicacionProvider>
       <div
-        className={`private-shell ${isPerfil || isConfiguracion ? '' : 'min-w-[1100px]'} ${isInicio
-            ? 'private-shell--inicio'
-            : isMensajes
-              ? 'private-shell--mensajes'
-              : isNotificaciones
-                ? 'private-shell--notificaciones'
-                : isPublicacion
-                  ? 'private-shell--publicacion'
-                  : isEventos
-                    ? 'private-shell--eventos'
-                    : isPerfil
-                      ? 'private-shell--perfil'
-                      : isConfiguracion
-                        ? 'private-shell--configuracion'
-                        : 'min-h-screen'
-          }`}
+        className={`private-shell ${minWidthClassName} ${sectionClassName}`}
       >
         <Navbar
           notificationCount={visibleCount}

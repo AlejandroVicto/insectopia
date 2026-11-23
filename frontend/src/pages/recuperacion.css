@@ -1,0 +1,188 @@
+/* Actividad 055: coordenadas y jerarquía del diseño de escritorio 1440 × 900. */
+.recuperacion-shell {
+  --rc-fondo: #0e1510;
+  --rc-panel: #151d18;
+  --rc-lima: #a3e635;
+  --rc-tenue: #243320;
+  --rc-texto: #f4f7f1;
+  --rc-secundario: #abb5a9;
+  --rc-terciario: #8a9689;
+  display: grid;
+  grid-template-columns: 52.7778% 47.2222%;
+  min-width: 1100px;
+  min-height: 900px;
+  font-family: Mulish, sans-serif;
+  color: var(--rc-texto);
+  background: var(--rc-fondo);
+  color-scheme: dark;
+}
+.recuperacion-shell *, .recuperacion-shell *::before, .recuperacion-shell *::after { box-sizing: border-box; }
+.recuperacion-shell a, .recuperacion-shell button, .recuperacion-shell input { font: inherit; }
+.recuperacion-shell a:focus-visible, .recuperacion-shell button:focus-visible, .recuperacion-shell input:focus-visible { outline: 2px solid var(--rc-lima); outline-offset: 3px; }
+.recuperacion-marca, .recuperacion-panel { position: relative; min-width: 0; min-height: 900px; overflow: hidden; }
+.recuperacion-marca { background: var(--rc-fondo); padding: 51px clamp(38px, 4.72vw, 68px); }
+.recuperacion-panel { background: var(--rc-panel); }
+.recuperacion-orbita { position: absolute; border-radius: 50%; background: var(--rc-lima); opacity: .05; pointer-events: none; }
+.recuperacion-orbita-uno { width: 520px; height: 520px; left: -170px; top: -170px; }
+.recuperacion-orbita-dos { width: 384px; height: 384px; left: 410px; top: 680px; }
+.recuperacion-logo { position: relative; z-index: 1; display: flex; align-items: center; width: 208px; height: 48px; gap: 8px; font-size: 24px; font-weight: 900; letter-spacing: -.04em; }
+.recuperacion-logo img { width: 48px; height: 48px; object-fit: contain; }
+.recuperacion-relato { position: absolute; left: clamp(38px, 4.72vw, 68px); right: clamp(38px, 4.72vw, 68px); top: 301px; }
+.recuperacion-insignia, .recuperacion-etiqueta { display: inline-flex; align-items: center; border-radius: 999px; background: var(--rc-tenue); color: var(--rc-lima); font-size: 12px; line-height: 20px; font-weight: 800; }
+.recuperacion-insignia { min-height: 32px; padding: 6px 13px; gap: 9px; margin: 0; }
+.recuperacion-insignia span { width: 6px; height: 6px; border-radius: 50%; background: var(--rc-lima); }
+.recuperacion-lema { margin: 27px 0 0; font-size: clamp(39px, 3.34vw, 48px); line-height: 1.19; font-weight: 800; letter-spacing: -.025em; }
+.recuperacion-descripcion { margin: 22px 0 0; font-size: 16px; line-height: 28px; color: var(--rc-secundario); }
+.recuperacion-pilares { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 40px; border-top: 1px solid #344036; padding-top: 21px; }
+.recuperacion-pilares div { display: flex; flex-direction: column; gap: 5px; }
+.recuperacion-pilares strong { font-size: 16px; line-height: 24px; }
+.recuperacion-pilares span, .recuperacion-marca-pie, .recuperacion-pie { font-size: 12px; line-height: 20px; color: var(--rc-terciario); }
+.recuperacion-marca-pie { position: absolute; bottom: 31px; left: clamp(38px, 4.72vw, 68px); right: 7px; display: flex; justify-content: space-between; gap: 8px; }
+.recuperacion-cabecera, .recuperacion-contenido, .recuperacion-pie { width: min(476px, calc(100% - 76px)); margin-left: auto; margin-right: auto; }
+.recuperacion-cabecera { position: absolute; top: 79px; left: 0; right: 0; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.recuperacion-etiqueta { height: 36px; padding: 0 17px; white-space: nowrap; }
+.recuperacion-cabecera a { color: var(--rc-secundario); font-size: 12px; text-decoration: none; white-space: nowrap; }
+.recuperacion-cabecera a:hover, .recuperacion-secundario:hover, .recuperacion-volver:hover { text-decoration: underline; color: #d9f99d; }
+.recuperacion-contenido { position: relative; height: 900px; }
+.recuperacion-vista { position: absolute; inset: 0; }
+.recuperacion-vista h1 { margin: 0; font-size: 36px; line-height: 1.26; font-weight: 800; letter-spacing: -.025em; }
+.recuperacion-intro { margin: 0; color: var(--rc-secundario); font-size: 14px; line-height: 26px; }
+.recuperacion-solicitud h1, .recuperacion-clave h1 { position: absolute; top: 206px; }
+.recuperacion-solicitud .recuperacion-intro { position: absolute; top: 328px; }
+.recuperacion-solicitud form { position: absolute; top: 427px; width: 100%; }
+.recuperacion-grupo { position: relative; display: flex; flex-direction: column; gap: 10px; }
+.recuperacion-grupo label { color: #d4ddd1; font-size: 12px; font-weight: 800; line-height: 18px; }
+.recuperacion-grupo input { display: block; width: 100%; height: 56px; border: 1px solid #4a584c; border-radius: 10px; background: #202a22; padding: 0 16px; color: var(--rc-texto); font-size: 14px; outline: none; }
+.recuperacion-grupo input::placeholder { color: #9da79b; opacity: 1; }
+.recuperacion-grupo input[aria-invalid="true"] { border-color: #f87171; }
+.recuperacion-grupo input:focus { border-color: var(--rc-lima); }
+.recuperacion-grupo input[aria-invalid="true"]:focus { border-color: #f87171; }
+.recuperacion-grupo input:-webkit-autofill { -webkit-text-fill-color: #f4f7f1; -webkit-box-shadow: 0 0 0 1000px #202a22 inset; box-shadow: 0 0 0 1000px #202a22 inset; }
+.recuperacion-ayuda { margin: 0; min-height: 24px; color: var(--rc-terciario); font-size: 12px; line-height: 20px; }
+.recuperacion-error { margin: -4px 0 0; color: #fca5a5; font-size: 12px; line-height: 18px; }
+.recuperacion-error-general { position: absolute; bottom: calc(100% + 10px); width: 100%; padding: 10px 12px; border: 1px solid #b45353; border-radius: 8px; color: #fecaca; background: #472222; font-size: 12px; line-height: 18px; }
+.recuperacion-primario { display: flex; align-items: center; justify-content: center; width: 100%; height: 56px; border: 0; border-radius: 10px; background: var(--rc-lima); color: var(--rc-fondo); text-align: center; font-size: 16px !important; font-weight: 800 !important; text-decoration: none; cursor: pointer; }
+.recuperacion-primario:hover { background: #bef264; }
+.recuperacion-primario:disabled { cursor: not-allowed; opacity: .7; }
+.recuperacion-solicitud form .recuperacion-primario { margin-top: 39px; }
+.recuperacion-cargando { margin: 6px 0 0; color: var(--rc-secundario); font-size: 12px; }
+.recuperacion-volver, .recuperacion-secundario { display: flex; align-items: center; justify-content: center; gap: 10px; color: var(--rc-lima); text-decoration: none; font-size: 12px; font-weight: 800; }
+.recuperacion-secundario { border: 0; padding: 0; background: transparent; cursor: pointer; }
+.recuperacion-icono-pequeno { width: 20px; height: 20px; flex: none; color: var(--rc-lima); }
+.recuperacion-solicitud > .recuperacion-volver { position: absolute; top: 674px; left: 0; width: 100%; font-size: 14px; }
+.recuperacion-nota { display: flex; align-items: flex-start; gap: 15px; width: 100%; min-height: 96px; padding: 17px; border-radius: 12px; background: var(--rc-tenue); }
+.recuperacion-nota strong, .recuperacion-nota p { font-size: 12px; line-height: 22px; }
+.recuperacion-nota strong { display: block; font-weight: 800; }
+.recuperacion-nota p { margin: 5px 0 0; color: var(--rc-secundario); }
+.recuperacion-solicitud > .recuperacion-nota { position: absolute; top: 735px; }
+.recuperacion-medallon { display: flex; align-items: center; justify-content: center; width: 80px; height: 80px; border-radius: 50%; background: var(--rc-tenue); color: var(--rc-lima); }
+.recuperacion-medallon svg { width: 44px; height: 44px; stroke-width: 2; }
+.recuperacion-medallon-error { color: #f87171; }
+.recuperacion-enviado .recuperacion-medallon, .recuperacion-exito .recuperacion-medallon, .recuperacion-invalido .recuperacion-medallon { position: absolute; top: 210px; }
+.recuperacion-enviado h1, .recuperacion-exito h1 { position: absolute; top: 335px; }
+.recuperacion-enviado .recuperacion-intro, .recuperacion-exito .recuperacion-intro { position: absolute; top: 416px; }
+.recuperacion-enviado .recuperacion-nota, .recuperacion-exito .recuperacion-nota { position: absolute; top: 507px; min-height: 112px; padding-top: 20px; }
+.recuperacion-enviado .recuperacion-primario, .recuperacion-exito .recuperacion-primario { position: absolute; top: 661px; }
+.recuperacion-enviado .recuperacion-secundario { position: absolute; top: 745px; width: 100%; font-weight: 400; }
+.recuperacion-clave .recuperacion-intro { position: absolute; top: 323px; }
+.recuperacion-clave form { position: absolute; top: 387px; width: 100%; }
+.recuperacion-clave form .recuperacion-grupo + .recuperacion-grupo { margin-top: 18px; }
+.recuperacion-input-clave { position: relative; }
+.recuperacion-input-clave input { padding-right: 55px; }
+.recuperacion-input-clave button { display: flex; align-items: center; justify-content: center; position: absolute; right: 10px; top: 8px; width: 40px; height: 40px; border: 0; border-radius: 6px; background: transparent; color: var(--rc-secundario); cursor: pointer; }
+.recuperacion-input-clave button svg { color: inherit; }
+.recuperacion-input-clave button:hover { color: var(--rc-lima); }
+.recuperacion-clave form .recuperacion-primario { margin-top: 36px; }
+.recuperacion-recordatorio { position: absolute; top: 733px; display: flex; gap: 15px; align-items: center; margin: 0; color: var(--rc-secundario); font-size: 12px; }
+.recuperacion-clave > .recuperacion-secundario { position: absolute; top: 802px; width: 100%; }
+.recuperacion-invalido h1 { position: absolute; top: 330px; }
+.recuperacion-invalido .recuperacion-intro { position: absolute; top: 467px; }
+.recuperacion-invalido .recuperacion-primario { position: absolute; top: 590px; }
+.recuperacion-invalido .recuperacion-volver { position: absolute; top: 684px; width: 100%; }
+.recuperacion-epilogo { position: absolute; top: 745px; width: 100%; margin: 0; text-align: center; color: var(--rc-secundario); font-size: 12px; }
+.recuperacion-pie { position: absolute; bottom: 31px; left: 0; right: 0; margin-top: 0; }
+.recuperacion-solicitud:has(.recuperacion-error) > .recuperacion-volver { top: 697px; }
+.recuperacion-solicitud:has(.recuperacion-error) > .recuperacion-nota { top: 750px; }
+.recuperacion-clave:has(.recuperacion-error) .recuperacion-recordatorio { top: 765px; }
+.recuperacion-clave:has(.recuperacion-error) > .recuperacion-secundario { top: 819px; }
+@media (max-width: 1439px) {
+  .recuperacion-marca-pie { flex-wrap: wrap; }
+}
+
+/* Como en login/registro, el contenido se adapta a la altura del escritorio en vez
+   de exigir un lienzo de 900 px y ocultar el final de los formularios. */
+.recuperacion-shell { min-width: 0; min-height: 100dvh; }
+.recuperacion-marca, .recuperacion-panel { min-height: 100dvh; height: 100dvh; }
+.recuperacion-marca {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(22px, 5.6vh, 51px) clamp(24px, 4.72vw, 68px) clamp(18px, 3.4vh, 31px);
+}
+.recuperacion-marca .recuperacion-relato { position: relative; inset: auto; margin: auto 0; }
+.recuperacion-marca .recuperacion-marca-pie { position: relative; inset: auto; flex-shrink: 0; }
+.recuperacion-panel {
+  display: flex;
+  flex-direction: column;
+  padding: clamp(24px, 8.8vh, 79px) clamp(24px, 4vw, 97px) 20px;
+}
+.recuperacion-panel .recuperacion-cabecera,
+.recuperacion-panel .recuperacion-contenido { position: relative; inset: auto; width: min(476px, 100%); margin: 0 auto; }
+.recuperacion-panel .recuperacion-cabecera { flex: none; }
+.recuperacion-panel .recuperacion-contenido {
+  display: flex;
+  flex: 1;
+  align-items: flex-start;
+  height: auto;
+  padding-top: 91px;
+}
+.recuperacion-panel .recuperacion-vista { position: static; width: 100%; }
+.recuperacion-panel .recuperacion-vista > *,
+.recuperacion-panel .recuperacion-vista .recuperacion-nota,
+.recuperacion-panel .recuperacion-vista .recuperacion-primario { position: static; }
+.recuperacion-panel .recuperacion-vista form { width: 100%; }
+.recuperacion-panel .recuperacion-vista .recuperacion-error-general {
+  position: static;
+  margin: 0 0 14px;
+}
+.recuperacion-panel .recuperacion-solicitud .recuperacion-intro,
+.recuperacion-panel .recuperacion-clave .recuperacion-intro { margin-top: 14px; }
+.recuperacion-panel .recuperacion-solicitud form { margin-top: 32px; }
+.recuperacion-panel .recuperacion-solicitud form .recuperacion-primario { margin-top: 34px; }
+.recuperacion-panel .recuperacion-solicitud > .recuperacion-volver { margin-top: 30px; }
+.recuperacion-panel .recuperacion-enviado .recuperacion-medallon,
+.recuperacion-panel .recuperacion-exito .recuperacion-medallon,
+.recuperacion-panel .recuperacion-invalido .recuperacion-medallon { margin-bottom: 36px; }
+.recuperacion-panel .recuperacion-enviado .recuperacion-intro,
+.recuperacion-panel .recuperacion-exito .recuperacion-intro { margin-top: 20px; }
+.recuperacion-panel .recuperacion-enviado .recuperacion-nota,
+.recuperacion-panel .recuperacion-exito .recuperacion-nota { margin-top: 25px; }
+.recuperacion-panel .recuperacion-enviado .recuperacion-primario,
+.recuperacion-panel .recuperacion-exito .recuperacion-primario { margin-top: 28px; }
+.recuperacion-panel .recuperacion-enviado .recuperacion-secundario,
+.recuperacion-panel .recuperacion-exito .recuperacion-epilogo { margin-top: 20px; }
+.recuperacion-panel .recuperacion-clave form { margin-top: 12px; }
+.recuperacion-panel .recuperacion-clave .recuperacion-recordatorio { margin-top: 18px; }
+.recuperacion-panel .recuperacion-clave > .recuperacion-secundario { margin-top: 25px; }
+.recuperacion-panel .recuperacion-invalido .recuperacion-intro { margin-top: 20px; }
+.recuperacion-panel .recuperacion-invalido .recuperacion-primario { margin-top: 42px; }
+.recuperacion-panel .recuperacion-invalido .recuperacion-volver { margin-top: 30px; }
+
+@media (max-height: 899px) {
+  .recuperacion-panel .recuperacion-contenido { padding-top: clamp(12px, 4vh, 36px); }
+  .recuperacion-marca .recuperacion-lema { font-size: clamp(32px, 4vh, 42px); }
+  .recuperacion-marca .recuperacion-pilares { margin-top: 25px; }
+}
+
+@media (max-height: 799px) {
+  .recuperacion-panel .recuperacion-contenido { padding-top: 12px; }
+  .recuperacion-vista h1 { font-size: 32px; line-height: 1.2; }
+  .recuperacion-panel .recuperacion-clave form .recuperacion-grupo + .recuperacion-grupo { margin-top: 10px; }
+  .recuperacion-panel .recuperacion-clave form .recuperacion-primario { margin-top: 20px; }
+  .recuperacion-panel .recuperacion-clave > .recuperacion-secundario { margin-top: 16px; }
+}
+
+@media (max-height: 640px) {
+  .recuperacion-marca, .recuperacion-panel { height: auto; min-height: 100dvh; overflow: visible; }
+  .recuperacion-panel .recuperacion-contenido { padding-top: 18px; }
+  .recuperacion-panel { padding-bottom: 28px; }
+}

@@ -87,13 +87,15 @@ export default function ConversationPanel({ chat, history, userId, demo, draft, 
   return <section className="msg-card msg-panel" aria-label="Conversación seleccionada">
     {!chat ? <EmptyState title="Selecciona una conversación">Elige un chat de la lista para ver sus mensajes.</EmptyState> : <>
       <header className="msg-panel-header"><Avatar person={chat.interlocutor} /><div className="msg-header-details"><h2 className="font-display">{chat.interlocutor.nombre}</h2>
-        <p>@{chat.interlocutor.nombreUsuario}{chat.interlocutor.loSigo === true ? ' · Sigues a esta persona' : ''}</p></div>
+        <p>{chat.interlocutor.id === null ? 'Conversación archivada' : <>{`@${chat.interlocutor.nombreUsuario}`}{chat.interlocutor.loSigo === true ? ' · Sigues a esta persona' : ''}</>}</p></div>
         <ConversationOptions key={chat.id} onHide={onOptions} /></header>
       {history?.status === 'loading' && <div className="msg-history"><LoadingState label="Cargando historial" /></div>}
       {history?.status === 'error' && <div className="msg-history"><ErrorState onRetry={onRetry} /></div>}
       {history?.status === 'success' && <MessageList messages={history.messages} userId={userId} chatId={chat.id}
         hasMore={history.hasMore} loadingMore={history.loadingMore} olderError={history.olderError} onMore={onMore} />}
-      <Composer demo={demo} ready={history?.status === 'success'} draft={draft} onDraft={onDraft} onSend={onSend} sending={sending} sendError={sendError} />
+      {chat.interlocutor.id === null
+        ? <p className="msg-composer" role="status">Esta conversación es de solo lectura: la cuenta fue eliminada y no puedes enviar mensajes.</p>
+        : <Composer demo={demo} ready={history?.status === 'success'} draft={draft} onDraft={onDraft} onSend={onSend} sending={sending} sendError={sendError} />}
     </>}
   </section>
 }

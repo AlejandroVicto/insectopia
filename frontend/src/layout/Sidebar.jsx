@@ -9,7 +9,7 @@ const mainLinks = [
   { label: 'Eventos', to: '/app/eventos', roles: ROUTE_ROLES.generales },
   { label: 'Mi perfil', to: '/app/perfil', roles: ROUTE_ROLES.generales },
   { label: 'Moderación', to: '/moderacion', roles: ROUTE_ROLES.moderacion },
-  { label: 'Administración', to: '/administracion', roles: ROUTE_ROLES.administracion },
+  { label: 'Usuarios y roles', to: '/administracion', roles: ROUTE_ROLES.administracion },
 ]
 
 function MenuLink({ label, to, end, count }) {

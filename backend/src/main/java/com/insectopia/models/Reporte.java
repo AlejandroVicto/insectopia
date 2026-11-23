@@ -26,12 +26,12 @@ public class Reporte {
     @Column(name = "id_reporte", nullable = false)
     private Long idReporte;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_reportante", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_reportante")
     private Usuario reportante;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "id_publicacion", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "id_publicacion")
     private Publicacion publicacion;
 
     @ManyToOne(fetch = FetchType.LAZY)

@@ -131,13 +131,10 @@ public class MensajesService {
             Conversacion conversacion = propia.getConversacion();
             Long id = conversacion.getIdConversacion();
             Usuario interlocutor = interlocutores.get(id);
-            if (interlocutor == null) {
-                // Nunca devolver una conversación cuyo interlocutor no se pudo resolver.
-                continue;
-            }
             contenido.add(new ConversacionResponseDTO(
                     id,
-                    InterlocutorDTO.from(interlocutor, seguidos.contains(interlocutor.getIdUsuario())),
+                    interlocutor == null ? interlocutorEliminado()
+                            : InterlocutorDTO.from(interlocutor, seguidos.contains(interlocutor.getIdUsuario())),
                     UltimoMensajeDTO.from(ultimos.get(id)),
                     noLeidosPorConversacion.getOrDefault(id, 0L),
                     Boolean.TRUE.equals(propia.getOculta())));
@@ -168,11 +165,9 @@ public class MensajesService {
                 .map(ParticipanteConversacion::getUsuario)
                 .filter(usuario -> usuario != null
                         && !principal.idUsuario().equals(usuario.getIdUsuario()))
-                .findFirst()
-                .orElseThrow(() -> new BusinessRuleException(
-                        "No se pudo resolver el interlocutor de la conversación"));
+                .findFirst().orElse(null);
 
-        boolean loSigo = seguidores.existsBySeguidor_IdUsuarioAndSeguido_IdUsuario(
+        boolean loSigo = interlocutor != null && seguidores.existsBySeguidor_IdUsuarioAndSeguido_IdUsuario(
                 principal.idUsuario(), interlocutor.getIdUsuario());
         UltimoMensajeDTO ultimo = mensajes.findUltimosPorConversacion(ids).stream()
                 .findFirst()
@@ -185,7 +180,7 @@ public class MensajesService {
 
         return new ConversacionResponseDTO(
                 idConversacion,
-                InterlocutorDTO.from(interlocutor, loSigo),
+                interlocutor == null ? interlocutorEliminado() : InterlocutorDTO.from(interlocutor, loSigo),
                 ultimo,
                 noLeidos,
                 Boolean.TRUE.equals(propia.getOculta()));
@@ -216,6 +211,9 @@ public class MensajesService {
         if (contenido.length() > CONTENIDO_MAX) {
             throw new BusinessRuleException("El contenido no puede superar los 5000 caracteres");
         }
+        if (participantes.countByConversacion_IdConversacion(idConversacion) != 2) {
+            throw new BusinessRuleException("No es posible escribir a una cuenta eliminada.");
+        }
         Usuario remitente = usuarios.findById(principal.idUsuario())
                 .orElseThrow(() -> new ResourceNotFoundException("usuario", principal.idUsuario()));
 
@@ -242,6 +240,10 @@ public class MensajesService {
         }
 
         return MensajeResponseDTO.from(guardado);
+    }
+
+    private static InterlocutorDTO interlocutorEliminado() {
+        return new InterlocutorDTO(null, "Cuenta eliminada", null, null, false);
     }
 
     /** Avanza solo hasta un mensaje recibido y visualizado; nunca hasta la hora actual. */

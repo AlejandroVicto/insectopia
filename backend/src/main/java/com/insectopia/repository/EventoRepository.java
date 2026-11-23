@@ -26,6 +26,7 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
     @EntityGraph(attributePaths = "proponente")
     @Query("""
             select e from Evento e where e.estado = :estado
+            and e.proponente.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
             and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
                  or lower(e.ubicacion) like :q escape '!')
             and (:desde is null or e.fechaInicio >= :desde)

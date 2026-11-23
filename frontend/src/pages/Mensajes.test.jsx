@@ -141,6 +141,34 @@ describe('Mensajes 063', () => {
     expect(() => adaptarPagina({ content: [] }, adaptarMensaje)).toThrow()
   })
 
+  it('conversación archivada conserva historial sin alias, perfil ni opción de enviar', async () => {
+    const archivada = { ...chat(5), interlocutor: {
+      id: null, nombre: 'Cuenta eliminada', nombreUsuario: null, avatarUrl: null, loSigo: false,
+    } }
+    expect(adaptarConversacion(archivada).interlocutor.id).toBeNull()
+    expect(() => adaptarConversacion({ ...archivada, interlocutor: { ...archivada.interlocutor, nombreUsuario: 'antiguo-alias' } })).toThrow()
+    const adapter = vi.fn((config) => {
+      if (config.url === '/api/conversaciones') return ok(config, page([archivada], 0, 1, 20))
+      if (config.url === '/api/conversaciones/5/mensajes') return ok(config, page([msg(80, 5, 7)]))
+      if (config.url === '/api/conversaciones/5/lectura') return ok(config, archivada)
+      throw new Error(`Solicitud inesperada: ${config.url}`)
+    })
+    start({ demo: false, adapter })
+    const fila = await screen.findByRole('button', { name: /Cuenta eliminada.*Sin mensajes/ })
+    fireEvent.click(fila)
+    expect(await screen.findByText('Mensaje 80')).toBeTruthy()
+    const panel = screen.getByRole('region', { name: 'Historial de mensajes' })
+    expect(within(panel).getByText('Mensaje 80')).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toContain('no puedes enviar mensajes')
+    expect(screen.queryByRole('textbox', { name: 'Escribe un mensaje' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Enviar mensaje' })).toBeNull()
+    const perfil = screen.getByRole('complementary', { name: 'Perfil del interlocutor' })
+    expect(perfil.textContent).toContain('Historial archivado')
+    expect(perfil.textContent).not.toContain('@')
+    expect(perfil.textContent).not.toContain('No lo sigues')
+    expect(adapter.mock.calls.some(([config]) => config.method === 'post')).toBe(false)
+  })
+
   it('pagina la bandeja, consulta búsqueda en backend y cancela peticiones obsoletas', async () => {
     let finishSearch
     const adapter = vi.fn((config) => {

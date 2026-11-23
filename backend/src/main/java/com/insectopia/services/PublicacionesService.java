@@ -32,6 +32,7 @@ import com.insectopia.models.Reaccion;
 import com.insectopia.models.Seguidor;
 import com.insectopia.models.Usuario;
 import com.insectopia.models.enums.EstadoPublicacion;
+import com.insectopia.models.enums.EstadoUsuario;
 import com.insectopia.repository.ComentarioRepository;
 import com.insectopia.repository.PublicacionRepository;
 import com.insectopia.repository.ReaccionRepository;
@@ -95,6 +96,7 @@ public class PublicacionesService {
         Specification<Publicacion> filtros = (root, query, builder) -> {
             List<Predicate> condiciones = new ArrayList<>();
             condiciones.add(builder.equal(root.get("estado"), EstadoPublicacion.VISIBLE));
+            condiciones.add(builder.equal(root.get("usuario").get("estado"), EstadoUsuario.ACTIVO));
             if (busqueda != null) {
                 condiciones.add(builder.like(
                         builder.lower(root.get("contenido")),
@@ -235,7 +237,8 @@ public class PublicacionesService {
     @Transactional(readOnly = true)
     public ImagenPublicacion leerImagen(Long id) {
         Publicacion publicacion = existente(id);
-        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE || publicacion.getImagen() == null) {
+        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE || publicacion.getImagen() == null
+                || publicacion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
             throw new ResourceNotFoundException("imagen de la publicación", id);
         }
         return new ImagenPublicacion(imagenes.leer(publicacion.getImagen()),
@@ -293,7 +296,8 @@ public class PublicacionesService {
         publicacionAccesible(idPublicacion, principal);
         Pageable pagina = PageRequest.of(page, size);
         return comentarios
-                .findByPublicacion_IdPublicacionOrderByFechaComentarioAsc(idPublicacion, pagina)
+                .findByPublicacion_IdPublicacionAndUsuario_EstadoOrderByFechaComentarioAsc(
+                        idPublicacion, EstadoUsuario.ACTIVO, pagina)
                 .map(ComentarioResponseDTO::from);
     }
 
@@ -376,6 +380,9 @@ public class PublicacionesService {
         if (publicacion.getEstado() == EstadoPublicacion.ELIMINADA) {
             throw new ResourceNotFoundException("publicación", id);
         }
+        if (publicacion.getUsuario().getEstado() != EstadoUsuario.ACTIVO && !esModerador(principal)) {
+            throw new ResourceNotFoundException("publicación", id);
+        }
         if (!visible && !esAutor(publicacion, principal) && !esModerador(principal)) {
             throw new AccessDeniedException("No tienes acceso a esta publicación");
         }
@@ -425,8 +432,8 @@ public class PublicacionesService {
                 .orElse(null);
         return PublicacionResponseDTO.from(
                 publicacion,
-                comentarios.countByPublicacion_IdPublicacion(id),
-                reacciones.countByPublicacion_IdPublicacion(id),
+                comentarios.countByPublicacion_IdPublicacionAndUsuario_Estado(id, EstadoUsuario.ACTIVO),
+                reacciones.countByPublicacion_IdPublicacionAndUsuario_Estado(id, EstadoUsuario.ACTIVO),
                 tipoPropio);
     }
 
@@ -438,7 +445,7 @@ public class PublicacionesService {
                 idPublicacion,
                 tipoPropio != null,
                 tipoPropio,
-                reacciones.countByPublicacion_IdPublicacion(idPublicacion));
+                reacciones.countByPublicacion_IdPublicacionAndUsuario_Estado(idPublicacion, EstadoUsuario.ACTIVO));
     }
 
     private String normalizarBusqueda(String q) {

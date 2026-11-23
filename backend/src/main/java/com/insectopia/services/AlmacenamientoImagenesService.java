@@ -141,6 +141,17 @@ public class AlmacenamientoImagenesService {
         }
     }
 
+    /** Usado por la cola durable: el fallo debe conservar la tarea para reintentar. */
+    public boolean eliminarPendiente(String nombre) {
+        try {
+            Files.deleteIfExists(rutaSegura(nombre));
+            return true;
+        } catch (IOException | ResourceNotFoundException exception) {
+            log.warn("Limpieza de imagen pendiente; se reintentará", exception);
+            return false;
+        }
+    }
+
     private Path rutaSegura(String nombre) {
         if (nombre == null || !NOMBRE.matcher(nombre).matches()) {
             throw new ResourceNotFoundException("imagen", nombre);

@@ -93,15 +93,6 @@ function IconoCheck() {
   )
 }
 
-function IconoBuscar() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-4">
-      <circle cx="10.5" cy="10.5" r="6" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M15 15l5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  )
-}
-
 function IconoChevron() {
   return (
     <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-4 text-gray-400">
@@ -310,32 +301,6 @@ export default function Registro() {
       <PanelInstitucional />
 
       <section className="relative flex justify-center overflow-y-auto bg-neutral-900 px-5 py-10 sm:px-8 lg:h-full lg:min-h-0 lg:min-w-0 lg:overflow-y-auto lg:px-16 lg:pb-16 lg:pt-20">
-        <div className="absolute right-4 top-4 z-20 hidden items-center rounded-full border border-zinc-800 bg-zinc-900/90 px-1 py-1 shadow-lg backdrop-blur-md sm:flex lg:right-16">
-          <div className="flex items-center gap-1 rounded-full bg-neutral-800 p-1">
-            <span className="rounded-full bg-lime-400 px-3 py-1.5 text-xs font-semibold text-neutral-950">
-              Registro
-            </span>
-            <button
-              type="button"
-              disabled
-              title="Recuperación de contraseña disponible próximamente"
-              className="rounded-full px-3 py-1.5 text-xs font-medium text-gray-300 disabled:cursor-not-allowed disabled:opacity-70"
-            >
-              Recuperar Contraseña
-            </button>
-          </div>
-          <span aria-hidden="true" className="mx-2 h-4 w-px bg-zinc-800" />
-          <button
-            type="button"
-            disabled
-            aria-label="Búsqueda no disponible"
-            title="Búsqueda no disponible"
-            className="flex size-8 items-center justify-center rounded-full text-gray-400 disabled:cursor-not-allowed"
-          >
-            <IconoBuscar />
-          </button>
-        </div>
-
         <div className="w-full min-w-0 max-w-[384px] lg:my-auto">
           <div className="flex flex-col items-start gap-1">
             <h2 className="font-['Plus_Jakarta_Sans'] text-3xl font-bold leading-9 text-white">

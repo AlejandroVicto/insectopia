@@ -1,0 +1,6 @@
+.administracion { font-family: Mulish, Arial, sans-serif; }
+.administracion .font-display { font-family: 'Plus Jakarta Sans', Mulish, Arial, sans-serif; }
+.administracion button:focus-visible, .administracion select:focus-visible, .administracion input:focus-visible { outline: 2px solid #a8e223; outline-offset: 2px; }
+.admin-boton-primario { border-radius: 12px; background: #a8e223; padding: 10px 14px; color: #161e19; font-size: 12px; font-weight: 700; }
+.admin-boton-secundario { border: 1px solid #35483a; border-radius: 12px; background: #223127; padding: 10px 14px; font-size: 12px; font-weight: 700; }
+.administracion button:disabled { cursor: not-allowed; opacity: .55; }

@@ -17,6 +17,7 @@ import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Reporte;
 import com.insectopia.models.enums.EstadoPublicacion;
+import com.insectopia.models.enums.EstadoUsuario;
 import com.insectopia.models.enums.EstadoReporte;
 import com.insectopia.repository.PublicacionRepository;
 import com.insectopia.repository.ReporteRepository;
@@ -46,7 +47,10 @@ public class ReportesService {
         // Serializa la comprobación de duplicados por publicación, incluso entre instancias del backend.
         var publicacion = publicaciones.bloquearParaEscritura(datos.publicacionId())
                 .orElseThrow(() -> new ResourceNotFoundException("publicación", datos.publicacionId()));
-        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE) throw new BusinessRuleException("Publicación no reportable");
+        if (publicacion.getEstado() != EstadoPublicacion.VISIBLE
+                || publicacion.getUsuario().getEstado() != EstadoUsuario.ACTIVO) {
+            throw new BusinessRuleException("Publicación no reportable");
+        }
         if (publicacion.getUsuario().getIdUsuario().equals(principal.idUsuario())) {
             throw new BusinessRuleException("No puedes reportar tu propia publicación");
         }
@@ -82,6 +86,9 @@ public class ReportesService {
                 .orElseThrow(() -> new ResourceNotFoundException("reporte", id));
         if (reporte.getEstado() != EstadoReporte.PENDIENTE && reporte.getEstado() != EstadoReporte.EN_REVISION) {
             throw new BusinessRuleException("El reporte ya tiene una resolución final");
+        }
+        if (reporte.getPublicacion() == null) {
+            throw new BusinessRuleException("No es posible resolver un reporte histórico sin publicación.");
         }
         if (datos.estado() != EstadoReporte.RESUELTO && datos.estado() != EstadoReporte.RECHAZADO) {
             throw new BusinessRuleException("La resolución debe ser RESUELTO o RECHAZADO");

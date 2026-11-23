@@ -34,6 +34,7 @@ import com.insectopia.models.Evento;
 import com.insectopia.models.ParticipanteEvento;
 import com.insectopia.models.Usuario;
 import com.insectopia.models.enums.EstadoEvento;
+import com.insectopia.models.enums.EstadoUsuario;
 import com.insectopia.models.enums.EstadoParticipanteEvento;
 import com.insectopia.models.ids.ParticipanteEventoId;
 import com.insectopia.repository.EventoRepository;
@@ -124,6 +125,9 @@ public class EventoService {
     @Transactional(readOnly = true)
     public EventoResponseDTO obtener(Long id, InsectopiaUserDetails user) {
         Evento evento = eventos.obtenerConProponente(id).orElseThrow(() -> new ResourceNotFoundException("evento", id));
+        if (evento.getProponente() == null || evento.getProponente().getEstado() != EstadoUsuario.ACTIVO) {
+            throw new ResourceNotFoundException("evento", id);
+        }
         if (evento.getEstado() != EstadoEvento.APROBADO
                 && !evento.getProponente().getIdUsuario().equals(user.idUsuario())) {
             throw new ResourceNotFoundException("evento", id);
@@ -183,7 +187,8 @@ public class EventoService {
     @Transactional(readOnly = true)
     public ImagenEvento leerImagen(Long id, InsectopiaUserDetails user) {
         Evento evento = eventos.findById(id).orElseThrow(() -> new ResourceNotFoundException("evento", id));
-        if (evento.getEstado() != EstadoEvento.APROBADO
+        if (evento.getProponente() == null || evento.getProponente().getEstado() != EstadoUsuario.ACTIVO
+                || evento.getEstado() != EstadoEvento.APROBADO
                 && (user == null || !evento.getProponente().getIdUsuario().equals(user.idUsuario()))) {
             throw new ResourceNotFoundException("imagen del evento", id);
         }
@@ -239,6 +244,9 @@ public class EventoService {
     @Transactional
     public EventoResponseDTO inscribir(Long id, InsectopiaUserDetails user) {
         Evento evento = eventos.bloquear(id).orElseThrow(() -> new ResourceNotFoundException("evento", id));
+        if (evento.getProponente() == null || evento.getProponente().getEstado() != EstadoUsuario.ACTIVO) {
+            throw new ResourceNotFoundException("evento", id);
+        }
         LocalDateTime actual = ahora();
         if (evento.getEstado() != EstadoEvento.APROBADO || !evento.getFechaInicio().isAfter(actual)) {
             throw new EventoConflictoException("El evento no está disponible para inscripciones");
@@ -281,7 +289,7 @@ public class EventoService {
     }
 
     private void verificarPropietario(Evento evento, InsectopiaUserDetails user) {
-        if (!evento.getProponente().getIdUsuario().equals(user.idUsuario())) {
+        if (evento.getProponente() == null || !evento.getProponente().getIdUsuario().equals(user.idUsuario())) {
             throw new ResourceNotFoundException("evento", evento.getIdEvento());
         }
     }
@@ -321,10 +329,11 @@ public class EventoService {
 
     private EventoResponseDTO respuesta(Evento e, long conteo, EstadoParticipanteEvento estado, Long usuario) {
         Usuario proponente = e.getProponente();
-        boolean propio = proponente.getIdUsuario().equals(usuario);
+        boolean propio = proponente != null && proponente.getIdUsuario().equals(usuario);
         return new EventoResponseDTO(e.getIdEvento(), e.getTitulo(), e.getDescripcion(), e.getUbicacion(),
                 e.getImagen(), e.getFechaInicio(), e.getFechaFin(), e.getCupoMaximo(), conteo,
-                e.getEstado(), new ProponentePublico(proponente.getNombre(), proponente.getNombreUsuario()),
+                e.getEstado(), proponente == null ? new ProponentePublico("Cuenta eliminada", null)
+                        : new ProponentePublico(proponente.getNombre(), proponente.getNombreUsuario()),
                 estado, propio, propio && e.getEstado() == EstadoEvento.RECHAZADO ? e.getMotivoResolucion() : null);
     }
 }

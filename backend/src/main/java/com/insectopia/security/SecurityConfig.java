@@ -76,6 +76,7 @@ public class SecurityConfig {
 								"/api/auth/register",
 								"/api/auth/forgot-password",
 								"/api/auth/reset-password").permitAll()
+					.requestMatchers("/api/admin/**").hasAuthority(Permissions.MODULO_ADMINISTRAR)
 				.anyRequest().authenticated())
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
 

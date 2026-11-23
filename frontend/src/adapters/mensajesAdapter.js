@@ -15,8 +15,10 @@ export function adaptarMensaje(raw) {
 export function adaptarConversacion(raw) {
   const id = raw?.id ?? raw?.idConversacion
   const persona = raw?.interlocutor
-  if (!idValido(id) || !idValido(persona?.id) || !texto(persona?.nombre)
-      || !texto(persona?.nombreUsuario) || !Number.isSafeInteger(raw?.noLeidos) || raw.noLeidos < 0) {
+  const archivada = persona?.id === null && persona?.nombre === 'Cuenta eliminada'
+    && persona?.nombreUsuario == null && persona?.avatarUrl == null && persona?.loSigo === false
+  if (!idValido(id) || (!archivada && (!idValido(persona?.id) || !texto(persona?.nombre)
+      || !texto(persona?.nombreUsuario))) || !Number.isSafeInteger(raw?.noLeidos) || raw.noLeidos < 0) {
     throw new Error('DTO de conversación inválido')
   }
   const ultimo = raw.ultimoMensaje

@@ -81,6 +81,14 @@ afterEach(() => {
 })
 
 describe('pantalla de registro', () => {
+  it('no muestra la barra superior de registro, recuperación ni búsqueda', () => {
+    renderRegistro()
+    expect(screen.queryByText('Registro')).toBeNull()
+    expect(screen.queryByText('Recuperar Contraseña')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Búsqueda no disponible' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Crea tu cuenta' })).toBeTruthy()
+  })
+
   it('carga países exclusivamente desde la API sin aviso de registro no disponible', async () => {
     const { adaptador } = renderRegistro()
 

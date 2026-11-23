@@ -6,6 +6,7 @@ import ProtectedRoute from './auth/ProtectedRoute'
 import { ROUTE_ROLES } from './auth/roles'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
+import RecuperacionContrasena from './pages/RecuperacionContrasena'
 import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
 import Inicio from './pages/Inicio'
@@ -15,6 +16,7 @@ import PublicacionDetalle from './pages/PublicacionDetalle'
 import Eventos from './pages/Eventos'
 import MiPerfil from './pages/MiPerfil'
 import Configuracion from './pages/Configuracion'
+import Administracion from './pages/Administracion'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -150,9 +152,21 @@ export default function App() {
       <Route path="/" element={<ConnectionCheck />} />
       <Route path="/health" element={<ConnectionCheck />} />
 
+      {/* Rutas públicas */}
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
 
+      {/* Actividad 055 - Recuperación de contraseña */}
+      <Route
+        path="/recuperar-contrasena"
+        element={<RecuperacionContrasena />}
+      />
+      <Route
+        path="/restablecer-contrasena"
+        element={<RecuperacionContrasena restablecer />}
+      />
+
+      {/* Rutas que requieren autenticación */}
       <Route
         element={
           <ProtectedRoute allowedRoles={ROUTE_ROLES.generales} />
@@ -188,12 +202,13 @@ export default function App() {
             element={<MiPerfil />}
           />
 
-          {/* Actividad 077 - Configuración; la actualización del perfil se prepara sin backend */}
+          {/* Actividad 077 - Configuración */}
           <Route
             path="/app/configuracion"
             element={<Configuracion />}
           />
 
+          {/* Rutas exclusivas de MODERADOR y ADMINISTRADOR */}
           <Route
             element={
               <ProtectedRoute allowedRoles={ROUTE_ROLES.moderacion} />
@@ -201,12 +216,11 @@ export default function App() {
           >
             <Route
               path="/moderacion"
-              element={
-                <SectionPlaceholder title="Moderación" />
-              }
+              element={<SectionPlaceholder title="Moderación" />}
             />
           </Route>
 
+          {/* Actividad 081 - Administración de usuarios y roles */}
           <Route
             element={
               <ProtectedRoute allowedRoles={ROUTE_ROLES.administracion} />
@@ -214,9 +228,7 @@ export default function App() {
           >
             <Route
               path="/administracion"
-              element={
-                <SectionPlaceholder title="Administración" />
-              }
+              element={<Administracion />}
             />
           </Route>
         </Route>

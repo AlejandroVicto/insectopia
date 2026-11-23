@@ -62,7 +62,8 @@
 
 /*
  * Inicio, Mensajes, Notificaciones,
- * Publicaciones, Eventos y Configuración:
+ * Publicaciones, Eventos, Mi Perfil,
+ * Configuración y Administración:
  * el contenido se desplaza internamente.
  */
 .private-shell--inicio,
@@ -70,7 +71,9 @@
 .private-shell--notificaciones,
 .private-shell--publicacion,
 .private-shell--eventos,
-.private-shell--configuracion {
+.private-shell--perfil,
+.private-shell--configuracion,
+.private-shell--administracion {
   display: flex;
   height: 100dvh;
   flex-direction: column;
@@ -83,7 +86,9 @@
 .private-shell--notificaciones>header,
 .private-shell--publicacion>header,
 .private-shell--eventos>header,
-.private-shell--configuracion>header {
+.private-shell--perfil>header,
+.private-shell--configuracion>header,
+.private-shell--administracion>header {
   flex-shrink: 0;
 }
 
@@ -93,7 +98,9 @@
 .private-shell--notificaciones>div>aside,
 .private-shell--publicacion>div>aside,
 .private-shell--eventos>div>aside,
-.private-shell--configuracion>div>aside {
+.private-shell--perfil>div>aside,
+.private-shell--configuracion>div>aside,
+.private-shell--administracion>div>aside {
   min-height: 0;
 }
 
@@ -103,7 +110,9 @@
 .private-shell--notificaciones #private-content,
 .private-shell--publicacion #private-content,
 .private-shell--eventos #private-content,
-.private-shell--configuracion #private-content {
+.private-shell--perfil #private-content,
+.private-shell--configuracion #private-content,
+.private-shell--administracion #private-content {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -111,10 +120,9 @@
 }
 
 /*
- * Actividades 073 y 075 - Mi Perfil.
- * Utiliza el mismo layout compartido,
- * pero permite desplazamiento vertical
- * en pantallas estrechas.
+ * Mi Perfil y Configuración:
+ * conservar la adaptación para
+ * pantallas estrechas.
  */
 .private-shell--perfil,
 .private-shell--configuracion {
@@ -128,6 +136,19 @@
 
 /* Adaptación responsiva de Mi Perfil y Configuración */
 @media (max-width: 800px) {
+
+  .private-shell--perfil,
+  .private-shell--configuracion {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .private-shell--perfil #private-content,
+  .private-shell--configuracion #private-content {
+    overflow-y: visible;
+  }
+
   .private-shell--perfil>header,
   .private-shell--configuracion>header {
     grid-template-columns: 1fr auto;
