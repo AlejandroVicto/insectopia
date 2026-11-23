@@ -273,6 +273,17 @@ class EventoServiceTests {
         }
     }
 
+    @Test void lecturaPendienteTambienLaPuedeHacerModeradorConAutoridad() {
+        String nombre = "11111111-1111-1111-1111-111111111111.jpg";
+        evento.setImagen("eventos/" + nombre);
+        evento.setEstado(EstadoEvento.PENDIENTE);
+        when(eventos.findById(12L)).thenReturn(Optional.of(evento));
+        when(imagenes.leer(nombre)).thenReturn(mock(org.springframework.core.io.Resource.class));
+        var moderador = new InsectopiaUserDetails(9L, "mod@example.invalid", "hash", "MODERADOR", 0,
+                Permissions.authoritiesFor("MODERADOR"));
+        assertEquals(org.springframework.http.MediaType.IMAGE_JPEG, service.leerImagen(12L, moderador).tipo());
+    }
+
     @Test void borrarImagenRespetaPermisosYLecturaPendientePrivada() {
         String nombre = "11111111-1111-1111-1111-111111111111.jpg";
         evento.setImagen("eventos/" + nombre);

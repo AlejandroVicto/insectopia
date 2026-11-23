@@ -62,6 +62,17 @@ public interface EventoRepository extends JpaRepository<Evento, Long> {
             @Param("q") String q, @Param("desde") LocalDateTime desde,
             @Param("hasta") LocalDateTime hasta, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"proponente", "moderador"})
+    @Query("""
+            select e from Evento e where (:estado is null or e.estado = :estado)
+            and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
+                 or lower(e.ubicacion) like :q escape '!')
+            and (:desde is null or e.fechaInicio >= :desde)
+            and (:hasta is null or e.fechaInicio < :hasta)
+            """)
+    Page<Evento> listarParaModeracion(@Param("estado") EstadoEvento estado, @Param("q") String q,
+            @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta, Pageable pageable);
+
     @EntityGraph(attributePaths = "proponente")
     @Query("select e from Evento e where e.idEvento = :id")
     Optional<Evento> obtenerConProponente(@Param("id") Long id);

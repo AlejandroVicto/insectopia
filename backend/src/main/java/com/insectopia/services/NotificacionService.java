@@ -33,6 +33,8 @@ public class NotificacionService {
     public static final String REPORTE_RECHAZADO = "REPORTE_RECHAZADO";
     public static final String EVENTO_INSCRIPCION = "EVENTO_INSCRIPCION";
     public static final String EVENTO_CANCELACION = "EVENTO_CANCELACION";
+    public static final String EVENTO_APROBADO = "EVENTO_APROBADO";
+    public static final String EVENTO_RECHAZADO = "EVENTO_RECHAZADO";
     public static final String NUEVO_SEGUIDOR = "NUEVO_SEGUIDOR";
 
     private final NotificacionRepository notificaciones;
@@ -166,6 +168,30 @@ public class NotificacionService {
                     reporte.getEstado() == EstadoReporte.RESUELTO
                             ? "Tu reporte fue resuelto" : "Tu reporte fue rechazado");
         }
+    }
+
+    /** Actividad 086: aviso al proponente por la resolución definitiva de su propuesta. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void porResolucionEvento(Evento evento, Usuario moderador, boolean aprobado) {
+        Usuario destinatario = evento.getProponente();
+        if (destinatario == null || moderador == null
+                || (destinatario.getEstado() != null && destinatario.getEstado() != EstadoUsuario.ACTIVO)
+                || destinatario.getIdUsuario().equals(moderador.getIdUsuario())) {
+            return;
+        }
+        String tipo = aprobado ? EVENTO_APROBADO : EVENTO_RECHAZADO;
+        if (notificaciones.existsByDestinatario_IdUsuarioAndEvento_IdEventoAndTipo(
+                destinatario.getIdUsuario(), evento.getIdEvento(), tipo)) {
+            return;
+        }
+        Notificacion aviso = new Notificacion();
+        aviso.setDestinatario(destinatario);
+        aviso.setEvento(evento);
+        aviso.setTipo(tipo);
+        aviso.setContenido(aprobado
+                ? "Tu propuesta de evento fue aprobada"
+                : "Tu propuesta de evento fue rechazada");
+        notificaciones.save(aviso);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

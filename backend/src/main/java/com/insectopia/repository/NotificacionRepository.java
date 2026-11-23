@@ -45,6 +45,9 @@ public interface NotificacionRepository
     boolean existsByDestinatario_IdUsuarioAndActor_IdUsuarioAndPublicacion_IdPublicacionAndTipo(
             Long destinatario, Long actor, Long publicacion, String tipo);
 
+    boolean existsByDestinatario_IdUsuarioAndEvento_IdEventoAndTipo(
+            Long destinatario, Long evento, String tipo);
+
     @Modifying(flushAutomatically = true, clearAutomatically = true)
     @Query("update Notificacion n set n.leida = true where n.destinatario.idUsuario = :destinatario and n.leida = false")
     int marcarTodasLeidas(@Param("destinatario") Long destinatario);

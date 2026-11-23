@@ -131,6 +131,35 @@ class NotificacionServiceTests {
         assertEquals(8L, dto.recurso().id()); assertFalse(dto.recurso().disponible());
     }
 
+    @Test void resolucionDeEventoAvisaAlProponenteSinDuplicadosNiAvisoPropio() {
+        Evento evento = new Evento(); evento.setIdEvento(12L); evento.setProponente(autor);
+        service.porResolucionEvento(evento, autor, true);
+        verify(repository, never()).save(any());
+        service.porResolucionEvento(evento, actor, true);
+        ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+        verify(repository).save(captor.capture());
+        assertEquals("EVENTO_APROBADO", captor.getValue().getTipo());
+        assertSame(evento, captor.getValue().getEvento());
+        assertNull(captor.getValue().getActor());
+        when(repository.existsByDestinatario_IdUsuarioAndEvento_IdEventoAndTipo(
+                1L, 12L, "EVENTO_APROBADO")).thenReturn(true);
+        service.porResolucionEvento(evento, actor, true);
+        verify(repository, times(1)).save(any());
+        autor.setEstado(EstadoUsuario.DESACTIVADO);
+        service.porResolucionEvento(evento, actor, false);
+        verify(repository, times(1)).save(any());
+        autor.setEstado(EstadoUsuario.ACTIVO);
+        service.porResolucionEvento(evento, actor, false);
+        verify(repository, times(2)).save(any());
+        aviso.setEvento(evento); aviso.setPublicacion(null); aviso.setReporte(null);
+        aviso.setTipo("EVENTO_RECHAZADO");
+        when(repository.findByDestinatario_IdUsuario(eq(1L), any())).thenReturn(new PageImpl<>(List.of(aviso)));
+        var dto = service.listar(0, 10, "todas", principal(1)).getContent().getFirst();
+        assertEquals("EVENTO", dto.recurso().tipo());
+        assertNull(dto.recurso().apiUrl());
+        assertFalse(dto.recurso().disponible());
+    }
+
     @Test void mensajeGeneraAvisoPrivadoConConversacionRealYNoParaRemitente() {
         Conversacion conversacion = new Conversacion(); conversacion.setIdConversacion(5L);
         Mensaje mensaje = new Mensaje(); mensaje.setIdMensaje(80L); mensaje.setConversacion(conversacion);

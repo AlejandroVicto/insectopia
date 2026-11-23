@@ -41,6 +41,7 @@ import com.insectopia.repository.EventoRepository;
 import com.insectopia.repository.ParticipanteEventoRepository;
 import com.insectopia.repository.UsuarioRepository;
 import com.insectopia.security.InsectopiaUserDetails;
+import com.insectopia.security.Permissions;
 
 @Service
 public class EventoService {
@@ -187,9 +188,12 @@ public class EventoService {
     @Transactional(readOnly = true)
     public ImagenEvento leerImagen(Long id, InsectopiaUserDetails user) {
         Evento evento = eventos.findById(id).orElseThrow(() -> new ResourceNotFoundException("evento", id));
+        boolean moderador = user != null && user.getAuthorities().stream()
+                .anyMatch(autoridad -> Permissions.EVENTO_REVISAR.equals(autoridad.getAuthority()));
+        boolean propio = user != null && evento.getProponente() != null
+                && evento.getProponente().getIdUsuario().equals(user.idUsuario());
         if (evento.getProponente() == null || evento.getProponente().getEstado() != EstadoUsuario.ACTIVO
-                || evento.getEstado() != EstadoEvento.APROBADO
-                && (user == null || !evento.getProponente().getIdUsuario().equals(user.idUsuario()))) {
+                || evento.getEstado() != EstadoEvento.APROBADO && !moderador && !propio) {
             throw new ResourceNotFoundException("imagen del evento", id);
         }
         String nombre = nombreLocal(evento.getImagen());
