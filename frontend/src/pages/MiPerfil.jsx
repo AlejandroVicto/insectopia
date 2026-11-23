@@ -216,8 +216,8 @@ export default function MiPerfil() {
         </div>
       </aside>
     </div>
-    {modal === 'seguidores' && <PerfilUsuariosModal tipo="seguidores" ownId={profile?.id} onClose={() => setModal(null)} onTotal={updateTotal} />}
-    {modal === 'seguidos' && <PerfilUsuariosModal tipo="seguidos" ownId={profile?.id} onClose={() => setModal(null)} onTotal={updateTotal} />}
+    {modal === 'seguidores' && <PerfilUsuariosModal tipo="seguidores" ownId={profile?.id ?? user?.id} onClose={() => setModal(null)} onChanged={recargarPerfil} />}
+    {modal === 'seguidos' && <PerfilUsuariosModal tipo="seguidos" ownId={profile?.id ?? user?.id} onClose={() => setModal(null)} onTotal={updateTotal} onChanged={recargarPerfil} />}
     {modal === 'editar' && <EditarPublicacionModal open publicacion={seleccionada}
       puedeEditar={puedeGestionar(seleccionada)} onClose={cerrarModal} onSuccess={recargarPublicaciones} />}
     {modal === 'eliminar' && <EliminarPublicacionModal open publicacion={seleccionada}

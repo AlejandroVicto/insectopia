@@ -33,6 +33,7 @@ public class NotificacionService {
     public static final String REPORTE_RECHAZADO = "REPORTE_RECHAZADO";
     public static final String EVENTO_INSCRIPCION = "EVENTO_INSCRIPCION";
     public static final String EVENTO_CANCELACION = "EVENTO_CANCELACION";
+    public static final String NUEVO_SEGUIDOR = "NUEVO_SEGUIDOR";
 
     private final NotificacionRepository notificaciones;
 
@@ -117,7 +118,7 @@ public class NotificacionService {
         }
         Usuario actor = n.getActor();
         AutorResumenDTO actorPublico = actor != null && ((recurso != null && recurso.disponible())
-                    || "NUEVO_SEGUIDOR".equals(n.getTipo()))
+                    || NUEVO_SEGUIDOR.equals(n.getTipo()))
                 && actor.getEstado() == EstadoUsuario.ACTIVO
                 && !n.getTipo().startsWith("REPORTE_") ? AutorResumenDTO.from(actor) : null;
         return new NotificacionResponseDTO(n.getIdNotificacion(), n.getTipo(), n.getContenido(), actorPublico,
@@ -175,6 +176,15 @@ public class NotificacionService {
         aviso.setContenido(inscripcion ? "Tu inscripción al evento fue confirmada"
                 : "Tu inscripción al evento fue cancelada");
         notificaciones.save(aviso);
+    }
+
+    /** Actividad 076: aviso al seguido, siempre dentro de la transacción que crea la relación. */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void porNuevoSeguidor(Usuario seguido, Usuario seguidor) {
+        if (!seguido.getIdUsuario().equals(seguidor.getIdUsuario())) {
+            guardar(seguido, seguidor, null, null, NUEVO_SEGUIDOR,
+                    "Alguien comenzó a seguirte");
+        }
     }
 
     private void guardar(Usuario destinatario, Usuario actor, Publicacion publicacion, Reporte reporte,

@@ -82,4 +82,50 @@ public interface SeguidorRepository
             @Param("busqueda") String busqueda,
             @Param("estado") EstadoUsuario estado,
             Pageable pageable);
+
+    /**
+     * Actividad 076: seguidores del usuario autenticado. La búsqueda y la
+     * paginación se resuelven en MySQL; {@code join fetch} evita N+1 al mapear
+     * el perfil público de cada seguidor. Nunca devuelve al propio usuario ni
+     * cuentas que no estén activas. El orden es estable.
+     */
+    @Query(value = """
+            select s from Seguidor s
+            join fetch s.seguidor u
+            where s.seguido.idUsuario = :idSeguido
+              and s.seguidor.idUsuario <> :idSeguido
+              and u.estado = :estado
+              and (:busqueda is null or lower(u.nombre) like :busqueda escape '\\'
+                   or lower(u.nombreUsuario) like :busqueda escape '\\')
+            order by lower(u.nombre) asc, lower(u.nombreUsuario) asc, u.idUsuario asc
+            """, countQuery = """
+            select count(s) from Seguidor s
+            join s.seguidor u
+            where s.seguido.idUsuario = :idSeguido
+              and s.seguidor.idUsuario <> :idSeguido
+              and u.estado = :estado
+              and (:busqueda is null or lower(u.nombre) like :busqueda escape '\\'
+                   or lower(u.nombreUsuario) like :busqueda escape '\\')
+            """)
+    Page<Seguidor> buscarSeguidores(
+            @Param("idSeguido") Long idSeguido,
+            @Param("busqueda") String busqueda,
+            @Param("estado") EstadoUsuario estado,
+            Pageable pageable);
+
+    /** Conteos de seguidores para una página completa: una sola consulta, sin N+1. */
+    @Query("""
+            select s.seguido.idUsuario, count(s) from Seguidor s
+            where s.seguido.idUsuario in :ids
+            group by s.seguido.idUsuario
+            """)
+    List<Object[]> countSeguidoresPorUsuarios(@Param("ids") Collection<Long> ids);
+
+    /** Conteos de seguidos para una página completa: una sola consulta, sin N+1. */
+    @Query("""
+            select s.seguidor.idUsuario, count(s) from Seguidor s
+            where s.seguidor.idUsuario in :ids
+            group by s.seguidor.idUsuario
+            """)
+    List<Object[]> countSeguidosPorUsuarios(@Param("ids") Collection<Long> ids);
 }

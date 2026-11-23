@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom'
 import api from '../services/api'
 import { AuthProvider } from '../auth/AuthProvider'
@@ -18,11 +18,17 @@ vi.mock('../services/notificacionesService', async (original) => ({
 const originalAdapter = api.defaults.adapter
 afterEach(() => { cleanup(); api.defaults.adapter = originalAdapter })
 const ok = (config, data) => Promise.resolve({ status: 200, data, config, headers: {} })
+const created = (config) => Promise.resolve({ status: 201, data: '', config, headers: {} })
+const noContent = (config) => Promise.resolve({ status: 204, data: '', config, headers: {} })
 const fail = (config, status) => Promise.reject(Object.assign(new Error('Error HTTP'), { config, response: { status, config } }))
 const page = (users, number = 0, total = users.length, last = true) => ({ content: users, number, totalElements: total, last, size: 20, totalPages: last ? number + 1 : number + 2 })
 const ana = { id: 8, nombre: 'Ana López', nombreUsuario: 'ana', avatarUrl: null, loSigo: true, email: 'privado@test.invalid', telefono: '555888' }
 const luis = { id: 9, nombre: 'Luis Pérez', nombreUsuario: 'luis', avatarUrl: null, loSigo: true }
-const profile = { idUsuario: 7, nombre: 'María Real', nombreUsuario: 'maria', fotoPerfil: 'https://example.test/foto.png', biografia: 'Estudio polinizadores', paisCodigo: 'MX', estadoRegion: 'Jalisco', fechaRegistro: '2024-06-01T10:00:00Z', totalSeguidores: 12, totalPublicaciones: 3 }
+const rosa = { id: 10, nombre: 'Rosa Ruiz', nombreUsuario: 'rosa', avatarUrl: null, loSigo: false }
+const rosaSiguiendo = { ...rosa, loSigo: true }
+const profile = { idUsuario: 7, nombre: 'María Real', nombreUsuario: 'maria', fotoPerfil: 'https://example.test/foto.png', biografia: 'Estudio polinizadores', paisCodigo: 'MX', estadoRegion: 'Jalisco', fechaRegistro: '2024-06-01T10:00:00Z', totalSeguidores: 12, totalSeguidos: 4, totalPublicaciones: 3 }
+const RUTA_SEGUIDOS = '/api/usuarios/seguidos'
+const RUTA_SEGUIDORES = '/api/usuarios/me/seguidores'
 
 const publicacionPropia = (id, contenido, extras = {}) => ({
   id,
@@ -51,10 +57,11 @@ const publicacionInicial = publicacionPropia(101, 'Mariposa en el jardín')
 const RUTA_PROPIAS = '/api/usuarios/me/publicaciones'
 const llamadaPropias = (mock) => mock.mock.calls.find(([config]) => config.url === RUTA_PROPIAS)?.[0]
 const idiomaAdapter = (config, data) => ok(config, data)
-const baseAdapter = ({ publicaciones = postsPage([]), perfil = profile, seguidos = page([]) } = {}) => vi.fn((config) => {
+const baseAdapter = ({ publicaciones = postsPage([]), perfil = profile, seguidos = page([]), seguidores = page([]) } = {}) => vi.fn((config) => {
   if (config.url === '/api/usuarios/me') return idiomaAdapter(config, perfil)
   if (config.url === RUTA_PROPIAS) return idiomaAdapter(config, publicaciones)
-  if (config.url === '/api/usuarios/seguidos') return idiomaAdapter(config, seguidos)
+  if (config.url === RUTA_SEGUIDOS) return idiomaAdapter(config, seguidos)
+  if (config.url === RUTA_SEGUIDORES) return idiomaAdapter(config, seguidores)
   if (config.url === '/api/catalogos/paises') return idiomaAdapter(config, [{ codigo: 'MX', nombre: 'México' }])
   return idiomaAdapter(config, { count: 0 })
 })
@@ -67,6 +74,7 @@ function LoginControl() {
 }
 
 function renderPerfil(adapter) {
+  cleanup()
   api.defaults.adapter = adapter
   const root = document.createElement('div')
   root.id = 'root'
@@ -84,11 +92,20 @@ function renderPerfil(adapter) {
 const adapter = vi.fn((config) => {
   if (config.url === '/api/usuarios/me') return ok(config, profile)
   if (config.url === RUTA_PROPIAS) return ok(config, postsPage([publicacionInicial]))
-  if (config.url === '/api/usuarios/seguidos') {
+  if (config.url === RUTA_SEGUIDOS) {
     const params = config.params
     if (params.q === 'nadie') return ok(config, page([], 0, 0))
     if (params.page === 1) return ok(config, page([ana, luis], 1, 2))
     return ok(config, page([ana], 0, 2, false))
+  }
+  if (config.url === RUTA_SEGUIDORES) {
+    const params = config.params
+    if (params.q === 'nadie') return ok(config, page([], 0, 0))
+    if (params.page === 1) return ok(config, page([luis], 1, 2))
+    return ok(config, page([ana], 0, 2, false))
+  }
+  if (config.url?.endsWith('/seguir')) {
+    return config.method === 'delete' ? noContent(config) : created(config)
   }
   if (config.url === '/api/catalogos/paises') return ok(config, [{ codigo: 'MX', nombre: 'México' }])
   return ok(config, { count: 0 })
@@ -115,27 +132,32 @@ describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
     expect(screen.getByText('Configuración 077')).toBeTruthy()
   })
 
-  it('abre listas diferentes; Seguidos pagina sin duplicados y oculta campos privados', async () => {
+  it('abre ambas listas reales; Seguidos pagina sin duplicados y oculta campos privados', async () => {
     renderPerfil(adapter)
     await screen.findByText('Estudio polinizadores')
     await waitFor(() => expect(screen.getByRole('button', { name: /2 Seguidos/ })).toBeTruthy())
     const opener = screen.getByRole('button', { name: /2 Seguidos/ })
     fireEvent.click(opener)
-    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
-    await within(dialog).findByText('Ana López')
+    const seguidos = await screen.findByRole('dialog', { name: 'Seguidos' })
+    await within(seguidos).findByText('Ana López')
     expect(document.getElementById('root').inert).toBe(true)
-    expect(within(dialog).queryByText('privado@test.invalid')).toBeNull()
-    expect(within(dialog).queryByText('555888')).toBeNull()
-    expect(within(dialog).getByRole('button', { name: /Siguiendo a Ana López/ }).disabled).toBe(true)
-    fireEvent.click(within(dialog).getByRole('button', { name: 'Cargar más personas' }))
-    await within(dialog).findByText('Luis Pérez')
-    expect(within(dialog).getAllByText('Ana López')).toHaveLength(1)
+    expect(within(seguidos).queryByText('privado@test.invalid')).toBeNull()
+    expect(within(seguidos).queryByText('555888')).toBeNull()
+    expect(within(seguidos).getByRole('button', { name: 'Siguiendo a Ana López' }).disabled).toBe(false)
+    fireEvent.click(within(seguidos).getByRole('button', { name: 'Cargar más personas' }))
+    await within(seguidos).findByText('Luis Pérez')
+    expect(within(seguidos).getAllByText('Ana López')).toHaveLength(1)
     fireEvent.keyDown(document, { key: 'Escape' })
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(document.activeElement).toBe(opener)
+
     fireEvent.click(screen.getByRole('button', { name: /12 Seguidores/ }))
-    expect(within(screen.getByRole('dialog', { name: 'Seguidores' })).getByText('Lista de seguidores no disponible')).toBeTruthy()
-    expect(within(screen.getByRole('dialog')).queryByText('Ana López')).toBeNull()
+    const seguidores = await screen.findByRole('dialog', { name: 'Seguidores' })
+    await within(seguidores).findByText('Ana López')
+    expect(within(seguidores).queryByText('Lista de seguidores no disponible')).toBeNull()
+    expect(within(seguidores).queryByText('privado@test.invalid')).toBeNull()
+    expect(within(seguidores).queryByText('555888')).toBeNull()
+    expect(adapter.mock.calls.some(([config]) => config.url === RUTA_SEGUIDORES && config.params.size === 20)).toBe(true)
   })
 
   it('busca en servidor y distingue sin resultados de lista vacía', async () => {
@@ -149,6 +171,63 @@ describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
     expect(adapter.mock.calls.some(([config]) => config.url === '/api/usuarios/seguidos' && config.params.q === 'nadie')).toBe(true)
     fireEvent.click(within(dialog).getByRole('button', { name: 'Cerrar Seguidos' }))
     expect(screen.queryByRole('dialog')).toBeNull()
+  })
+
+  it('busca seguidores en el servidor, pagina y distingue sin resultados de lista vacía', async () => {
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page([]))
+      if (config.url === RUTA_SEGUIDORES) {
+        if (config.params.q === 'nadie') return ok(config, page([], 0, 0))
+        if (config.params.page === 1) return ok(config, page([luis], 1, 2))
+        return ok(config, page([ana], 0, 2, false))
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    fireEvent.click(screen.getByRole('button', { name: /12 Seguidores/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidores' })
+    await within(dialog).findByText('Ana López')
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'nadie' } })
+    await within(dialog).findByText('No encontramos usuarios que coincidan con tu búsqueda')
+    expect(local.mock.calls.some(([config]) => config.url === RUTA_SEGUIDORES && config.params.q === 'nadie')).toBe(true)
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: '' } })
+    await within(dialog).findByText('Ana López')
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cargar más personas' }))
+    await within(dialog).findByText('Luis Pérez')
+    expect(within(dialog).getAllByText('Ana López')).toHaveLength(1)
+  })
+
+  it('muestra estado vacío y error con reintento también en Seguidores', async () => {
+    renderPerfil(baseAdapter({ seguidores: page([]) }))
+    await screen.findByText('Estudio polinizadores')
+    fireEvent.click(screen.getByRole('button', { name: /Seguidores/ }))
+    const vacio = await screen.findByRole('dialog', { name: 'Seguidores' })
+    await within(vacio).findByText('Todavía no tienes seguidores')
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    let intentos = 0
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page([]))
+      if (config.url === RUTA_SEGUIDORES) {
+        intentos += 1
+        return intentos === 1 ? fail(config, 503) : ok(config, page([ana]))
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    fireEvent.click(screen.getByRole('button', { name: /Seguidores/ }))
+    const error = await screen.findByRole('dialog', { name: 'Seguidores' })
+    await within(error).findByText('No pudimos cargar esta lista')
+    fireEvent.click(within(error).getByRole('button', { name: 'Reintentar' }))
+    await within(error).findByText('Ana López')
+    expect(intentos).toBe(2)
   })
 
   it('muestra identidad parcial honesta en 404, sin inventar biografía, región o conteos', async () => {
@@ -292,6 +371,176 @@ describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
     await screen.findByText('Mariposa en el jardín')
     expect(screen.queryByText('Publicación ajena del feed')).toBeNull()
     expect(local.mock.calls.some(([config]) => config.url === '/api/publicaciones')).toBe(false)
+  })
+
+  it('seguir crea la relación, actualiza la lista y refresca contadores del servidor', async () => {
+    let siguiendo = false
+    let completarPost
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, { ...profile, totalSeguidos: siguiendo ? 5 : 4 })
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page(siguiendo ? [rosaSiguiendo] : [rosa], 0, siguiendo ? 5 : 4, true))
+      if (config.url === RUTA_SEGUIDORES) return ok(config, page([]))
+      if (config.url === '/api/usuarios/10/seguir' && config.method === 'post') {
+        return new Promise((resolve) => { completarPost = () => { siguiendo = true; resolve(created(config)) } })
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    await waitFor(() => expect(screen.getByRole('button', { name: /4 Seguidos/ })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /4 Seguidos/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
+    const boton = await within(dialog).findByRole('button', { name: 'Seguir a Rosa Ruiz' })
+    fireEvent.click(boton)
+    await waitFor(() => expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'post')).toHaveLength(1))
+    fireEvent.click(boton)
+    expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'post')).toHaveLength(1)
+    await act(async () => { completarPost() })
+    await within(dialog).findByRole('button', { name: 'Siguiendo a Rosa Ruiz' })
+    await waitFor(() => expect(screen.getByRole('button', { name: /5 Seguidos/ })).toBeTruthy())
+  })
+
+  it('oculta la acción para el propio usuario y acepta POST 200 idempotente', async () => {
+    const yo = { id: 7, nombre: 'María Real', nombreUsuario: 'maria', avatarUrl: null, loSigo: false }
+    let siguiendo = false
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, { ...profile, totalSeguidos: siguiendo ? 5 : 4 })
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page(siguiendo ? [yo, rosaSiguiendo] : [yo, rosa], 0, siguiendo ? 5 : 4, true))
+      if (config.url === RUTA_SEGUIDORES) return ok(config, page([]))
+      if (config.url === '/api/usuarios/10/seguir' && config.method === 'post') {
+        siguiendo = true
+        return ok(config, '')
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    fireEvent.click(screen.getByRole('button', { name: /4 Seguidos/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
+    await within(dialog).findByText('María Real')
+    expect(within(dialog).queryByRole('button', { name: /María Real/ })).toBeNull()
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Seguir a Rosa Ruiz' }))
+    await within(dialog).findByRole('button', { name: 'Siguiendo a Rosa Ruiz' })
+    expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'post')).toHaveLength(1)
+    await waitFor(() => expect(screen.getByRole('button', { name: /5 Seguidos/ })).toBeTruthy())
+  })
+
+  it('dejar de seguir elimina solo tras confirmar y permite cancelar sin mutar', async () => {
+    let siguiendo = true
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, { ...profile, totalSeguidos: siguiendo ? 4 : 3 })
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page(siguiendo ? [rosaSiguiendo] : [], 0, siguiendo ? 4 : 3, true))
+      if (config.url === RUTA_SEGUIDORES) return ok(config, page([]))
+      if (config.url === '/api/usuarios/10/seguir' && config.method === 'delete') {
+        siguiendo = false
+        return noContent(config)
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    await waitFor(() => expect(screen.getByRole('button', { name: /4 Seguidos/ })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /4 Seguidos/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Siguiendo a Rosa Ruiz' }))
+    expect(within(dialog).getByText('¿Dejar de seguir a Rosa Ruiz?')).toBeTruthy()
+    expect(local.mock.calls.some(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'delete')).toBe(false)
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Cancelar' }))
+    expect(within(dialog).queryByText('¿Dejar de seguir a Rosa Ruiz?')).toBeNull()
+    expect(within(dialog).getByRole('button', { name: 'Siguiendo a Rosa Ruiz' })).toBeTruthy()
+    expect(siguiendo).toBe(true)
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Siguiendo a Rosa Ruiz' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Dejar de seguir' }))
+    await waitFor(() => expect(local.mock.calls.some(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'delete')).toBe(true))
+    await waitFor(() => expect(within(dialog).queryByText('Rosa Ruiz')).toBeNull())
+    await waitFor(() => expect(screen.getByRole('button', { name: /3 Seguidos/ })).toBeTruthy())
+  })
+
+  it('conserva el estado anterior cuando POST o DELETE fallan', async () => {
+    let postFallido = true
+    let deleteFallido = true
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, config.params.q === 'fallo-post'
+        ? page([rosa], 0, 4, true)
+        : page([rosaSiguiendo], 0, 4, true))
+      if (config.url === RUTA_SEGUIDORES) return ok(config, page([]))
+      if (config.url === '/api/usuarios/10/seguir' && config.method === 'post') {
+        return postFallido ? fail(config, 503) : created(config)
+      }
+      if (config.url === '/api/usuarios/10/seguir' && config.method === 'delete') {
+        return deleteFallido ? fail(config, 503) : noContent(config)
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    await waitFor(() => expect(screen.getByRole('button', { name: /4 Seguidos/ })).toBeTruthy())
+    fireEvent.click(screen.getByRole('button', { name: /4 Seguidos/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
+    const perfilesAntes = local.mock.calls.filter(([config]) => config.url === '/api/usuarios/me').length
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Siguiendo a Rosa Ruiz' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Dejar de seguir' }))
+    await within(dialog).findByRole('alert')
+    expect(within(dialog).getByText('¿Dejar de seguir a Rosa Ruiz?')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /4 Seguidos/ })).toBeTruthy()
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(within(dialog).getByRole('button', { name: 'Siguiendo a Rosa Ruiz' })).toBeTruthy()
+    expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/me')).toHaveLength(perfilesAntes)
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'fallo-post' } })
+    await within(dialog).findByRole('button', { name: 'Seguir a Rosa Ruiz' })
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Seguir a Rosa Ruiz' }))
+    await within(dialog).findByRole('alert')
+    expect(within(dialog).getByRole('button', { name: 'Seguir a Rosa Ruiz' })).toBeTruthy()
+    expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/10/seguir' && config.method === 'post')).toHaveLength(1)
+  })
+
+  it('Escape cierra primero la confirmación y después el modal devolviendo el foco', async () => {
+    renderPerfil(adapter)
+    await screen.findByText('Estudio polinizadores')
+    await waitFor(() => expect(screen.getByRole('button', { name: /2 Seguidos/ })).toBeTruthy())
+    const opener = screen.getByRole('button', { name: /2 Seguidos/ })
+    fireEvent.click(opener)
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidos' })
+    fireEvent.click(await within(dialog).findByRole('button', { name: 'Siguiendo a Ana López' }))
+    expect(within(dialog).getByText('¿Dejar de seguir a Ana López?')).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(within(dialog).queryByText('¿Dejar de seguir a Ana López?')).toBeNull()
+    expect(screen.getByRole('dialog', { name: 'Seguidos' })).toBeTruthy()
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(opener)
+  })
+
+  it('aborta búsquedas obsoletas y peticiones pendientes al cerrar', async () => {
+    const signals = []
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
+      if (config.url === RUTA_SEGUIDOS) return ok(config, page([]))
+      if (config.url === RUTA_SEGUIDORES) {
+        signals.push(config.signal)
+        return new Promise(() => {})
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Estudio polinizadores')
+    fireEvent.click(screen.getByRole('button', { name: /Seguidores/ }))
+    const dialog = await screen.findByRole('dialog', { name: 'Seguidores' })
+    await waitFor(() => expect(signals).toHaveLength(1))
+    fireEvent.change(within(dialog).getByRole('searchbox'), { target: { value: 'ana' } })
+    await waitFor(() => expect(signals).toHaveLength(2))
+    expect(signals[0].aborted).toBe(true)
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(signals[1].aborted).toBe(true)
   })
 
   it('abre los modales propios con permiso y refresca lista y contador tras eliminar', async () => {
