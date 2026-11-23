@@ -31,6 +31,7 @@ function PrivateLayoutContent({ notificationCount }) {
   const isPerfil = pathname === '/app/perfil'
   const isConfiguracion = pathname === '/app/configuracion'
   const isAdministracion = pathname === '/administracion'
+  const isModeracion = pathname === '/moderacion'
 
   const isScrollableSection =
     isInicio ||
@@ -40,7 +41,8 @@ function PrivateLayoutContent({ notificationCount }) {
     isEventos ||
     isPerfil ||
     isConfiguracion ||
-    isAdministracion
+    isAdministracion ||
+    isModeracion
 
   const sectionClassName = isInicio
     ? 'private-shell--inicio'
@@ -58,10 +60,12 @@ function PrivateLayoutContent({ notificationCount }) {
                 ? 'private-shell--configuracion'
                 : isAdministracion
                   ? 'private-shell--administracion'
-                  : 'min-h-screen'
+                  : isModeracion
+                    ? 'private-shell--moderacion'
+                    : 'min-h-screen'
 
   const minWidthClassName =
-    isPerfil || isConfiguracion ? '' : 'min-w-[1100px]'
+    isPerfil || isConfiguracion || isModeracion ? '' : 'min-w-[1100px]'
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return

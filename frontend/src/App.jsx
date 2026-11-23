@@ -7,7 +7,6 @@ import { ROUTE_ROLES } from './auth/roles'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
 import RecuperacionContrasena from './pages/RecuperacionContrasena'
-import SectionPlaceholder from './pages/SectionPlaceholder'
 import PrivateLayout from './layout/PrivateLayout'
 import Inicio from './pages/Inicio'
 import Mensajes from './pages/Mensajes'
@@ -17,6 +16,7 @@ import Eventos from './pages/Eventos'
 import MiPerfil from './pages/MiPerfil'
 import Configuracion from './pages/Configuracion'
 import Administracion from './pages/Administracion'
+import Moderacion from './pages/Moderacion'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -216,7 +216,7 @@ export default function App() {
           >
             <Route
               path="/moderacion"
-              element={<SectionPlaceholder title="Moderación" />}
+              element={<Moderacion />}
             />
           </Route>
 

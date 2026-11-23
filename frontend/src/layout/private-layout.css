@@ -63,7 +63,7 @@
 /*
  * Inicio, Mensajes, Notificaciones,
  * Publicaciones, Eventos, Mi Perfil,
- * Configuración y Administración:
+ * Configuración, Administración y Moderación:
  * el contenido se desplaza internamente.
  */
 .private-shell--inicio,
@@ -73,7 +73,8 @@
 .private-shell--eventos,
 .private-shell--perfil,
 .private-shell--configuracion,
-.private-shell--administracion {
+.private-shell--administracion,
+.private-shell--moderacion {
   display: flex;
   height: 100dvh;
   flex-direction: column;
@@ -88,7 +89,8 @@
 .private-shell--eventos>header,
 .private-shell--perfil>header,
 .private-shell--configuracion>header,
-.private-shell--administracion>header {
+.private-shell--administracion>header,
+.private-shell--moderacion>header {
   flex-shrink: 0;
 }
 
@@ -100,7 +102,8 @@
 .private-shell--eventos>div>aside,
 .private-shell--perfil>div>aside,
 .private-shell--configuracion>div>aside,
-.private-shell--administracion>div>aside {
+.private-shell--administracion>div>aside,
+.private-shell--moderacion>div>aside {
   min-height: 0;
 }
 
@@ -112,7 +115,8 @@
 .private-shell--eventos #private-content,
 .private-shell--perfil #private-content,
 .private-shell--configuracion #private-content,
-.private-shell--administracion #private-content {
+.private-shell--administracion #private-content,
+.private-shell--moderacion #private-content {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
@@ -120,60 +124,69 @@
 }
 
 /*
- * Mi Perfil y Configuración:
+ * Mi Perfil, Configuración y Moderación:
  * conservar la adaptación para
  * pantallas estrechas.
  */
 .private-shell--perfil,
-.private-shell--configuracion {
+.private-shell--configuracion,
+.private-shell--moderacion {
   min-height: 100dvh;
 }
 
 .private-shell--perfil>div>aside,
-.private-shell--configuracion>div>aside {
+.private-shell--configuracion>div>aside,
+.private-shell--moderacion>div>aside {
   min-height: calc(100dvh - 80px);
 }
 
-/* Adaptación responsiva de Mi Perfil y Configuración */
+/* Adaptación responsiva de Mi Perfil, Configuración y Moderación */
 @media (max-width: 800px) {
 
   .private-shell--perfil,
-  .private-shell--configuracion {
+  .private-shell--configuracion,
+  .private-shell--moderacion {
     height: auto;
     min-height: 100dvh;
     overflow: visible;
   }
 
   .private-shell--perfil #private-content,
-  .private-shell--configuracion #private-content {
+  .private-shell--configuracion #private-content,
+  .private-shell--moderacion #private-content {
     overflow-y: visible;
   }
 
   .private-shell--perfil>header,
-  .private-shell--configuracion>header {
+  .private-shell--configuracion>header,
+  .private-shell--moderacion>header {
     grid-template-columns: 1fr auto;
     gap: 8px;
     padding-inline: 12px;
   }
 
   .private-shell--perfil>header>div:nth-child(2),
-  .private-shell--configuracion>header>div:nth-child(2) {
+  .private-shell--configuracion>header>div:nth-child(2),
+  .private-shell--moderacion>header>div:nth-child(2) {
     display: none;
   }
 
   .private-shell--perfil>header>a,
-  .private-shell--configuracion>header>a {
+  .private-shell--configuracion>header>a,
+  .private-shell--moderacion>header>a {
     width: auto;
   }
 
   .private-shell--perfil>div>aside,
-  .private-shell--configuracion>div>aside {
+  .private-shell--configuracion>div>aside,
+  .private-shell--moderacion>div>aside {
     width: 64px;
     padding-inline: 6px;
   }
 
   .private-shell--perfil>div>aside .nav-entry,
-  .private-shell--configuracion>div>aside .nav-entry {
+  .private-shell--configuracion>div>aside .nav-entry,
+  .private-shell--moderacion>div>aside .nav-entry {
     overflow: hidden;
     white-space: nowrap;
     font-size: 0;
@@ -181,12 +194,14 @@
   }
 
   .private-shell--perfil>div>aside nav>p,
-  .private-shell--configuracion>div>aside nav>p {
+  .private-shell--configuracion>div>aside nav>p,
+  .private-shell--moderacion>div>aside nav>p {
     font-size: 0;
   }
 
   .private-shell--perfil>header button,
-  .private-shell--configuracion>header button {
+  .private-shell--configuracion>header button,
+  .private-shell--moderacion>header button {
     width: auto;
     padding-inline: 10px;
   }

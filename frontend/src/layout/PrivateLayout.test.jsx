@@ -13,6 +13,17 @@ import SectionPlaceholder from '../pages/SectionPlaceholder'
 vi.mock('../services/notificacionesService', async (original) => ({
   ...await original(), contarNoLeidas: () => Promise.resolve({ data: { count: 0 } }),
 }))
+vi.mock('../services/moderacionService', async (original) => ({
+  ...await original(),
+  listarPropuestas: vi.fn(() => Promise.resolve({ data: { content: [], totalElements: 0, totalPages: 0, first: true, last: true } })),
+  aprobarPropuesta: vi.fn(),
+  rechazarPropuesta: vi.fn(),
+}))
+vi.mock('../services/reportesService', () => ({
+  crearReporte: vi.fn(),
+  listarReportes: vi.fn(() => Promise.resolve({ data: { content: [], totalElements: 0, totalPages: 0, first: true, last: true } })),
+  resolverReporte: vi.fn(),
+}))
 
 const originalAdapter = api.defaults.adapter
 afterEach(() => {
@@ -117,7 +128,7 @@ describe('layout de escritorio', () => {
     expect(screen.getByRole('link', { name: 'Moderación' })).toBeTruthy()
     expect(screen.queryByRole('link', { name: 'Usuarios y roles' })).toBeNull()
     fireEvent.click(screen.getByRole('link', { name: 'Moderación' }))
-    expect(screen.getByRole('heading', { name: 'Moderación' })).toBeTruthy()
+    expect(screen.getByRole('heading', { name: 'Moderación · Eventos y reportes' })).toBeTruthy()
     fireEvent.click(screen.getByText('Abrir URL administrativa'))
     expect(screen.getByRole('heading', { name: 'Acceso restringido' })).toBeTruthy()
     expect(screen.getByTestId('session').textContent).toBe('con sesión')
