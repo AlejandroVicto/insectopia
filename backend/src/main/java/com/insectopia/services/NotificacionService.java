@@ -13,6 +13,7 @@ import com.insectopia.dtos.notificaciones.RecursoNotificacionDTO;
 import com.insectopia.dtos.publicaciones.AutorResumenDTO;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Notificacion;
+import com.insectopia.models.Evento;
 import com.insectopia.models.Mensaje;
 import com.insectopia.models.Publicacion;
 import com.insectopia.models.Reporte;
@@ -30,6 +31,8 @@ public class NotificacionService {
     public static final String MENSAJE = "MENSAJE";
     public static final String REPORTE_RESUELTO = "REPORTE_RESUELTO";
     public static final String REPORTE_RECHAZADO = "REPORTE_RECHAZADO";
+    public static final String EVENTO_INSCRIPCION = "EVENTO_INSCRIPCION";
+    public static final String EVENTO_CANCELACION = "EVENTO_CANCELACION";
 
     private final NotificacionRepository notificaciones;
 
@@ -161,6 +164,17 @@ public class NotificacionService {
                     reporte.getEstado() == EstadoReporte.RESUELTO
                             ? "Tu reporte fue resuelto" : "Tu reporte fue rechazado");
         }
+    }
+
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void porParticipacion(Evento evento, Usuario usuario, boolean inscripcion) {
+        Notificacion aviso = new Notificacion();
+        aviso.setDestinatario(usuario);
+        aviso.setEvento(evento);
+        aviso.setTipo(inscripcion ? EVENTO_INSCRIPCION : EVENTO_CANCELACION);
+        aviso.setContenido(inscripcion ? "Tu inscripción al evento fue confirmada"
+                : "Tu inscripción al evento fue cancelada");
+        notificaciones.save(aviso);
     }
 
     private void guardar(Usuario destinatario, Usuario actor, Publicacion publicacion, Reporte reporte,

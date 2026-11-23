@@ -1,18 +1,16 @@
 // Validación y payload del formulario 071. Sólo se envían columnas reales de
-// Evento.java: titulo, descripcion, ubicacion, imagen, fechaInicio, fechaFin y
+// Evento.java: titulo, descripcion, ubicacion, fechaInicio, fechaFin y
 // cupoMaximo. Nunca se construyen id, estado ni campos de moderación.
 
 export const LIMITES_EVENTO = Object.freeze({
   titulo: 150,
   ubicacion: 255,
-  imagen: 500,
 })
 
 export const VALORES_VACIOS_EVENTO = Object.freeze({
   titulo: '',
   descripcion: '',
   ubicacion: '',
-  imagen: '',
   fechaInicio: '',
   horaInicio: '',
   fechaFin: '',
@@ -40,20 +38,12 @@ export function valoresDesdeEvento(evento) {
     titulo: texto(evento.titulo),
     descripcion: texto(evento.descripcion),
     ubicacion: texto(evento.ubicacion),
-    imagen: texto(evento.imagenUrl ?? evento.imagen),
     fechaInicio: parteFecha(evento.fechaInicio),
     horaInicio: parteHora(evento.fechaInicio),
     fechaFin: parteFecha(evento.fechaFin),
     horaFin: parteHora(evento.fechaFin),
     cupoMaximo: evento.cupoMaximo ?? '',
   }
-}
-
-export function urlImagenSegura(valor) {
-  const imagen = texto(valor)
-  if (!imagen) return true
-  if (imagen.length > LIMITES_EVENTO.imagen) return false
-  return /^(https?:\/\/[^\s<>"']+|\/[^\s<>"']*)$/i.test(imagen)
 }
 
 function fechaValida(valor) {
@@ -85,7 +75,6 @@ export function validarEvento(valores = {}) {
   const titulo = texto(valores.titulo)
   const descripcion = texto(valores.descripcion)
   const ubicacion = texto(valores.ubicacion)
-  const imagen = texto(valores.imagen)
   const cupo = valores.cupoMaximo == null ? '' : String(valores.cupoMaximo).trim()
 
   if (!titulo) errores.titulo = 'Escribe el título del evento.'
@@ -111,10 +100,6 @@ export function validarEvento(valores = {}) {
     errores.cupoMaximo = 'El cupo máximo debe ser un entero mayor que cero.'
   }
 
-  if (!urlImagenSegura(imagen)) {
-    errores.imagen = `Usa una URL http(s) o una ruta relativa de hasta ${LIMITES_EVENTO.imagen} caracteres.`
-  }
-
   return errores
 }
 
@@ -123,7 +108,7 @@ export function construirPayloadEvento(valores = {}) {
     titulo: texto(valores.titulo),
     descripcion: texto(valores.descripcion),
     ubicacion: texto(valores.ubicacion),
-    imagen: texto(valores.imagen) || null,
+    imagen: null,
     fechaInicio: fechaHora(valores, 'Inicio'),
     fechaFin: fechaHora(valores, 'Fin'),
     cupoMaximo: Number(valores.cupoMaximo),

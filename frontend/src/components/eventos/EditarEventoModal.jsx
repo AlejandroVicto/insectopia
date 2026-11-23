@@ -42,12 +42,13 @@ function EditarBloqueado({ evento, onClose }) {
   )
 }
 
-function EditarPermitido({ evento, onClose, onGuardar, onSuccess }) {
+function EditarPermitido({ evento, onClose, onGuardar, onSuccess, onQuitarImagen }) {
   const form = useEventoFormulario({
     inicial: evento,
     onClose,
-    onGuardar: onGuardar ?? actualizarEvento,
+    onGuardar: onGuardar ?? ((datos) => actualizarEvento(evento.id, datos)),
     onSuccess,
+    onQuitarImagen,
     fallback: 'No se pudo guardar la propuesta. Inténtalo de nuevo.',
   })
 

@@ -1,5 +1,5 @@
 const ESTADOS = [
-  { value: '', label: 'Estado: Todos' },
+  { value: '', label: 'Estado: Sin filtrar' },
   { value: 'APROBADO', label: 'Estado: Aprobado' },
   { value: 'PENDIENTE', label: 'Estado: Pendiente' },
   { value: 'RECHAZADO', label: 'Estado: Rechazado' },
@@ -16,6 +16,8 @@ export default function EventosFiltros({
   busqueda,
   onBusqueda,
   estado,
+  soloAprobados = false,
+  proximos = false,
   onEstado,
   periodo,
   onPeriodo,
@@ -38,18 +40,21 @@ export default function EventosFiltros({
         />
       </div>
 
-      <div className="evt-filtros-grid">
-        <label>
-          <span className="sr-only">Filtrar por estado del evento</span>
-          <select className="evt-select" value={estado} onChange={(evento) => onEstado(evento.target.value)}>
-            {ESTADOS.map((opcion) => <option key={opcion.value} value={opcion.value}>{opcion.label}</option>)}
-          </select>
-        </label>
+      <div className={`evt-filtros-grid${soloAprobados ? ' evt-filtros-grid--sin-estado' : ''}`}>
+        {!soloAprobados && (
+          <label>
+            <span className="sr-only">Filtrar por estado del evento</span>
+            <select className="evt-select" value={estado} onChange={(evento) => onEstado(evento.target.value)}>
+              {ESTADOS.map((opcion) => <option key={opcion.value} value={opcion.value}>{opcion.label}</option>)}
+            </select>
+          </label>
+        )}
 
         <label>
           <span className="sr-only">Filtrar por fecha del evento</span>
           <select className="evt-select" value={periodo} onChange={(evento) => onPeriodo(evento.target.value)}>
-            {PERIODOS.map((opcion) => <option key={opcion.value} value={opcion.value}>{opcion.label}</option>)}
+            {PERIODOS.filter((opcion) => !proximos || opcion.value !== 'pasados')
+              .map((opcion) => <option key={opcion.value} value={opcion.value}>{opcion.label}</option>)}
           </select>
         </label>
 

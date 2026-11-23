@@ -1,4 +1,5 @@
 import { puedeCancelarInscripcion, puedeEditarEvento, puedeInscribirseEvento } from './eventosPermisos'
+import ImagenEvento from './ImagenEvento'
 
 function diaYMes(fechaTexto) {
   const partes = (fechaTexto ?? '').split(/\s+/)
@@ -29,7 +30,7 @@ export default function EventoCard({
     >
       <div className="evt-thumb">
         {evento.imagenUrl ? (
-          <img src={evento.imagenUrl} alt={`Imagen del evento ${evento.titulo}`} />
+          <ImagenEvento evento={evento} alt={`Imagen del evento ${evento.titulo}`} />
         ) : (
           <div className="evt-thumb-vacio" role="img" aria-label="Sin fotografía disponible">
             <svg aria-hidden="true" viewBox="0 0 48 48" fill="none" stroke="currentColor" strokeWidth="2.2">

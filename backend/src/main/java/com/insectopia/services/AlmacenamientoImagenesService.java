@@ -22,12 +22,14 @@ import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.insectopia.exceptions.ImagenInvalidaException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 
 @Service
+@Primary
 public class AlmacenamientoImagenesService {
     private static final Logger log = LoggerFactory.getLogger(AlmacenamientoImagenesService.class);
     private static final long MAX_BYTES = 5L * 1024 * 1024;

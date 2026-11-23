@@ -49,6 +49,9 @@ describe('adaptador de eventos', () => {
     expect(adaptarEvento({ ...basico, imagen: '/uploads/evento.jpg' }).imagenUrl).toBe('/uploads/evento.jpg')
     expect(adaptarEvento({ ...basico, imagen: 'https://ejemplo.test/e.png' }).imagenUrl).toBe('https://ejemplo.test/e.png')
     expect(adaptarEvento({ ...basico, imagen: 'data:text/html,<script>' }).imagenUrl).toBeNull()
+    const almacenada = adaptarEvento({ ...basico, imagen: 'eventos/11111111-1111-1111-1111-111111111111.png' })
+    expect(almacenada.imagenUrl).toContain('/api/eventos/12/imagen')
+    expect(adaptarEvento({ ...basico, imagen: 'eventos/../privado.png' }).imagenUrl).toBeNull()
   })
 
   it('sólo publica datos del proponente que el backend expone como públicos', () => {

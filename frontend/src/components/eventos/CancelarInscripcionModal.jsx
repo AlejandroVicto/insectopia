@@ -64,10 +64,6 @@ function CancelarInscripcionForm({ evento, onClose, onConfirmar, onSuccess }) {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div data-evento-cuerpo="" className="evt-modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8">
-          <div role="status" className="mb-4 rounded-xl border border-[#466046] bg-[#26382a] px-4 py-3 text-xs leading-5 text-lime-100">
-            La cancelación se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).
-          </div>
-
           <section className="evt-modal-resumen rounded-xl border border-[#40584a] bg-[#141d17] p-4">
             <h3 className="font-display text-lg font-bold leading-6 text-stone-100">{evento.titulo}</h3>
             <p className="mt-1 text-xs text-[#a5b7a7]">{evento.rangoFechas ?? 'Fecha no disponible'}</p>
@@ -77,7 +73,7 @@ function CancelarInscripcionForm({ evento, onClose, onConfirmar, onSuccess }) {
             <div className="mt-4"><EventoModalAviso mensaje={bloqueo} tipo="error" /></div>
           ) : (
             <p className="mt-5 text-sm leading-6 text-stone-200">
-              Tu inscripción quedará cancelada cuando el backend confirme la operación. El cupo no se modificará en esta pantalla.
+              Tu inscripción quedará cancelada cuando se confirme la operación. Los cupos se actualizarán con los datos del servidor.
             </p>
           )}
 

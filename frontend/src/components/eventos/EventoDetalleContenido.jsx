@@ -25,7 +25,7 @@ export default function EventoDetalleContenido({ evento }) {
       </div>
 
       {evento.imagenUrl ? (
-        <img
+        <ImagenEvento evento={evento}
           className="evt-detail-imagen"
           src={evento.imagenUrl}
           alt={`Imagen del evento ${evento.titulo}`}
@@ -67,3 +67,4 @@ export default function EventoDetalleContenido({ evento }) {
     </>
   )
 }
+import ImagenEvento from './ImagenEvento'

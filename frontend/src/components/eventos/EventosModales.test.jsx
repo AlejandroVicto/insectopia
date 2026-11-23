@@ -67,6 +67,10 @@ function completarFormulario() {
   fireEvent.change(screen.getByLabelText('Cupo máximo *'), { target: { value: '30' } })
 }
 
+function archivo(nombre = 'macro.png', tipo = 'image/png', size = 3) {
+  return new File([new Uint8Array(size)], nombre, { type: tipo })
+}
+
 function ArnésDetalle() {
   const [abierto, setAbierto] = useState(false)
   return (
@@ -78,6 +82,118 @@ function ArnésDetalle() {
 }
 
 describe('modales de eventos 071', () => {
+  it('selecciona y sustituye desde el campo sin botones adicionales; rechaza formatos y tamaños inválidos', () => {
+    const crear = vi.spyOn(URL, 'createObjectURL').mockReturnValueOnce('blob:primera').mockReturnValueOnce('blob:segunda')
+    const revocar = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {})
+    try {
+      render(<ProponerEventoModal onClose={vi.fn()} />)
+      const input = screen.getByLabelText('Imagen del evento (opcional)')
+      expect(input.type).toBe('file')
+      expect(input.accept).toBe('image/jpeg,image/png')
+      fireEvent.change(input, { target: { files: [archivo('macro.gif', 'image/gif')] } })
+      expect(screen.getByRole('alert').textContent).toContain('JPG o PNG')
+      fireEvent.change(input, { target: { files: [archivo('grande.png', 'image/png', 5 * 1024 * 1024 + 1)] } })
+      expect(screen.getByRole('alert').textContent).toContain('5 MB')
+      fireEvent.change(input, { target: { files: [archivo()] } })
+      expect(screen.getByAltText('Vista previa de macro.png').src).toContain('blob:primera')
+      fireEvent.change(input, { target: { files: [archivo('otra.jpg', 'image/jpeg')] } })
+      expect(screen.getByAltText('Vista previa de otra.jpg').src).toContain('blob:segunda')
+      expect(revocar).toHaveBeenCalledWith('blob:primera')
+      expect(screen.queryByRole('button', { name: 'Sustituir imagen' })).toBeNull()
+      expect(screen.queryByRole('button', { name: 'Quitar imagen seleccionada' })).toBeNull()
+      expect(crear).toHaveBeenCalledTimes(2)
+    } finally {
+      crear.mockRestore()
+      revocar.mockRestore()
+    }
+  })
+
+  it('crea una sola vez, conserva el ID y reintenta exclusivamente la imagen tras fallo', async () => {
+    const guardar = vi.fn().mockResolvedValue({ data: { idEvento: 501, estado: 'PENDIENTE' } })
+    const onSuccess = vi.fn()
+    const onClose = vi.fn()
+    let fallar = true
+    const adapter = vi.fn((config) => {
+      if (fallar) return Promise.reject(Object.assign(new Error('red'), { config, response: { status: 503 } }))
+      return Promise.resolve({ data: { idEvento: 501, imagen: 'eventos/11111111-1111-1111-1111-111111111111.png' }, config, status: 200 })
+    })
+    api.defaults.adapter = adapter
+    render(<ProponerEventoModal onClose={onClose} onSuccess={onSuccess} onGuardar={guardar} />)
+    completarFormulario()
+    fireEvent.change(screen.getByLabelText('Imagen del evento (opcional)'), { target: { files: [archivo()] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    await waitFor(() => expect(adapter).toHaveBeenCalledTimes(1))
+    expect(adapter.mock.calls[0][0].data).toBeInstanceOf(FormData)
+    expect(adapter.mock.calls[0][0].data.get('imagen').name).toBe('macro.png')
+    expect(adapter.mock.calls[0][0].url).toBe('/api/eventos/501/imagen')
+    expect(guardar).toHaveBeenCalledTimes(1)
+    expect(onClose).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reintentar fotografía' })).toBeTruthy())
+    expect(onSuccess).toHaveBeenCalledTimes(1)
+    fallar = false
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fotografía' }))
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1))
+    expect(adapter).toHaveBeenCalledTimes(2)
+    expect(guardar).toHaveBeenCalledTimes(1)
+  })
+
+  it('explica cuándo falta la ruta de subida en un backend sin actualizar y conserva la propuesta', async () => {
+    const guardar = vi.fn().mockResolvedValue({ data: { idEvento: 502 } })
+    api.defaults.adapter = (config) => Promise.reject(Object.assign(new Error('No encontrado'), {
+      config, response: { status: 404, data: { message: 'Recurso no encontrado' } },
+    }))
+    render(<ProponerEventoModal onGuardar={guardar} onClose={vi.fn()} />)
+    completarFormulario()
+    fireEvent.change(screen.getByLabelText('Imagen del evento (opcional)'), { target: { files: [archivo()] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
+    expect((await screen.findByRole('alert')).textContent).toMatch(/reinicia el backend/i)
+    expect(screen.getByRole('button', { name: 'Reintentar fotografía' })).toBeTruthy()
+    expect(guardar).toHaveBeenCalledTimes(1)
+  })
+
+  it('edita sin borrar la imagen existente y permite retirarla sin repetir el PATCH', async () => {
+    const editar = vi.fn().mockResolvedValue({ data: { idEvento: 501 } })
+    const quitar = vi.fn().mockResolvedValue({ status: 204 })
+    const onSuccess = vi.fn()
+    const { unmount } = render(<EditarEventoModal evento={propuestaEditable({ imagenUrl: '/foto.jpg' })}
+      onGuardar={editar} onQuitarImagen={quitar} onSuccess={onSuccess} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar fotografía actual' }))
+    await waitFor(() => expect(quitar).toHaveBeenCalledWith(501))
+    expect(editar).not.toHaveBeenCalled()
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Quitar fotografía actual' })).toBeNull())
+    unmount()
+    render(<EditarEventoModal evento={propuestaEditable({ imagenUrl: '/foto.jpg' })}
+      onGuardar={editar} onSuccess={onSuccess} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(editar).toHaveBeenCalledTimes(1))
+    expect(editar.mock.calls[0][0].imagen).toBeNull()
+  })
+
+  it('sustituye fotografía al editar y reintenta solo el archivo sin repetir PATCH', async () => {
+    const editar = vi.fn().mockResolvedValue({ data: { idEvento: 501 } })
+    let intentos = 0
+    const adapter = vi.fn((config) => {
+      intentos += 1
+      if (intentos === 1) return Promise.reject(Object.assign(new Error('red'), { config, response: { status: 503 } }))
+      return Promise.resolve({ config, status: 200, data: { idEvento: 501 } })
+    })
+    api.defaults.adapter = adapter
+    const cerrar = vi.fn()
+    render(<EditarEventoModal evento={propuestaEditable()} onGuardar={editar} onClose={cerrar} />)
+    fireEvent.change(screen.getByLabelText('Imagen del evento (opcional)'), { target: { files: [archivo('nueva.jpg', 'image/jpeg')] } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Reintentar fotografía' })).toBeTruthy())
+    expect(editar).toHaveBeenCalledTimes(1)
+    expect(cerrar).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Título *').disabled).toBe(true)
+    expect(screen.getByLabelText('Imagen del evento (opcional)').disabled).toBe(false)
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar fotografía' }))
+    await waitFor(() => expect(cerrar).toHaveBeenCalledTimes(1))
+    expect(editar).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls.map(([config]) => config.url)).toEqual([
+      '/api/eventos/501/imagen', '/api/eventos/501/imagen',
+    ])
+  })
   it('ProponerEventoModal valida, construye un payload sólo con columnas reales y no inventa éxito', async () => {
     const onClose = vi.fn()
     const onGuardar = vi.fn().mockResolvedValue({})
@@ -92,9 +208,9 @@ describe('modales de eventos 071', () => {
     expect(dialog.getAttribute('aria-labelledby')).toBe('evt-proponer-titulo')
     expect(document.body.style.overflow).toBe('hidden')
     expect(document.activeElement).toBe(screen.getByLabelText('Título *'))
-    expect(screen.getByRole('status').textContent).toBe(
-      'El formulario está disponible para su revisión. El envío de propuestas se habilitará cuando esté integrado el backend de eventos (actividad 070).',
-    )
+    expect(screen.getByLabelText('Fecha de inicio *').getAttribute('type')).toBe('date')
+    expect(screen.getByLabelText('Hora de inicio *').getAttribute('type')).toBe('time')
+    expect(screen.queryByText(/actividad 070/)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Enviar propuesta' }))
     const errores = (await screen.findAllByRole('alert')).map((nodo) => nodo.textContent)
@@ -142,7 +258,7 @@ describe('modales de eventos 071', () => {
 
     expect(cuerpo.contains(screen.getByLabelText('Fecha de finalización *'))).toBe(true)
     expect(cuerpo.contains(screen.getByLabelText('Cupo máximo *'))).toBe(true)
-    expect(cuerpo.contains(screen.getByLabelText('URL de imagen (opcional)'))).toBe(true)
+    expect(cuerpo.contains(screen.getByLabelText('Imagen del evento (opcional)'))).toBe(true)
     expect(pie.contains(screen.getByRole('button', { name: 'Cancelar' }))).toBe(true)
     expect(pie.contains(screen.getByRole('button', { name: 'Enviar propuesta' }))).toBe(true)
   })
@@ -192,7 +308,7 @@ describe('modales de eventos 071', () => {
     expect(payload.fechaInicio).toBe('2027-01-05T09:00:00')
   })
 
-  it('EditarEventoModal fija cabecera y pie y mantiene el aviso 070 dentro del área desplazable', () => {
+  it('EditarEventoModal fija cabecera y pie sin avisos de backend pendiente', () => {
     render(<EditarEventoModal evento={propuestaEditable()} onClose={vi.fn()} />)
     const dialog = screen.getByRole('dialog', { name: 'Editar propuesta' })
     const cabecera = dialog.querySelector('header')
@@ -200,7 +316,6 @@ describe('modales de eventos 071', () => {
     const formulario = contenido?.querySelector('[data-evento-formulario]')
     const cuerpo = formulario?.querySelector('[data-evento-cuerpo]')
     const pie = formulario?.querySelector('[data-evento-pie]')
-    const aviso = screen.getByRole('status')
 
     expect(dialog.style.height).toContain('88dvh')
     expect(dialog.style.maxHeight).toBe(dialog.style.height)
@@ -210,39 +325,38 @@ describe('modales de eventos 071', () => {
     expect(cuerpo.className).toContain('pb-12')
     expect(pie.className).toContain('shrink-0')
     expect(formulario.lastElementChild).toBe(pie)
-    expect(cuerpo.contains(aviso)).toBe(true)
-    expect(pie.contains(aviso)).toBe(false)
-    expect(aviso.textContent).toBe(
-      'El formulario está disponible para su revisión. Los cambios podrán guardarse cuando esté integrado el backend de eventos (actividad 070).',
-    )
-    for (const etiqueta of ['Fecha de finalización *', 'Cupo máximo *', 'URL de imagen (opcional)']) {
+    expect(screen.queryByText(/actividad 070/)).toBeNull()
+    for (const etiqueta of ['Fecha de finalización *', 'Cupo máximo *', 'Imagen del evento (opcional)']) {
       expect(cuerpo.contains(screen.getByLabelText(etiqueta))).toBe(true)
     }
     expect(pie.contains(screen.getByRole('button', { name: 'Cancelar' }))).toBe(true)
     expect(pie.contains(screen.getByRole('button', { name: 'Guardar cambios' }))).toBe(true)
   })
 
-  it('EditarEventoModal coloca el aviso posterior al guardado dentro del scroll sin escribir ni simular éxito', async () => {
-    const adapter = vi.fn()
+  it('EditarEventoModal coloca el error HTTP dentro del scroll sin simular éxito', async () => {
+    const adapter = vi.fn((config) => Promise.reject(Object.assign(new Error('Error HTTP'), {
+      config, response: { status: 409, data: { message: 'Propuesta ya resuelta' } },
+    })))
     api.defaults.adapter = adapter
     const onClose = vi.fn()
     const onSuccess = vi.fn()
     render(<EditarEventoModal evento={propuestaEditable()} onClose={onClose} onSuccess={onSuccess} />)
 
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
-    const aviso = await screen.findByText('La edición estará disponible cuando se integre el servicio de eventos.')
+    const aviso = await screen.findByText('Propuesta ya resuelta')
     const contenedorAviso = aviso.closest('[data-evento-aviso]')
     const cuerpo = document.querySelector('[data-evento-cuerpo]')
     const pie = document.querySelector('[data-evento-pie]')
 
-    expect(aviso.getAttribute('role')).toBe('status')
+    expect(aviso.getAttribute('role')).toBe('alert')
     expect(contenedorAviso).toBeTruthy()
     expect(cuerpo.contains(contenedorAviso)).toBe(true)
     expect(pie.contains(contenedorAviso)).toBe(false)
     expect(screen.getByRole('dialog', { name: 'Editar propuesta' })).toBeTruthy()
     expect(onClose).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
-    expect(adapter).not.toHaveBeenCalled()
+    expect(adapter).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls[0][0].url).toBe('/api/eventos/501')
   })
 
   it('EditarEventoModal bloquea la edición de propuestas ajenas o resueltas', () => {
@@ -279,54 +393,53 @@ describe('modales de eventos 071', () => {
     expect(screen.queryByText('Motivo privado del proponente')).toBeNull()
   })
 
-  it('ConfirmarInscripcionModal exige confirmación explícita y muestra la indisponibilidad sin optimismo', async () => {
+  it('ConfirmarInscripcionModal exige confirmación y sólo actualiza al recibir respuesta', async () => {
     const onClose = vi.fn()
     const onSuccess = vi.fn()
-    render(<ConfirmarInscripcionModal evento={evento()} onClose={onClose} onSuccess={onSuccess} />)
+    let resolver
+    const onConfirmar = vi.fn(() => new Promise((resolve) => { resolver = resolve }))
+    render(<ConfirmarInscripcionModal evento={evento()} onClose={onClose} onSuccess={onSuccess} onConfirmar={onConfirmar} />)
 
-    expect(screen.getByRole('status').textContent).toBe('La inscripción se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).')
+    expect(screen.queryByText(/actividad 072/)).toBeNull()
     const confirmar = screen.getByRole('button', { name: 'Confirmar inscripción' })
     expect(confirmar.disabled).toBe(true)
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo explícitamente mi participación/ }))
     expect(confirmar.disabled).toBe(false)
 
     fireEvent.click(confirmar)
-    await waitFor(() => expect(
-      screen.getAllByRole('status').some((nodo) => /actividad 072/.test(nodo.textContent)),
-    ).toBe(true))
+    expect(onConfirmar).toHaveBeenCalledTimes(1)
     expect(onClose).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
+    resolver({})
+    await waitFor(() => expect(onSuccess).toHaveBeenCalledTimes(1))
   })
 
-  it('ConfirmarInscripcionModal integra el aviso 072 y el resultado del botón en el área desplazable', async () => {
-    const adapter = vi.fn()
+  it('ConfirmarInscripcionModal muestra errores HTTP dentro del área desplazable', async () => {
+    const adapter = vi.fn((config) => Promise.reject(Object.assign(new Error('Error HTTP'), {
+      config, response: { status: 409, data: { message: 'Sin cupo disponible' } },
+    })))
     api.defaults.adapter = adapter
     const onClose = vi.fn()
     const onSuccess = vi.fn()
     render(<ConfirmarInscripcionModal evento={evento()} onClose={onClose} onSuccess={onSuccess} />)
     const cuerpo = document.querySelector('[data-evento-cuerpo]')
     const pie = document.querySelector('[data-evento-pie]')
-    const avisoInicial = screen.getByRole('status')
-
-    expect(cuerpo.contains(avisoInicial)).toBe(true)
-    expect(pie.contains(avisoInicial)).toBe(false)
-    expect(avisoInicial.textContent).toBe(
-      'La inscripción se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).',
-    )
+    expect(screen.queryByText(/actividad 072/)).toBeNull()
     expect(pie.contains(screen.getByRole('button', { name: 'Confirmar inscripción' }))).toBe(true)
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo explícitamente/ }))
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar inscripción' }))
-    const aviso = await screen.findByText('La inscripción estará disponible cuando se integre el servicio de participación (actividad 072).')
+    const aviso = await screen.findByText('Sin cupo disponible')
     const contenedorAviso = aviso.closest('[data-evento-aviso]')
 
-    expect(aviso.getAttribute('role')).toBe('status')
+    expect(aviso.getAttribute('role')).toBe('alert')
     expect(cuerpo.contains(contenedorAviso)).toBe(true)
     expect(pie.contains(contenedorAviso)).toBe(false)
     expect(screen.getByRole('dialog', { name: 'Confirmar inscripción' })).toBeTruthy()
     expect(onClose).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
-    expect(adapter).not.toHaveBeenCalled()
+    expect(adapter).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls[0][0].url).toBe('/api/eventos/501/participantes/me')
   })
 
   it('muestra errores reales del servicio con role alert y sin cerrar el diálogo', async () => {
@@ -404,8 +517,10 @@ describe('modales de eventos 071', () => {
     expect(inscrito.participantesConfirmados).toBe(10)
   })
 
-  it('CancelarInscripcionModal integra el aviso 072 y el resultado del botón en el área desplazable', async () => {
-    const adapter = vi.fn()
+  it('CancelarInscripcionModal muestra errores HTTP dentro del área desplazable', async () => {
+    const adapter = vi.fn((config) => Promise.reject(Object.assign(new Error('Error HTTP'), {
+      config, response: { status: 409, data: { message: 'Inscripción ya cancelada' } },
+    })))
     api.defaults.adapter = adapter
     const onClose = vi.fn()
     const onSuccess = vi.fn()
@@ -413,25 +528,20 @@ describe('modales de eventos 071', () => {
     render(<CancelarInscripcionModal evento={inscrito} onClose={onClose} onSuccess={onSuccess} />)
     const cuerpo = document.querySelector('[data-evento-cuerpo]')
     const pie = document.querySelector('[data-evento-pie]')
-    const avisoInicial = screen.getByRole('status')
-
-    expect(cuerpo.contains(avisoInicial)).toBe(true)
-    expect(pie.contains(avisoInicial)).toBe(false)
-    expect(avisoInicial.textContent).toBe(
-      'La cancelación se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).',
-    )
+    expect(screen.queryByText(/actividad 072/)).toBeNull()
 
     fireEvent.click(screen.getByRole('button', { name: 'Confirmar cancelación' }))
-    const aviso = await screen.findByText('La cancelación estará disponible cuando se integre el servicio de participación (actividad 072).')
+    const aviso = await screen.findByText('Inscripción ya cancelada')
     const contenedorAviso = aviso.closest('[data-evento-aviso]')
 
-    expect(aviso.getAttribute('role')).toBe('status')
+    expect(aviso.getAttribute('role')).toBe('alert')
     expect(cuerpo.contains(contenedorAviso)).toBe(true)
     expect(pie.contains(contenedorAviso)).toBe(false)
     expect(screen.getByRole('dialog', { name: 'Cancelar inscripción' })).toBeTruthy()
     expect(onClose).not.toHaveBeenCalled()
     expect(onSuccess).not.toHaveBeenCalled()
-    expect(adapter).not.toHaveBeenCalled()
+    expect(adapter).toHaveBeenCalledTimes(1)
+    expect(adapter.mock.calls[0][0].method).toBe('delete')
     expect(inscrito.cupoMaximo).toBe(30)
     expect(inscrito.participantesConfirmados).toBe(10)
   })

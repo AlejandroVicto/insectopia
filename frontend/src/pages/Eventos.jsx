@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { adaptarPaginaEventos } from '../adapters/eventosAdapter'
-import { CONTRATO_FILTROS_CONFIRMADO, consultarEventos, consultarMisPropuestas } from '../services/eventosService'
+import { CONTRATO_FILTROS_CONFIRMADO, consultarEventos, consultarMisParticipaciones, consultarMisPropuestas, operacionDemo } from '../services/eventosService'
 import { consultarEventosDemo, consultarMisPropuestasDemo } from '../data/eventosDemo'
 import { useAuth } from '../auth/useAuth'
 import EventoCard from '../components/eventos/EventoCard'
@@ -9,7 +9,7 @@ import EventoDetalle from '../components/eventos/EventoDetalle'
 import EventosFiltros from '../components/eventos/EventosFiltros'
 import EventosPaginacion from '../components/eventos/EventosPaginacion'
 import EventosTabs from '../components/eventos/EventosTabs'
-import { EventosCargando, EventosError, EventosVacio, FiltroPendiente } from '../components/eventos/EventosStates'
+import { EventosCargando, EventosError, EventosVacio } from '../components/eventos/EventosStates'
 import ProponerEventoModal from '../components/eventos/ProponerEventoModal'
 import EditarEventoModal from '../components/eventos/EditarEventoModal'
 import EventoDetallesModal from '../components/eventos/EventoDetallesModal'
@@ -21,10 +21,8 @@ export const EVENTOS_DEMO = import.meta.env.VITE_EVENTOS_MOCK === 'true'
 
 const TABS = Object.freeze([
   { id: 'todos', label: 'Todos los eventos' },
-  { id: 'proximos', label: 'Próximos 30 días', pendiente: true },
-  { id: 'bioblitz', label: 'Bioblitz y muestreos', pendiente: true },
-  { id: 'talleres', label: 'Talleres y simposios', pendiente: true },
-  { id: 'participaciones', label: 'Mis participaciones', pendiente: true },
+  { id: 'proximos', label: 'Próximos 30 días' },
+  { id: 'participaciones', label: 'Mis participaciones' },
   { id: 'mis-propuestas', label: 'Mis propuestas' },
 ])
 
@@ -42,7 +40,8 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   const tab = TABS.some((opcion) => opcion.id === params.get('tab')) ? params.get('tab') : 'todos'
   const q = params.get('q')?.trim() ?? ''
   const estadoParam = params.get('estado') ?? ''
-  const estado = ESTADOS_VALIDOS.includes(estadoParam) ? estadoParam : ''
+  const estado = ESTADOS_VALIDOS.includes(estadoParam)
+    && (tab === 'mis-propuestas' || tab === 'participaciones' || estadoParam === 'APROBADO') ? estadoParam : ''
   const periodoParam = params.get('periodo') ?? ''
   const periodo = ['futuros', 'pasados'].includes(periodoParam) ? periodoParam : ''
   const fechaDesdeParam = params.get('fechaDesde') ?? ''
@@ -53,7 +52,6 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   const page = Number.isSafeInteger(paginaSolicitada) && paginaSolicitada >= 0 ? paginaSolicitada : 0
   const size = demo ? 2 : 10
 
-  const tabPendiente = Boolean(TABS.find((opcion) => opcion.id === tab)?.pendiente)
   const filtrosActivos = Boolean(q || estado || periodo || fechaDesde || fechaHasta)
   const [draft, setDraft] = useState({ value: q, committed: q })
   const busqueda = draft.committed === q ? draft.value : q
@@ -106,18 +104,19 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   }, [busqueda, q, actualizarParams])
 
   const datosDemo = useMemo(() => {
-    if (!demo || tabPendiente) return null
+    if (!demo) return null
     return tab === 'mis-propuestas'
-      ? consultarMisPropuestasDemo({ page, size })
-      : consultarEventosDemo({ page, size, q, estado, periodo, fechaDesde, fechaHasta })
-  }, [demo, tabPendiente, tab, page, size, q, estado, periodo, fechaDesde, fechaHasta])
+      ? consultarMisPropuestasDemo({ page, size, q, estado, periodo, fechaDesde, fechaHasta })
+      : consultarEventosDemo({ page, size, q, estado, periodo, fechaDesde, fechaHasta, tab })
+  }, [demo, tab, page, size, q, estado, periodo, fechaDesde, fechaHasta])
 
   useEffect(() => {
     const controller = new AbortController()
-    if (demo || tabPendiente) return () => controller.abort()
+    if (demo) return () => controller.abort()
 
-    const consultar = tab === 'mis-propuestas' ? consultarMisPropuestas : consultarEventos
-    consultar({ page, size, filtros, signal: controller.signal })
+    const consultar = tab === 'mis-propuestas' ? consultarMisPropuestas
+      : tab === 'participaciones' ? consultarMisParticipaciones : consultarEventos
+    consultar({ page, size, filtros, proximos: tab === 'proximos', signal: controller.signal })
       .then(({ data }) => {
         if (!controller.signal.aborted) {
           setResultado({
@@ -133,10 +132,10 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
         }
       })
     return () => controller.abort()
-  }, [demo, tabPendiente, tab, page, size, filtros, key, retry, opcionesAdaptacion])
+  }, [demo, tab, page, size, filtros, key, retry, opcionesAdaptacion])
 
   const visible = demo
-    ? { key, status: tabPendiente ? 'pendiente' : 'success', data: datosDemo }
+    ? { key, status: 'success', data: datosDemo }
     : resultado?.key === key ? resultado : { key, status: 'loading', data: null }
   const eventos = visible.status === 'success' ? visible.data.content : []
   const seleccionado = eventos.find((evento) => String(evento.id) === String(seleccionadoId)) ?? eventos[0] ?? null
@@ -164,7 +163,6 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
       <div className="evt-layout">
         <div className="evt-principal">
           <header className="evt-cabecera">
-            <p className="evt-eyebrow"><span aria-hidden="true" className="evt-eyebrow-dot" />CIENCIA CIUDADANA &amp; EXPEDICIONES</p>
             <div className="evt-cabecera-fila">
               <div className="evt-cabecera-copy">
                 <h1 className="font-display">Eventos y Bioblitz Entomológicos</h1>
@@ -180,22 +178,27 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
             </div>
           </header>
 
-          <EventosTabs tabs={TABS} value={tab} onChange={(siguiente) => actualizarParams({ tab: siguiente === 'todos' ? null : siguiente, page: 0 })} />
+          <EventosTabs tabs={TABS} value={tab} onChange={(siguiente) => actualizarParams({
+            tab: siguiente === 'todos' ? null : siguiente, page: 0,
+            estado: siguiente === 'todos' || siguiente === 'proximos' ? null : estado,
+            periodo: siguiente === 'proximos' ? null : periodo,
+          })} />
 
           {demo && <p className="evt-demo-label" role="note">Vista de demostración · datos ilustrativos, no registros de MySQL</p>}
-          {filtrosActivos && !demo && !tabPendiente && !CONTRATO_FILTROS_CONFIRMADO && (
+          {filtrosActivos && !demo && !CONTRATO_FILTROS_CONFIRMADO && (
             <p role="note" className="evt-filter-pending">
               Los filtros están pendientes del contrato del backend 070; el listado no los aplica todavía.
             </p>
           )}
 
           <div id="eventos-panel" role="tabpanel" aria-labelledby={`evt-tab-${tab}`} tabIndex={0} className="evt-tabpanel">
-            {tabPendiente ? <FiltroPendiente etiqueta={TABS.find((opcion) => opcion.id === tab).label} /> : (
               <>
                 <EventosFiltros
                   busqueda={busqueda}
                   onBusqueda={(valor) => setDraft({ value: valor, committed: q })}
                   estado={estado}
+                  soloAprobados={tab === 'todos' || tab === 'proximos'}
+                  proximos={tab === 'proximos'}
                   onEstado={(valor) => actualizarParams({ estado: valor, page: 0 })}
                   periodo={periodo}
                   onPeriodo={(valor) => actualizarParams({ periodo: valor, page: 0 })}
@@ -239,7 +242,6 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
                   )}
                 </div>
               </>
-            )}
           </div>
         </div>
 
@@ -252,19 +254,24 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
       </div>
 
       {modal?.tipo === 'proponer' && (
-        <ProponerEventoModal onClose={cerrarModal} onSuccess={trasProponer} />
+        <ProponerEventoModal onClose={cerrarModal} onSuccess={trasProponer}
+          onGuardar={demo ? () => operacionDemo() : undefined} />
       )}
       {modal?.tipo === 'editar' && (
-        <EditarEventoModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+        <EditarEventoModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar}
+          onGuardar={demo ? () => operacionDemo() : undefined}
+          onQuitarImagen={demo ? () => operacionDemo() : undefined} />
       )}
       {modal?.tipo === 'detalles' && (
         <EventoDetallesModal evento={eventoModal} onClose={cerrarModal} />
       )}
       {modal?.tipo === 'inscribir' && (
-        <ConfirmarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+        <ConfirmarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar}
+          onConfirmar={demo ? () => operacionDemo() : undefined} />
       )}
       {modal?.tipo === 'cancelar' && (
-        <CancelarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar} />
+        <CancelarInscripcionModal evento={eventoModal} onClose={cerrarModal} onSuccess={recargar}
+          onConfirmar={demo ? () => operacionDemo() : undefined} />
       )}
     </div>
   )

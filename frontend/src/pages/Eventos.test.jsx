@@ -89,17 +89,21 @@ describe('Eventos 069', () => {
   it('renderiza encabezado, pestañas y una sola navegación', () => {
     renderEventos({ demo: true })
     expect(screen.getByRole('heading', { name: 'Eventos y Bioblitz Entomológicos' })).toBeTruthy()
-    expect(screen.getByText('CIENCIA CIUDADANA & EXPEDICIONES')).toBeTruthy()
+    expect(screen.queryByText('CIENCIA CIUDADANA & EXPEDICIONES')).toBeNull()
     expect(screen.getByText(/Participa en muestreos de campo/)).toBeTruthy()
     expect(screen.getByRole('button', { name: '+ Proponer Evento' })).toBeTruthy()
-    expect(screen.getAllByRole('tab')).toHaveLength(6)
+    expect(screen.getAllByRole('tab')).toHaveLength(4)
+    expect(screen.queryByRole('tab', { name: 'Bioblitz y muestreos' })).toBeNull()
+    expect(screen.queryByRole('tab', { name: 'Talleres y simposios' })).toBeNull()
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por estado del evento' })).toBeNull()
+    expect(screen.queryByRole('option', { name: /Estado:/ })).toBeNull()
     expect(screen.getByRole('tab', { name: 'Mis propuestas' })).toBeTruthy()
     expect(document.querySelectorAll('.private-shell > header')).toHaveLength(1)
     expect(screen.getAllByRole('navigation', { name: 'Navegación principal' })).toHaveLength(1)
     expect(screen.queryByText('RED ENTOMOLÓGICA')).toBeNull()
   })
 
-  it('las pestañas se navegan por teclado y los filtros sin contrato no simulan resultados', () => {
+  it('las cuatro pestañas se navegan por teclado y próximos muestra solo el rango aplicable', () => {
     renderEventos({ demo: true })
     const primera = screen.getByRole('tab', { name: 'Todos los eventos' })
     expect(primera.getAttribute('aria-selected')).toBe('true')
@@ -107,7 +111,8 @@ describe('Eventos 069', () => {
     const segunda = screen.getByRole('tab', { name: 'Próximos 30 días' })
     expect(segunda.getAttribute('aria-selected')).toBe('true')
     expect(document.activeElement).toBe(segunda)
-    expect(screen.getByText(/No se muestran resultados simulados/)).toBeTruthy()
+    expect(screen.getByRole('tabpanel')).toBeTruthy()
+    expect(screen.queryByText(/No se muestran resultados simulados/)).toBeNull()
     fireEvent.keyDown(segunda, { key: 'Home' })
     expect(screen.getByRole('article', { name: /Evento: Bioblitz nocturno/ })).toBeTruthy()
   })
@@ -132,7 +137,7 @@ describe('Eventos 069', () => {
     proponer.focus()
     fireEvent.click(proponer)
     expect(screen.getByRole('dialog', { name: 'Proponer nuevo evento / bioblitz' })).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toMatch(/backend de eventos \(actividad 070\)/)
+    expect(screen.queryByText(/backend de eventos \(actividad 070\)/)).toBeNull()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog')).toBeNull()
     expect(document.activeElement).toBe(proponer)
@@ -140,7 +145,7 @@ describe('Eventos 069', () => {
     const inscribir = screen.getAllByRole('button', { name: 'Inscribirme' })[0]
     fireEvent.click(inscribir)
     expect(screen.getByRole('dialog', { name: 'Confirmar inscripción' })).toBeTruthy()
-    expect(screen.getByRole('status').textContent).toBe('La inscripción se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).')
+    expect(screen.queryByText(/actividad 072/)).toBeNull()
     expect(screen.queryAllByText('Inscrito')).toHaveLength(inscritosAntes)
     expect(adapter).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
@@ -154,26 +159,27 @@ describe('Eventos 069', () => {
 
   it('reinicia la paginación al cambiar de filtro y usa páginas del modo demo', async () => {
     renderEventos({ demo: true })
-    expect(screen.getByText('Página 1 de 3')).toBeTruthy()
+    expect(screen.getByText('Página 1 de 2')).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
-    expect(screen.getByText('Página 2 de 3')).toBeTruthy()
-    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por estado del evento' }), { target: { value: 'RECHAZADO' } })
+    expect(screen.getByText('Página 2 de 2')).toBeTruthy()
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2035-01-01' } })
     expect(screen.queryByRole('navigation', { name: 'Páginas de eventos' })).toBeNull()
-    expect(screen.getByRole('article', { name: /Propuesta: expedición/ })).toBeTruthy()
+    expect(screen.queryByRole('article')).toBeNull()
   })
 
-  it('sincroniza búsqueda y filtros con la URL sin enviar parámetros no confirmados', async () => {
+  it('sincroniza búsqueda y filtros con la URL y los envía al backend', async () => {
     const adapter = vi.fn((config) => ok(config, pagina([raw(1)])))
     renderEventos({ adapter })
     await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 1' })).toBeTruthy())
     const busqueda = screen.getByRole('searchbox', { name: 'Buscar eventos por nombre, descripción o localidad' })
     fireEvent.change(busqueda, { target: { value: 'polillas' } })
     await waitFor(() => expect(screen.getByTestId('params').textContent).toContain('q=polillas'))
-    expect(screen.getByText(/Los filtros están pendientes del contrato del backend 070/)).toBeTruthy()
+    expect(screen.queryByText(/Los filtros están pendientes/)).toBeNull()
     expect(adapter.mock.calls[0][0].params).toEqual({ page: 0, size: 10 })
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params).toEqual({ page: 0, size: 10, q: 'polillas' }))
     fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por fecha del evento' }), { target: { value: 'pasados' } })
     await waitFor(() => expect(screen.getByTestId('params').textContent).toContain('periodo=pasados'))
-    expect(adapter.mock.calls.at(-1)[0].params).toEqual({ page: 0, size: 10 })
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params).toEqual({ page: 0, size: 10, q: 'polillas', periodo: 'pasados' }))
   })
 
   it('carga páginas reales desde la API sin páginas ficticias', async () => {
@@ -195,7 +201,7 @@ describe('Eventos 069', () => {
     renderEventos({ adapter })
     await waitFor(() => expect(adapter).toHaveBeenCalledTimes(1))
     const primeraSenal = adapter.mock.calls[0][0].signal
-    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por estado del evento' }), { target: { value: 'APROBADO' } })
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por fecha del evento' }), { target: { value: 'futuros' } })
     await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 2' })).toBeTruthy())
     expect(primeraSenal.aborted).toBe(true)
     resolverPrimera()
@@ -234,6 +240,71 @@ describe('Eventos 069', () => {
     await waitFor(() => expect(adapter.mock.calls[0][0].url).toBe('/api/eventos/mis-propuestas'))
     expect(screen.getAllByText('Pendiente de aprobación').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Rechazado').length).toBeGreaterThan(0)
+  })
+
+  it('consulta próximos y mis participaciones en el servidor sin recuperar pestañas eliminadas', async () => {
+    const adapter = vi.fn((config) => ok(config, pagina([raw(14, { estadoInscripcion: 'INSCRITO' })])))
+    renderEventos({ adapter })
+    await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 14' })).toBeTruthy())
+    fireEvent.click(screen.getByRole('tab', { name: 'Próximos 30 días' }))
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params.proximos).toBe(true))
+    expect(adapter.mock.calls.at(-1)[0].url).toBe('/api/eventos')
+    expect(screen.queryByRole('combobox', { name: 'Filtrar por estado del evento' })).toBeNull()
+    fireEvent.click(screen.getByRole('tab', { name: 'Mis participaciones' }))
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].url).toBe('/api/eventos/mis-participaciones'))
+    expect(screen.getAllByText('Inscrito').length).toBeGreaterThan(0)
+    expect(screen.getAllByRole('tab')).toHaveLength(4)
+  })
+
+  it('filtra en backend y limpiar filtros conserva la pestaña y vuelve a página cero', async () => {
+    const adapter = vi.fn((config) => ok(config, pagina([raw(16)])))
+    renderEventos({ adapter })
+    fireEvent.click(screen.getByRole('tab', { name: 'Mis propuestas' }))
+    expect(screen.getByRole('combobox', { name: 'Filtrar por estado del evento' }).value).toBe('')
+    expect(screen.getByRole('option', { name: 'Estado: Sin filtrar' })).toBeTruthy()
+    expect(screen.queryByRole('option', { name: 'Estado: Todos' })).toBeNull()
+    fireEvent.change(screen.getByRole('searchbox', { name: /Buscar eventos por nombre/ }), { target: { value: 'polillas' } })
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params.q).toBe('polillas'))
+    fireEvent.change(screen.getByRole('combobox', { name: 'Filtrar por estado del evento' }), { target: { value: 'RECHAZADO' } })
+    fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2027-01-01' } })
+    fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2027-12-31' } })
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params).toMatchObject({
+      page: 0, q: 'polillas', estado: 'RECHAZADO', fechaDesde: '2027-01-01', fechaHasta: '2027-12-31',
+    }))
+    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params).toEqual({ page: 0, size: 10 }))
+    expect(screen.getByTestId('params').textContent).toContain('tab=mis-propuestas')
+    expect(screen.getByRole('searchbox', { name: /Buscar eventos por nombre/ }).value).toBe('')
+  })
+
+  it('actualiza cupo y estado sólo tras POST/DELETE confirmados y consulta la página de nuevo', async () => {
+    let inscrito = false
+    let confirmarPost
+    const adapter = vi.fn((config) => {
+      if (config.method === 'post') return new Promise((resolve) => {
+        confirmarPost = () => { inscrito = true; resolve(ok(config, {})) }
+      })
+      if (config.method === 'delete') { inscrito = false; return ok(config, {}) }
+      return ok(config, pagina([raw(18, {
+        participantesConfirmados: inscrito ? 11 : 10,
+        estadoInscripcion: inscrito ? 'INSCRITO' : null,
+      })]))
+    })
+    renderEventos({ adapter })
+    await waitFor(() => expect(screen.getByRole('article', { name: 'Evento: Evento 18' })).toBeTruthy())
+    fireEvent.click(screen.getAllByRole('button', { name: 'Inscribirme' })[0])
+    fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo explícitamente/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar inscripción' }))
+    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].url).toBe('/api/eventos/18/participantes/me'))
+    expect(screen.queryByText('11 / 30')).toBeNull()
+    confirmarPost()
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Cancelar inscripción' }).length).toBeGreaterThan(0))
+    expect(adapter.mock.calls.at(-1)[0].url).toBe('/api/eventos')
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancelar inscripción' })[0])
+    fireEvent.click(screen.getByRole('button', { name: 'Confirmar cancelación' }))
+    await waitFor(() => expect(adapter.mock.calls.some(([config]) => config.method === 'delete'
+      && config.url === '/api/eventos/18/participantes/me')).toBe(true))
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Inscribirme' }).length).toBeGreaterThan(0))
   })
 
   it('muestra estados de cupo completo, inscripción y evento pasado sólo con datos del servidor', async () => {

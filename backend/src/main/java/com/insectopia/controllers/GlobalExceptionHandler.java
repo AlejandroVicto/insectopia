@@ -29,9 +29,12 @@ import com.insectopia.dtos.ErrorResponseDTO.FieldErrorDTO;
 import com.insectopia.exceptions.BusinessRuleException;
 import com.insectopia.exceptions.ImagenInvalidaException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import com.insectopia.exceptions.CatalogoNoDisponibleException;
 import com.insectopia.exceptions.DuplicateResourceException;
+import com.insectopia.exceptions.EventoConflictoException;
+import com.insectopia.exceptions.EventoValidacionException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.exceptions.RegistrationValidationException;
 
@@ -54,6 +57,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(MissingServletRequestPartException.class)
     public ResponseEntity<ErrorResponseDTO> handleMissingPart(MissingServletRequestPartException exception, WebRequest request) {
         return build(HttpStatus.BAD_REQUEST, "Falta el archivo de imagen", path(request));
+    }
+
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ErrorResponseDTO> handleUnsupportedMediaType(HttpMediaTypeNotSupportedException exception, WebRequest request) {
+        return build(HttpStatus.UNSUPPORTED_MEDIA_TYPE, "El archivo debe enviarse como multipart/form-data", path(request));
     }
 
 	private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
@@ -160,6 +168,16 @@ public class GlobalExceptionHandler {
 					List.of(new FieldErrorDTO(exception.getField(), exception.getMessage())));
 		}
 		return build(HttpStatus.CONFLICT, "El recurso ya existe", path(request));
+	}
+
+	@ExceptionHandler(EventoConflictoException.class)
+	public ResponseEntity<ErrorResponseDTO> handleEventoConflicto(EventoConflictoException exception, WebRequest request) {
+		return build(HttpStatus.CONFLICT, exception.getMessage(), path(request));
+	}
+
+	@ExceptionHandler(EventoValidacionException.class)
+	public ResponseEntity<ErrorResponseDTO> handleInvalidArgument(EventoValidacionException exception, WebRequest request) {
+		return build(HttpStatus.BAD_REQUEST, exception.getMessage(), path(request));
 	}
 
 	@ExceptionHandler(RegistrationValidationException.class)

@@ -116,9 +116,16 @@ export function consultarEventosDemo({
   periodo = '',
   fechaDesde = '',
   fechaHasta = '',
+  tab = 'todos',
 } = {}) {
   const busqueda = texto(q)
   const filtrados = eventosDemo.filter((evento) => {
+    if (tab === 'participaciones' && evento.estadoInscripcion !== 'INSCRITO') return false
+    if (tab !== 'participaciones' && evento.estado !== 'APROBADO') return false
+    if (tab === 'proximos') {
+      const inicio = new Date(evento.fechaInicio).getTime()
+      if (inicio < Date.now() || inicio >= Date.now() + 30 * 24 * 60 * 60 * 1000) return false
+    }
     const coincideTexto = !busqueda
       || `${evento.titulo} ${evento.descripcion} ${evento.ubicacion}`.toLocaleLowerCase('es').includes(busqueda)
     const coincideEstado = !estado || evento.estado === estado
@@ -134,6 +141,11 @@ export function consultarEventosDemo({
   return pagina(filtrados, page, size)
 }
 
-export function consultarMisPropuestasDemo({ page = 0, size = 10 } = {}) {
-  return pagina(eventosDemo.filter((evento) => propiasDemo.has(evento.idEvento)), page, size)
+export function consultarMisPropuestasDemo({ page = 0, size = 10, ...filtros } = {}) {
+  const busqueda = texto(filtros.q)
+  return pagina(eventosDemo.filter((evento) => propiasDemo.has(evento.idEvento)
+    && (!busqueda || `${evento.titulo} ${evento.descripcion} ${evento.ubicacion}`.toLocaleLowerCase('es').includes(busqueda))
+    && (!filtros.estado || filtros.estado === evento.estado)
+    && (!filtros.fechaDesde || evento.fechaInicio.slice(0, 10) >= filtros.fechaDesde)
+    && (!filtros.fechaHasta || evento.fechaInicio.slice(0, 10) <= filtros.fechaHasta)), page, size)
 }

@@ -7,8 +7,9 @@ import {
 } from '../../constants/modalesPublicaciones'
 import { LIMITES_EVENTO } from './validarEvento'
 import EventoModalAviso from './EventoModalAviso'
+import ImagenEvento from './ImagenEvento'
 
-function Control({ id, valor, error, onChange, type = 'text', pista, ...props }) {
+function Control({ id, valor, error, onChange, type = 'text', pista, disabled, ...props }) {
   return (
     <input
       id={id}
@@ -18,6 +19,7 @@ function Control({ id, valor, error, onChange, type = 'text', pista, ...props })
       aria-invalid={Boolean(error)}
       aria-describedby={describirCampo(id, { error, pista })}
       className={CLASE_CONTROL}
+      disabled={disabled}
       {...props}
     />
   )
@@ -26,6 +28,13 @@ function Control({ id, valor, error, onChange, type = 'text', pista, ...props })
 export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
   const {
     valores,
+    imagen,
+    vistaPrevia,
+    tieneImagen,
+    guardada,
+    imagenInputRef,
+    cambiarImagen,
+    quitarImagenActual,
     errores,
     enviando,
     mensaje,
@@ -58,12 +67,6 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
       >
         <legend className="sr-only">{esCreacion ? 'Datos de la nueva propuesta' : 'Datos de la propuesta a editar'}</legend>
 
-        <p role="status" className="mb-4 rounded-xl border border-[#466046] bg-[#26382a] px-4 py-3 text-xs leading-5 text-lime-100">
-          {esCreacion
-            ? 'El formulario está disponible para su revisión. El envío de propuestas se habilitará cuando esté integrado el backend de eventos (actividad 070).'
-            : 'El formulario está disponible para su revisión. Los cambios podrán guardarse cuando esté integrado el backend de eventos (actividad 070).'}
-        </p>
-
         <div className="grid gap-4 md:grid-cols-2">
           <CampoModal
             id={id('titulo')}
@@ -78,6 +81,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
               error={errores.titulo}
               pista
               onChange={cambiar}
+              disabled={Boolean(guardada)}
               maxLength={LIMITES_EVENTO.titulo}
               placeholder="Ej. Bioblitz nocturno Sierra Sur"
               data-modal-autofocus=""
@@ -90,6 +94,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
               rows={4}
               value={valores.descripcion}
               onChange={(evento) => cambiar('descripcion', evento.target.value)}
+              disabled={Boolean(guardada)}
               aria-invalid={Boolean(errores.descripcion)}
               aria-describedby={describirCampo(id('descripcion'), { error: errores.descripcion })}
               className={`${CLASE_CONTROL} resize-y`}
@@ -110,6 +115,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
               error={errores.ubicacion}
               pista
               onChange={cambiar}
+              disabled={Boolean(guardada)}
               maxLength={LIMITES_EVENTO.ubicacion}
               placeholder="Localidad, reserva o punto de encuentro"
             />
@@ -119,6 +125,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             <Control
               id={id('fechaInicio')}
               type="date"
+              disabled={Boolean(guardada)}
               valor={valores.fechaInicio}
               error={errores.fechaInicio}
               onChange={cambiar}
@@ -129,6 +136,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             <Control
               id={id('horaInicio')}
               type="time"
+              disabled={Boolean(guardada)}
               valor={valores.horaInicio}
               error={errores.horaInicio}
               onChange={cambiar}
@@ -139,6 +147,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             <Control
               id={id('fechaFin')}
               type="date"
+              disabled={Boolean(guardada)}
               valor={valores.fechaFin}
               error={errores.fechaFin}
               onChange={cambiar}
@@ -149,6 +158,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             <Control
               id={id('horaFin')}
               type="time"
+              disabled={Boolean(guardada)}
               valor={valores.horaFin}
               error={errores.horaFin}
               onChange={cambiar}
@@ -159,6 +169,7 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             <Control
               id={id('cupoMaximo')}
               type="number"
+              disabled={Boolean(guardada)}
               min="1"
               step="1"
               valor={valores.cupoMaximo}
@@ -170,31 +181,48 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
 
           <CampoModal
             id={id('imagen')}
-            etiqueta="URL de imagen (opcional)"
+            etiqueta="Imagen del evento (opcional)"
             error={errores.imagen}
-            pista={`http(s) o ruta relativa; hasta ${LIMITES_EVENTO.imagen} caracteres.`}
+            pista="JPG o PNG · máximo 5 MB"
           >
-            <Control
+            <input
               id={id('imagen')}
-              valor={valores.imagen}
-              error={errores.imagen}
-              pista
-              onChange={cambiar}
-              maxLength={LIMITES_EVENTO.imagen}
-              placeholder="https://ejemplo.test/evento.jpg"
+              ref={imagenInputRef}
+              type="file"
+              accept="image/jpeg,image/png"
+              onChange={cambiarImagen}
+              aria-invalid={Boolean(errores.imagen)}
+              aria-describedby={describirCampo(id('imagen'), { error: errores.imagen, pista: true })}
+              className={`${CLASE_CONTROL} file:mr-3 file:rounded-lg file:border-0 file:bg-[#35423a] file:px-3 file:py-1 file:text-xs file:font-semibold file:text-[#f3f8ef]`}
             />
           </CampoModal>
+          {!esCreacion && tieneImagen && <div className="md:col-span-2">
+            <button type="button" onClick={quitarImagenActual}
+              className={CLASE_BOTON_SECUNDARIO}>Quitar fotografía actual</button>
+          </div>}
+          {vistaPrevia && <img src={vistaPrevia} alt={`Vista previa de ${imagen.name}`}
+            className="max-h-48 w-full rounded-xl object-contain md:col-span-2" />}
+          {!vistaPrevia && !esCreacion && tieneImagen && form.imagenActualUrl && (
+            <ImagenEvento evento={{ id: form.eventoId, estado: 'PENDIENTE', imagenUrl: form.imagenActualUrl }}
+              alt="Fotografía actual del evento" className="max-h-48 w-full rounded-xl object-contain md:col-span-2" />
+          )}
         </div>
+
+        {guardada && <p role="status" className="mt-4 text-xs text-lime-100">
+          El evento ya se guardó. Puedes reintentar la fotografía sin volver a guardar el evento.
+        </p>}
 
         {confirmarDescarte && (
           <div className="evt-modal-descartar mt-5 rounded-xl border border-amber-400/40 bg-amber-950/30 px-4 py-3">
-            <p className="text-xs leading-5 text-amber-100">Tienes cambios sin guardar. ¿Deseas descartarlos?</p>
+            <p className="text-xs leading-5 text-amber-100">{guardada
+              ? 'El evento ya está guardado. ¿Deseas cerrar sin subir la fotografía?'
+              : 'Tienes cambios sin guardar. ¿Deseas descartarlos?'}</p>
             <div className="mt-3 flex flex-wrap justify-end gap-2">
               <button type="button" onClick={seguirEditando} className={CLASE_BOTON_SECUNDARIO}>
                 Seguir editando
               </button>
               <button type="button" onClick={confirmarSalida} className={CLASE_BOTON_PRIMARIO}>
-                Descartar cambios
+                {guardada ? 'Cerrar sin fotografía' : 'Descartar cambios'}
               </button>
             </div>
           </div>
@@ -213,7 +241,8 @@ export default function EventoFormulario({ idPrefix, form, modo = 'crear' }) {
             Cancelar
           </button>
           <button type="submit" disabled={enviando} className={CLASE_BOTON_PRIMARIO}>
-            {enviando ? 'Guardando…' : esCreacion ? 'Enviar propuesta' : 'Guardar cambios'}
+            {enviando ? 'Guardando…' : guardada && imagen ? 'Reintentar fotografía'
+              : guardada ? 'Terminar sin fotografía' : esCreacion ? 'Enviar propuesta' : 'Guardar cambios'}
           </button>
         </div>
       </footer>

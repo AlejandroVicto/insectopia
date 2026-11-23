@@ -66,10 +66,6 @@ function ConfirmarInscripcionForm({ evento, onClose, onConfirmar, onSuccess }) {
         className="flex min-h-0 flex-1 flex-col"
       >
         <div data-evento-cuerpo="" className="evt-modal-body min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-5 sm:px-8">
-          <div role="status" className="mb-4 rounded-xl border border-[#466046] bg-[#26382a] px-4 py-3 text-xs leading-5 text-lime-100">
-            La inscripción se habilitará cuando esté integrado el backend de participación en eventos (actividad 072).
-          </div>
-
           <section className="evt-modal-resumen rounded-xl border border-[#40584a] bg-[#141d17] p-4">
             <p className="text-[10px] font-bold uppercase tracking-widest text-lime-400">Evento seleccionado</p>
             <h3 className="mt-1 font-display text-lg font-bold leading-6 text-stone-100">{evento.titulo}</h3>

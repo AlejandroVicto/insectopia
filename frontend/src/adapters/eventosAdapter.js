@@ -40,9 +40,17 @@ function natural(valor) {
   return Number.isSafeInteger(valor) && valor >= 0 ? valor : null
 }
 
-function urlImagen(valor) {
+function urlImagen(valor, id) {
   const imagen = texto(valor)
   if (!imagen) return null
+  if (/^eventos\/[0-9a-f-]{36}\.(jpg|png)$/i.test(imagen)) {
+    const ruta = `/api/eventos/${encodeURIComponent(String(id))}/imagen`
+    try {
+      return import.meta.env.VITE_API_URL ? new URL(ruta, import.meta.env.VITE_API_URL).href : ruta
+    } catch {
+      return ruta
+    }
+  }
   // Se descartan esquemas no visuales (javascript:, data:text/html, etc.).
   return /^(https?:\/\/|\/)/i.test(imagen) ? imagen : null
 }
@@ -98,7 +106,7 @@ export function adaptarEvento(raw, opciones = {}) {
     titulo,
     descripcion: texto(raw?.descripcion),
     ubicacion: texto(raw?.ubicacion),
-    imagenUrl: urlImagen(raw?.imagen),
+    imagenUrl: urlImagen(raw?.imagen, id),
     fechaInicio: texto(raw.fechaInicio),
     fechaFin: texto(raw.fechaFin),
     fechaInicioTexto: formatoFecha.format(inicio),
