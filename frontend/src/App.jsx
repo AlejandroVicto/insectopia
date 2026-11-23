@@ -14,6 +14,7 @@ import Notificaciones from './pages/Notificaciones'
 import PublicacionDetalle from './pages/PublicacionDetalle'
 import Eventos from './pages/Eventos'
 import MiPerfil from './pages/MiPerfil'
+import Configuracion from './pages/Configuracion'
 
 const MENSAJE_INICIAL = 'Verificando conexión con el backend...'
 
@@ -187,12 +188,10 @@ export default function App() {
             element={<MiPerfil />}
           />
 
-          {/* Actividades 077 y 079 - Configuración */}
+          {/* Actividad 077 - Configuración; la actualización del perfil se prepara sin backend */}
           <Route
             path="/app/configuracion"
-            element={
-              <SectionPlaceholder title="Configuración" />
-            }
+            element={<Configuracion />}
           />
 
           <Route

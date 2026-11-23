@@ -86,12 +86,22 @@ describe('layout de escritorio', () => {
     expect(screen.getByRole('heading', { name: 'Inicio' })).toBeTruthy()
   })
 
+  it('abre Configuración desde Mi cuenta con la pantalla 077', async () => {
+    start('USUARIO')
+    fireEvent.click(screen.getByRole('link', { name: 'Configuración' }))
+    expect(await screen.findByRole('heading', { name: 'Configuración' })).toBeTruthy()
+    expect(document.querySelector('.private-shell').classList.contains('private-shell--configuracion')).toBe(true)
+    expect(screen.getByRole('tab', { name: 'Perfil' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Seguridad' })).toBeTruthy()
+    expect(screen.getByRole('tab', { name: 'Seguridad' }).getAttribute('aria-selected')).toBe('true')
+  })
+
   it('USUARIO ve accesos generales y configuración, no accesos elevados', () => {
     start('USUARIO')
     for (const name of ['Inicio', 'Mensajes', 'Notificaciones', 'Eventos', 'Mi perfil']) {
       expect(navigation().querySelector(`a[href="${name === 'Inicio' ? '/app' : name === 'Mi perfil' ? '/app/perfil' : `/app/${name.toLowerCase()}`}"]`)).toBeTruthy()
     }
-    expect(accountNavigation().querySelector('a[href="/app/configuracion"]')).toBeTruthy()
+    expect(accountNavigation().querySelector('a[href="/app/configuracion?seccion=seguridad"]')).toBeTruthy()
     expect(navigation().querySelector('a[href="/app/configuracion"]')).toBeNull()
     expect(accountNavigation().textContent).not.toContain('Acceso:')
     expect(navigation().parentElement.lastElementChild).toBe(accountNavigation())

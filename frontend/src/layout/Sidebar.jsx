@@ -34,7 +34,7 @@ export default function Sidebar({ notificationCount, onLogout }) {
       </nav>
       <nav aria-label="Mi cuenta" className="mt-auto flex flex-col gap-2 border-t border-[var(--nav-active)] pt-4">
         <p className="text-[10px] font-semibold text-[var(--nav-muted)]">MI CUENTA</p>
-        <MenuLink label="Configuración" to="/app/configuracion" />
+        <MenuLink label="Configuración" to="/app/configuracion?seccion=seguridad" />
         <button type="button" onClick={onLogout} className="nav-entry text-left">
           <span aria-hidden="true" className="nav-dot" />Cerrar sesión
         </button>

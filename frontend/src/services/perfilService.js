@@ -3,6 +3,30 @@ import { consultarSeguidos } from './conversacionesService'
 
 export const consultarMiPerfil = ({ signal } = {}) => api.get('/api/usuarios/me', { signal })
 
+// Flujo preparado para cuando el backend exponga la actualización del perfil.
+// Hoy solo existe GET en /api/usuarios/me: la petición fallará y la pantalla
+// conservará los cambios. Nunca incluye fotografía ni datos de seguridad.
+export const ACTUALIZACION_PERFIL_ENDPOINT = '/api/usuarios/me'
+
+const texto = (valor) => String(valor ?? '').trim()
+
+export function construirPayloadActualizacionPerfil(valores) {
+  return {
+    nombre: texto(valores?.nombre),
+    nombreUsuario: texto(valores?.nombreUsuario).toLowerCase(),
+    biografia: texto(valores?.biografia) || null,
+    genero: texto(valores?.genero) || null,
+    paisCodigo: texto(valores?.paisCodigo).toUpperCase() || null,
+    estadoRegion: texto(valores?.estadoRegion) || null,
+    fechaNacimiento: texto(valores?.fechaNacimiento) || null,
+    telefono: texto(valores?.telefono) || null,
+  }
+}
+
+export function actualizarMiPerfil(valores) {
+  return api.put(ACTUALIZACION_PERFIL_ENDPOINT, construirPayloadActualizacionPerfil(valores))
+}
+
 // 074: la identidad del listado la impone el principal autenticado en el backend.
 export const consultarMisPublicaciones = ({ page = 0, size = 10, signal } = {}) =>
   api.get('/api/usuarios/me/publicaciones', { params: { page, size }, signal })

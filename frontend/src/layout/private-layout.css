@@ -62,14 +62,15 @@
 
 /*
  * Inicio, Mensajes, Notificaciones,
- * Publicaciones y Eventos:
+ * Publicaciones, Eventos y Configuración:
  * el contenido se desplaza internamente.
  */
 .private-shell--inicio,
 .private-shell--mensajes,
 .private-shell--notificaciones,
 .private-shell--publicacion,
-.private-shell--eventos {
+.private-shell--eventos,
+.private-shell--configuracion {
   display: flex;
   height: 100dvh;
   flex-direction: column;
@@ -81,7 +82,8 @@
 .private-shell--mensajes>header,
 .private-shell--notificaciones>header,
 .private-shell--publicacion>header,
-.private-shell--eventos>header {
+.private-shell--eventos>header,
+.private-shell--configuracion>header {
   flex-shrink: 0;
 }
 
@@ -90,7 +92,8 @@
 .private-shell--mensajes>div>aside,
 .private-shell--notificaciones>div>aside,
 .private-shell--publicacion>div>aside,
-.private-shell--eventos>div>aside {
+.private-shell--eventos>div>aside,
+.private-shell--configuracion>div>aside {
   min-height: 0;
 }
 
@@ -99,9 +102,12 @@
 .private-shell--mensajes #private-content,
 .private-shell--notificaciones #private-content,
 .private-shell--publicacion #private-content,
-.private-shell--eventos #private-content {
+.private-shell--eventos #private-content,
+.private-shell--configuracion #private-content {
   min-height: 0;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /*
@@ -110,47 +116,56 @@
  * pero permite desplazamiento vertical
  * en pantallas estrechas.
  */
-.private-shell--perfil {
+.private-shell--perfil,
+.private-shell--configuracion {
   min-height: 100dvh;
 }
 
-.private-shell--perfil>div>aside {
+.private-shell--perfil>div>aside,
+.private-shell--configuracion>div>aside {
   min-height: calc(100dvh - 80px);
 }
 
-/* Adaptación responsiva de Mi Perfil */
+/* Adaptación responsiva de Mi Perfil y Configuración */
 @media (max-width: 800px) {
-  .private-shell--perfil>header {
+  .private-shell--perfil>header,
+  .private-shell--configuracion>header {
     grid-template-columns: 1fr auto;
     gap: 8px;
     padding-inline: 12px;
   }
 
-  .private-shell--perfil>header>div:nth-child(2) {
+  .private-shell--perfil>header>div:nth-child(2),
+  .private-shell--configuracion>header>div:nth-child(2) {
     display: none;
   }
 
-  .private-shell--perfil>header>a {
+  .private-shell--perfil>header>a,
+  .private-shell--configuracion>header>a {
     width: auto;
   }
 
-  .private-shell--perfil>div>aside {
+  .private-shell--perfil>div>aside,
+  .private-shell--configuracion>div>aside {
     width: 64px;
     padding-inline: 6px;
   }
 
-  .private-shell--perfil>div>aside .nav-entry {
+  .private-shell--perfil>div>aside .nav-entry,
+  .private-shell--configuracion>div>aside .nav-entry {
     overflow: hidden;
     white-space: nowrap;
     font-size: 0;
     padding-inline: 20px;
   }
 
-  .private-shell--perfil>div>aside nav>p {
+  .private-shell--perfil>div>aside nav>p,
+  .private-shell--configuracion>div>aside nav>p {
     font-size: 0;
   }
 
-  .private-shell--perfil>header button {
+  .private-shell--perfil>header button,
+  .private-shell--configuracion>header button {
     width: auto;
     padding-inline: 10px;
   }

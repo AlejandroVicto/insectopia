@@ -128,6 +128,7 @@ describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
     expect(adapter.mock.calls.some(([config]) => config.url === '/api/usuarios/me' && config.headers.get('Authorization') === 'Bearer jwt-test')).toBe(true)
     expect(llamadaPropias(adapter).params).toEqual({ page: 0, size: 10 })
     expect(adapter.mock.calls.some(([config]) => config.url === '/api/publicaciones')).toBe(false)
+    expect(screen.getByRole('link', { name: 'Editar perfil' }).getAttribute('href')).toBe('/app/configuracion?seccion=perfil')
     fireEvent.click(screen.getByRole('link', { name: 'Editar perfil' }))
     expect(screen.getByText('Configuración 077')).toBeTruthy()
   })

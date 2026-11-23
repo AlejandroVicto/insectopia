@@ -29,6 +29,7 @@ function PrivateLayoutContent({ notificationCount }) {
   const isPublicacion = pathname.startsWith('/app/publicaciones/')
   const isEventos = pathname === '/app/eventos'
   const isPerfil = pathname === '/app/perfil'
+  const isConfiguracion = pathname === '/app/configuracion'
 
   const isScrollableSection =
     isInicio ||
@@ -36,7 +37,8 @@ function PrivateLayoutContent({ notificationCount }) {
     isNotificaciones ||
     isPublicacion ||
     isEventos ||
-    isPerfil
+    isPerfil ||
+    isConfiguracion
 
   const closeLogout = useCallback(() => {
     if (inFlight.current) return
@@ -90,7 +92,7 @@ function PrivateLayoutContent({ notificationCount }) {
   return (
     <CrearPublicacionProvider>
       <div
-        className={`private-shell ${isPerfil ? '' : 'min-w-[1100px]'} ${isInicio
+        className={`private-shell ${isPerfil || isConfiguracion ? '' : 'min-w-[1100px]'} ${isInicio
             ? 'private-shell--inicio'
             : isMensajes
               ? 'private-shell--mensajes'
@@ -102,7 +104,9 @@ function PrivateLayoutContent({ notificationCount }) {
                     ? 'private-shell--eventos'
                     : isPerfil
                       ? 'private-shell--perfil'
-                      : 'min-h-screen'
+                      : isConfiguracion
+                        ? 'private-shell--configuracion'
+                        : 'min-h-screen'
           }`}
       >
         <Navbar
