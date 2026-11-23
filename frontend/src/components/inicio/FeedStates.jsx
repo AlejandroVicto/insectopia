@@ -5,18 +5,19 @@ export function FeedLoading() {
   </div>
 }
 
-export function FeedEmpty({ filtered, onClear }) {
+export function FeedEmpty({ filtered, onClear, titulo = 'Aún no hay avistamientos', mensaje }) {
+  const texto = mensaje ?? (filtered ? 'Prueba otra búsqueda o cambia de vista.' : 'Vuelve más tarde para descubrir novedades.')
   return <section className="inicio-card px-6 py-12 text-center" role="status">
-    <h2 className="font-display text-lg font-bold">Aún no hay avistamientos</h2>
-    <p className="mt-2 text-sm text-[var(--inicio-muted)]">{filtered ? 'Prueba otra búsqueda o cambia de vista.' : 'Vuelve más tarde para descubrir novedades.'}</p>
+    <h2 className="font-display text-lg font-bold">{titulo}</h2>
+    <p className="mt-2 text-sm text-[var(--inicio-muted)]">{texto}</p>
     {filtered && <button type="button" onClick={onClear} className="inicio-primary mt-5 px-5 py-2 text-xs">Limpiar filtros</button>}
   </section>
 }
 
-export function FeedError({ onRetry }) {
+export function FeedError({ onRetry, titulo = 'No pudimos cargar el inicio', mensaje = 'Comprueba la conexión e inténtalo de nuevo.' }) {
   return <section className="inicio-card px-6 py-12 text-center" role="alert">
-    <h2 className="font-display text-lg font-bold">No pudimos cargar el inicio</h2>
-    <p className="mt-2 text-sm text-[var(--inicio-muted)]">Comprueba la conexión e inténtalo de nuevo.</p>
+    <h2 className="font-display text-lg font-bold">{titulo}</h2>
+    <p className="mt-2 text-sm text-[var(--inicio-muted)]">{mensaje}</p>
     <button type="button" onClick={onRetry} className="inicio-primary mt-5 px-5 py-2 text-xs">Reintentar</button>
   </section>
 }

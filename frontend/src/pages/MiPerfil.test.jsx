@@ -24,6 +24,41 @@ const ana = { id: 8, nombre: 'Ana López', nombreUsuario: 'ana', avatarUrl: null
 const luis = { id: 9, nombre: 'Luis Pérez', nombreUsuario: 'luis', avatarUrl: null, loSigo: true }
 const profile = { idUsuario: 7, nombre: 'María Real', nombreUsuario: 'maria', fotoPerfil: 'https://example.test/foto.png', biografia: 'Estudio polinizadores', paisCodigo: 'MX', estadoRegion: 'Jalisco', fechaRegistro: '2024-06-01T10:00:00Z', totalSeguidores: 12, totalPublicaciones: 3 }
 
+const publicacionPropia = (id, contenido, extras = {}) => ({
+  id,
+  autor: { id: 7, nombre: 'María Real', nombreUsuario: 'maria', avatarUrl: null },
+  contenido,
+  imagenUrl: null,
+  fechaPublicacion: '2024-06-01T10:00:00Z',
+  estado: 'VISIBLE',
+  totalComentarios: 0,
+  totalReacciones: 0,
+  reaccionUsuario: null,
+  ...extras,
+})
+
+const postsPage = (content, number = 0, totalElements = content.length, totalPages = totalElements === 0 ? 0 : number + 1) => ({
+  content,
+  number,
+  size: 10,
+  totalElements,
+  totalPages,
+  first: number === 0,
+  last: number >= totalPages - 1,
+})
+
+const publicacionInicial = publicacionPropia(101, 'Mariposa en el jardín')
+const RUTA_PROPIAS = '/api/usuarios/me/publicaciones'
+const llamadaPropias = (mock) => mock.mock.calls.find(([config]) => config.url === RUTA_PROPIAS)?.[0]
+const idiomaAdapter = (config, data) => ok(config, data)
+const baseAdapter = ({ publicaciones = postsPage([]), perfil = profile, seguidos = page([]) } = {}) => vi.fn((config) => {
+  if (config.url === '/api/usuarios/me') return idiomaAdapter(config, perfil)
+  if (config.url === RUTA_PROPIAS) return idiomaAdapter(config, publicaciones)
+  if (config.url === '/api/usuarios/seguidos') return idiomaAdapter(config, seguidos)
+  if (config.url === '/api/catalogos/paises') return idiomaAdapter(config, [{ codigo: 'MX', nombre: 'México' }])
+  return idiomaAdapter(config, { count: 0 })
+})
+
 function LoginControl() {
   const { setSession, clearSession } = useAuth()
   const navigate = useNavigate()
@@ -48,6 +83,7 @@ function renderPerfil(adapter) {
 
 const adapter = vi.fn((config) => {
   if (config.url === '/api/usuarios/me') return ok(config, profile)
+  if (config.url === RUTA_PROPIAS) return ok(config, postsPage([publicacionInicial]))
   if (config.url === '/api/usuarios/seguidos') {
     const params = config.params
     if (params.q === 'nadie') return ok(config, page([], 0, 0))
@@ -58,8 +94,8 @@ const adapter = vi.fn((config) => {
   return ok(config, { count: 0 })
 })
 
-describe('Mi perfil y modales 073/075 (backend local)', () => {
-  it('usa el layout compartido, consulta identidad privada y no muestra datos privados ni publicaciones ajenas', async () => {
+describe('Mi perfil, publicaciones propias 074 y modales existentes', () => {
+  it('usa el layout compartido, consulta identidad privada y muestra solo publicaciones propias reales', async () => {
     renderPerfil(adapter)
     expect(screen.getByRole('navigation', { name: 'Navegación principal' })).toBeTruthy()
     await screen.findByText('Estudio polinizadores')
@@ -67,9 +103,13 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
     expect(within(screen.getByRole('region', { name: 'Información de mi cuenta' })).getByText('@maria')).toBeTruthy()
     await screen.findByText('Jalisco, México')
     expect(screen.getByText('junio de 2024')).toBeTruthy()
-    expect(screen.getByText('Publicaciones propias no disponibles')).toBeTruthy()
+    await screen.findByText('Mariposa en el jardín')
+    expect(within(screen.getByRole('region', { name: 'Mis Publicaciones' })).getByRole('article', { name: 'Publicación 101' })).toBeTruthy()
+    expect(screen.queryByText('Publicaciones propias no disponibles')).toBeNull()
     expect(within(screen.getByRole('main')).queryByText('privado@test.invalid')).toBeNull()
+    expect(screen.getByText('Publicaciones').closest('.perfil-stat').textContent).toContain('3')
     expect(adapter.mock.calls.some(([config]) => config.url === '/api/usuarios/me' && config.headers.get('Authorization') === 'Bearer jwt-test')).toBe(true)
+    expect(llamadaPropias(adapter).params).toEqual({ page: 0, size: 10 })
     expect(adapter.mock.calls.some(([config]) => config.url === '/api/publicaciones')).toBe(false)
     fireEvent.click(screen.getByRole('link', { name: 'Editar perfil' }))
     expect(screen.getByText('Configuración 077')).toBeTruthy()
@@ -114,7 +154,8 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
   it('muestra identidad parcial honesta en 404, sin inventar biografía, región o conteos', async () => {
     renderPerfil(vi.fn((config) => config.url === '/api/usuarios/me' ? fail(config, 404)
       : config.url === '/api/auth/me' ? ok(config, { id: 7, name: 'Cuenta Real', nombreUsuario: 'cuenta', avatarUrl: null, email: 'secret@test.invalid' })
-        : config.url === '/api/usuarios/seguidos' ? ok(config, page([])) : ok(config, [])))
+        : config.url === RUTA_PROPIAS ? ok(config, postsPage([]))
+          : config.url === '/api/usuarios/seguidos' ? ok(config, page([])) : ok(config, [])))
     await screen.findByText('Cuenta Real', { selector: 'h2' })
     expect(screen.getByText(/Perfil completo pendiente de GET/)).toBeTruthy()
     expect(screen.getByText('Biografía no disponible: pendiente del endpoint de perfil.')).toBeTruthy()
@@ -124,8 +165,7 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
   })
 
   it('presenta bio vacía y avatar de respaldo al fallar la imagen', async () => {
-    renderPerfil(vi.fn((config) => config.url === '/api/usuarios/me' ? ok(config, { ...profile, biografia: null })
-      : config.url === '/api/usuarios/seguidos' ? ok(config, page([])) : ok(config, [])))
+    renderPerfil(baseAdapter({ perfil: { ...profile, biografia: null } }))
     await screen.findByText('Todavía no has agregado una biografía')
     fireEvent.error(screen.getByAltText('Avatar de María Real'))
     expect(screen.getByRole('img', { name: 'Avatar de María Real' })).toBeTruthy()
@@ -136,6 +176,7 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
     let attempts = 0
     renderPerfil(vi.fn((config) => {
       if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([]))
       if (config.url === '/api/usuarios/seguidos') {
         attempts += 1
         return attempts === 2 ? fail(config, 503) : ok(config, page([]))
@@ -153,7 +194,8 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
 
   it('maneja error de perfil con reintento y sin fixtures', async () => {
     renderPerfil(vi.fn((config) => config.url === '/api/usuarios/me' ? fail(config, 503)
-      : config.url === '/api/usuarios/seguidos' ? ok(config, page([])) : ok(config, [])))
+      : config.url === RUTA_PROPIAS ? ok(config, postsPage([]))
+        : config.url === '/api/usuarios/seguidos' ? ok(config, page([])) : ok(config, [])))
     await screen.findByText('No pudimos cargar tu perfil')
     expect(screen.queryByText('María Real', { selector: 'h2' })).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
@@ -161,10 +203,21 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
   })
 
   it('cancela solicitudes y retira datos privados al cerrar sesión', async () => {
-    renderPerfil(adapter)
+    let signalPropias
+    renderPerfil(vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) {
+        signalPropias = config.signal
+        return new Promise(() => {})
+      }
+      if (config.url === '/api/usuarios/seguidos') return ok(config, page([]))
+      return ok(config, [])
+    }))
     await screen.findByText('Estudio polinizadores')
+    expect(screen.getByRole('status', { name: 'Cargando publicaciones' })).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Salir' }))
     await screen.findByText('Pantalla de login')
+    expect(signalPropias.aborted).toBe(true)
     expect(screen.queryByText('Estudio polinizadores')).toBeNull()
   })
 
@@ -176,5 +229,104 @@ describe('Mi perfil y modales 073/075 (backend local)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
     expect(cancel).toHaveBeenCalledOnce()
     expect(confirm).not.toHaveBeenCalled()
+  })
+
+  it('muestra el estado vacío del endpoint sin mensajes provisionales', async () => {
+    renderPerfil(baseAdapter())
+    await screen.findByText('Aún no has publicado')
+    expect(screen.queryByText('Publicaciones propias no disponibles')).toBeNull()
+    expect(within(screen.getByRole('region', { name: 'Mis Publicaciones' })).queryByRole('article')).toBeNull()
+  })
+
+  it('muestra error del endpoint y reintenta con datos del servidor', async () => {
+    let intentos = 0
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) {
+        intentos += 1
+        return intentos === 1 ? fail(config, 503) : ok(config, postsPage([publicacionInicial]))
+      }
+      if (config.url === '/api/usuarios/seguidos') return ok(config, page([]))
+      return ok(config, [])
+    })
+    renderPerfil(local)
+    await screen.findByText('No pudimos cargar tus publicaciones')
+    fireEvent.click(within(screen.getByRole('region', { name: 'Mis Publicaciones' })).getByRole('button', { name: 'Reintentar' }))
+    await screen.findByText('Mariposa en el jardín')
+    expect(intentos).toBe(2)
+  })
+
+  it('respeta la paginación real de PaginaDTO con diez publicaciones por página', async () => {
+    const primera = Array.from({ length: 10 }, (_, index) => publicacionPropia(200 + index, `Publicación inicial ${index}`))
+    const segunda = [publicacionPropia(300, 'Publicación de la segunda página')]
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === RUTA_PROPIAS) return ok(config, config.params.page === 1
+        ? postsPage(segunda, 1, 11, 2)
+        : postsPage(primera, 0, 11, 2))
+      if (config.url === '/api/usuarios/seguidos') return ok(config, page([]))
+      return ok(config, [])
+    })
+    renderPerfil(local)
+    await screen.findByText('Publicación inicial 0')
+    expect(within(screen.getByRole('region', { name: 'Mis Publicaciones' })).getAllByRole('article')).toHaveLength(10)
+    const paginacion = screen.getByRole('navigation', { name: 'Páginas de mis publicaciones' })
+    expect(within(paginacion).getByText('Página 1 de 2')).toBeTruthy()
+    fireEvent.click(within(paginacion).getByRole('button', { name: 'Siguiente' }))
+    await screen.findByText('Publicación de la segunda página')
+    expect(screen.queryByText('Publicación inicial 0')).toBeNull()
+    expect(local.mock.calls.some(([config]) => config.url === RUTA_PROPIAS && config.params.page === 1 && config.params.size === 10)).toBe(true)
+    expect(within(screen.getByRole('region', { name: 'Mis Publicaciones' })).getAllByRole('article')).toHaveLength(1)
+  })
+
+  it('nunca consulta ni muestra el feed global para excluir publicaciones ajenas', async () => {
+    const ajena = publicacionPropia(999, 'Publicación ajena del feed', { autor: { id: 99, nombre: 'Otro usuario', nombreUsuario: 'otro', avatarUrl: null } })
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, profile)
+      if (config.url === '/api/publicaciones') return ok(config, postsPage([ajena]))
+      if (config.url === RUTA_PROPIAS) return ok(config, postsPage([publicacionInicial]))
+      if (config.url === '/api/usuarios/seguidos') return ok(config, page([]))
+      return ok(config, [])
+    })
+    renderPerfil(local)
+    await screen.findByText('Mariposa en el jardín')
+    expect(screen.queryByText('Publicación ajena del feed')).toBeNull()
+    expect(local.mock.calls.some(([config]) => config.url === '/api/publicaciones')).toBe(false)
+  })
+
+  it('abre los modales propios con permiso y refresca lista y contador tras eliminar', async () => {
+    let eliminada = false
+    const local = vi.fn((config) => {
+      if (config.url === '/api/usuarios/me') return ok(config, { ...profile, totalPublicaciones: eliminada ? 0 : 3 })
+      if (config.url === RUTA_PROPIAS) return ok(config, eliminada ? postsPage([]) : postsPage([publicacionInicial]))
+      if (config.url === '/api/usuarios/seguidos') return ok(config, page([]))
+      if (config.url === '/api/publicaciones/101' && config.method === 'delete') {
+        eliminada = true
+        return ok(config, '')
+      }
+      return ok(config, { count: 0 })
+    })
+    renderPerfil(local)
+    await screen.findByText('Mariposa en el jardín')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones para publicación 101' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Editar publicación' }))
+    const edicion = await screen.findByRole('dialog', { name: 'Editar publicación' })
+    expect(within(edicion).getByRole('button', { name: 'Guardar cambios' }).disabled).toBe(false)
+    fireEvent.click(within(edicion).getByRole('button', { name: 'Cancelar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Más opciones para publicación 101' }))
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Eliminar publicación' }))
+    const confirmacion = await screen.findByRole('dialog', { name: 'Eliminar publicación' })
+    const perfilesAntes = local.mock.calls.filter(([config]) => config.url === '/api/usuarios/me').length
+    const propiasAntes = local.mock.calls.filter(([config]) => config.url === RUTA_PROPIAS).length
+    fireEvent.click(within(confirmacion).getByRole('button', { name: 'Eliminar publicación' }))
+
+    await screen.findByText('Aún no has publicado')
+    await waitFor(() => expect(local.mock.calls.filter(([config]) => config.url === '/api/usuarios/me').length).toBeGreaterThan(perfilesAntes))
+    expect(local.mock.calls.filter(([config]) => config.url === RUTA_PROPIAS).length).toBeGreaterThan(propiasAntes)
+    expect(screen.getByText('Publicaciones').closest('.perfil-stat').textContent).toContain('0')
+    expect(local.mock.calls.some(([config]) => config.url === '/api/publicaciones/101' && config.method === 'delete')).toBe(true)
   })
 })
