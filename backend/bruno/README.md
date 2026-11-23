@@ -1,4 +1,4 @@
-# Colección Bruno — actividad 060
+# Colección Bruno — actividades 060, 064, 066 y pruebas JWT
 
 Colección mínima nueva (no existía otra en el repositorio) para comprobar los endpoints con JWT.
 
@@ -28,3 +28,26 @@ Peticiones `15` a `23`:
 3. `21` oculta la conversación solo para `token`; `22` (con `tokenInterlocutor`) debe seguir viéndola en la bandeja; `23` debe devolver `200` y hacerla reaparecer solo para `token`.
 4. Si se quiere comprobar la reaparición por mensaje nuevo, ejecutar `11` con `tokenInterlocutor` y `conversacionId` de la conversación oculta: debe aparecer para `token`, sin desocultarla para `tokenInterlocutor` si este la había ocultado.
 5. Estas peticiones se validaron mediante pruebas automáticas; no se ejecutaron desde la UI de Bruno ni contra un servidor levantado. Ver `backend/INTEGRACION_066.md`.
+
+
+## Pruebas obligatorias de API con Bruno — JWT y errores
+
+Esta colección está versionada directamente en `backend/bruno/`. **Usar Bruno; no Postman.** Las peticiones existentes (01 a 23) se mantienen.
+
+### Flujo seguro de demostración (solo lectura)
+
+1. Iniciar Spring Boot con una **base de pruebas o desarrollo autorizada** y abrir `backend/bruno` como colección en Bruno. Seleccionar el entorno `Local` con `baseUrl=http://localhost:8080`.
+2. En las variables del entorno `Local`, introducir localmente los valores **secretos** `loginCorreo` y `loginContrasena` correspondientes a una cuenta de pruebas ya existente. **No guardar ni versionar sus valores**, JWT, capturas con tokens, ni archivos de entorno con secretos.
+3. Ejecutar **`24-login-jwt.bru`**. Envía `POST /api/auth/login` con `correo` y `contrasena`; verifica HTTP 200 y `token`; guarda el JWT en la variable **de ejecución en memoria** `token` mediante `bru.setVar`, sin persistirlo en el archivo `Local.bru`.
+4. Ejecutar **`25-consultar-mi-sesion-jwt.bru`**. Envía `GET /api/auth/me` con `Authorization: Bearer {{token}}` y comprueba HTTP 200, ID, correo y rol del usuario.
+5. Ejecutar **`14-sin-jwt-denegado.bru`**: hace `GET /api/conversaciones` sin token y comprueba el **HTTP 401** esperado. No usa ni borra el JWT obtenido.
+6. Ejecutar **`26-login-invalido.bru`**: envía un correo deliberadamente mal formado a `POST /api/auth/login` y verifica el **HTTP 400** esperado. No utiliza credenciales reales ni modifica MySQL.
+
+**Evidencias para la evaluación:** capturas de Bruno con peticiones 24 (200), 25 (200), 14 (401) y 26 (400), ocultando contraseñas, el JWT y cualquier otro dato sensible. Una respuesta 400 o 401 es **éxito de prueba negativa** si su aserción pasa.
+
+**Importante:** ejecutar estas cuatro peticiones individualmente y en el orden indicado. No lanzar `Run Collection` sin revisar antes el resto de la colección: las peticiones 03, 05, 07, 11, 17, 21 y otras pueden **crear o modificar datos**. La colección anterior contiene IDs ilustrativos que deben ajustarse a una base de pruebas. Las pruebas de esta sección son de lectura, salvo el intento de autenticación, y no crean datos de la aplicación.
+
+El valor `token` generado con `bru.setVar` es temporal y está disponible para las peticiones posteriores en la misma sesión/ejecución de Bruno. Si se reinicia Bruno o se limpia el contexto de ejecución, volver a ejecutar el login. Si la versión de Bruno que utilizas no comparte la variable entre ejecuciones individuales, utiliza el runner con selección exclusiva del flujo 24→25 o introduce el JWT en la variable secreta `token` localmente sin versionarlo.
+
+---
+

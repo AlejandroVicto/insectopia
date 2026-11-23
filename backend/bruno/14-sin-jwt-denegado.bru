@@ -13,3 +13,9 @@ get {
 headers {
   Accept: application/json
 }
+
+tests {
+  test("Una petición protegida sin JWT devuelve HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+  });
+}
