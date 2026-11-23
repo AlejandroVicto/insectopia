@@ -1,0 +1,353 @@
+/* Actividad 079 - Modal de Seguridad.
+ * Paleta idéntica a la corrección visual de la actividad 077. El modal se
+ * renderiza en un portal, por eso los tokens se declaran en su propia raíz. */
+.seguridad-modal {
+  --seg-bg: #111713;
+  --seg-card: #19261e;
+  --seg-inset: #15211a;
+  --seg-soft: #2a4330;
+  --seg-lime: #a8e223;
+  --seg-text: #f3f8ef;
+  --seg-muted: #a5b7a7;
+  --seg-border: #2f4737;
+  background: var(--seg-card);
+  border-color: var(--seg-border);
+  box-shadow: 0 25px 50px -12px rgb(0 0 0 / 80%);
+  color-scheme: dark;
+  font-family: Mulish, Arial, sans-serif;
+}
+
+.seguridad-modal > header {
+  flex: 0 0 auto;
+  background: var(--seg-card);
+  border-bottom-color: var(--seg-border);
+  padding: 18px 24px 10px;
+}
+
+.seguridad-modal > header h2 {
+  color: var(--seg-text);
+  font-family: Mulish, Arial, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 28px;
+}
+
+.seguridad-modal > header p {
+  color: var(--seg-muted);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 16px;
+}
+
+.seguridad-modal > header button {
+  background: var(--seg-soft);
+  color: var(--seg-text);
+}
+
+.seguridad-modal > header button:hover:not(:disabled) { background: #35543d; }
+
+.seguridad-modal > [data-modal-content] {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.seguridad-formulario {
+  display: flex;
+  min-height: 0;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.seguridad-cuerpo {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 14px 24px 16px;
+  scrollbar-color: var(--seg-border) transparent;
+  scrollbar-width: thin;
+}
+
+.seguridad-cuerpo::-webkit-scrollbar { width: 8px; }
+.seguridad-cuerpo::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: var(--seg-border);
+}
+
+.seguridad-cuenta {
+  display: flex;
+  min-width: 0;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid var(--seg-border);
+  border-radius: 10px;
+  background: var(--seg-inset);
+  padding: 8px 10px;
+}
+
+.seguridad-cuenta-icono {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9px;
+  background: var(--seg-soft);
+  color: var(--seg-lime);
+}
+
+.seguridad-cuenta-icono svg { width: 18px; height: 18px; }
+
+.seguridad-cuenta-datos {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.seguridad-cuenta-correo {
+  display: block;
+  overflow: hidden;
+  color: var(--seg-text);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seguridad-cuenta-estado {
+  overflow: hidden;
+  color: var(--seg-muted);
+  font-size: 11px;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seguridad-cuenta-alias {
+  flex: 0 0 auto;
+  max-width: 38%;
+  overflow: hidden;
+  margin-left: auto;
+  border: 1px solid var(--seg-border);
+  border-radius: 999px;
+  background: var(--seg-soft);
+  padding: 2px 8px;
+  color: var(--seg-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seguridad-requisitos-contenedor {
+  margin-top: 10px;
+  border: 1px solid var(--seg-border);
+  border-radius: 10px;
+  background: rgb(21 33 26 / 60%);
+  padding: 8px 10px;
+}
+
+.seguridad-ayuda-titulo {
+  color: var(--seg-lime);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 14px;
+}
+
+/* Dos columnas compactas: las cuatro reglas siguen siendo texto real y se
+   anuncian completas a lectores de pantalla; sólo cambia su disposición. */
+.seguridad-requisitos {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 2px 12px;
+  margin-top: 4px;
+  color: var(--seg-muted);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.seguridad-requisitos li { display: flex; align-items: baseline; gap: 6px; }
+.seguridad-requisitos li > span { width: 9px; flex: none; color: var(--seg-border); }
+.seguridad-requisitos .seguridad-requisito--ok { color: var(--seg-text); }
+.seguridad-requisitos .seguridad-requisito--ok > span { color: var(--seg-lime); }
+
+.seguridad-campos {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.seguridad-campo { min-width: 0; }
+
+.seguridad-campo > label {
+  margin-bottom: 4px;
+  line-height: 16px;
+}
+
+.seguridad-control {
+  display: flex;
+  min-height: 42px;
+  align-items: stretch;
+  border: 1px solid var(--seg-border);
+  border-radius: 10px;
+  background: var(--seg-inset);
+  transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.seguridad-control:focus-within {
+  border-color: var(--seg-lime);
+  box-shadow: 0 0 0 2px rgb(168 226 35 / 20%);
+}
+
+.seguridad-control--error { border-color: #f87171; }
+
+/* La misma regla aplica a password y a text: al revelar una contraseña el
+   campo conserva el fondo oscuro, el texto claro y el borde del contenedor. */
+.seguridad-input {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
+  border: 0;
+  background-color: var(--seg-inset);
+  padding: 9px 2px 9px 12px;
+  color: var(--seg-text);
+  font-size: 13px;
+  line-height: 18px;
+}
+
+.seguridad-input:focus { outline: none; }
+.seguridad-input::placeholder { color: var(--seg-muted); }
+
+/* Chrome/Edge pintan el autocompletado con fondo claro aunque el autor fije
+   background-color. La sombra interior lo mantiene en la paleta 079. */
+.seguridad-modal .seguridad-input:-webkit-autofill,
+.seguridad-modal .seguridad-input:-webkit-autofill:hover,
+.seguridad-modal .seguridad-input:-webkit-autofill:focus,
+.seguridad-modal .seguridad-input:-webkit-autofill:active {
+  background-color: var(--seg-inset);
+  box-shadow: 0 0 0 1000px var(--seg-inset) inset;
+  -webkit-box-shadow: 0 0 0 1000px var(--seg-inset) inset;
+  -webkit-text-fill-color: var(--seg-text);
+  caret-color: var(--seg-lime);
+}
+
+/* Evita un segundo ojo nativo junto al botón Mostrar/Ocultar del componente. */
+.seguridad-input::-ms-reveal,
+.seguridad-input::-ms-clear,
+.seguridad-input::-webkit-credentials-auto-fill-button,
+.seguridad-input::-webkit-caps-lock-indicator { display: none; }
+
+.seguridad-ver {
+  display: flex;
+  min-width: 66px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border-left: 1px solid var(--seg-border);
+  padding: 8px 10px;
+  color: var(--seg-lime);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.seguridad-ver:hover { color: var(--seg-text); }
+
+.seguridad-recordatorio {
+  margin-top: 10px;
+  color: var(--seg-lime);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+.seguridad-recordatorio span { color: var(--seg-muted); }
+
+.seguridad-pie {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  border-top: 1px solid var(--seg-border);
+  background: var(--seg-card);
+  box-shadow: 0 -6px 16px rgb(0 0 0 / 18%);
+  padding: 10px 24px 14px;
+}
+
+.seguridad-aviso-error,
+.seguridad-aviso-exito {
+  margin-bottom: 10px;
+  border-radius: 12px;
+  border: 1px solid #f87171;
+  background: rgb(127 29 29 / 22%);
+  padding: 10px 12px;
+  color: #fecaca;
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.seguridad-aviso-exito {
+  border-color: var(--seg-border);
+  background: var(--seg-inset);
+  color: var(--seg-lime);
+}
+
+.seguridad-reautenticar {
+  margin-bottom: 10px;
+  color: var(--seg-lime);
+  font-size: 12px;
+  font-weight: 800;
+  text-decoration: underline;
+}
+
+.seguridad-descartar {
+  margin-bottom: 12px;
+  border: 1px solid var(--seg-border);
+  border-radius: 12px;
+  background: var(--seg-inset);
+  padding: 12px;
+  color: var(--seg-text);
+  font-size: 12px;
+  line-height: 18px;
+}
+
+.seguridad-descartar-acciones,
+.seguridad-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.seguridad-descartar-acciones { margin-top: 8px; }
+
+.seguridad-acciones button {
+  min-width: 136px;
+  min-height: 40px;
+}
+
+.seguridad-modal button:focus-visible,
+.seguridad-modal input:focus-visible {
+  outline: 2px solid var(--seg-lime);
+  outline-offset: 2px;
+}
+
+@media (max-width: 560px) {
+  .seguridad-modal > header { padding: 16px 18px 10px; }
+  .seguridad-cuerpo { padding: 12px 18px 14px; }
+  .seguridad-pie { padding: 10px 18px 14px; }
+  .seguridad-cuenta { flex-wrap: nowrap; }
+  .seguridad-cuenta-alias { max-width: 34%; }
+  .seguridad-acciones,
+  .seguridad-descartar-acciones { justify-content: stretch; }
+  .seguridad-acciones button,
+  .seguridad-descartar-acciones button { min-width: 0; flex: 1 1 auto; }
+}
+
+@media (max-width: 420px) {
+  .seguridad-requisitos { grid-template-columns: minmax(0, 1fr); }
+}

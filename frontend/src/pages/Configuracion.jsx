@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { adaptarPerfil } from '../adapters/perfilAdapter'
 import { actualizarMiPerfil, consultarIdentidad, consultarMiPerfil } from '../services/perfilService'
@@ -7,6 +7,7 @@ import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import { mensajeErrorApi } from '../services/erroresApi'
 import { LIMITES, TIPOS_IMAGEN_ACEPTADOS } from '../constants/modalesPublicaciones'
 import Avatar from '../components/inicio/Avatar'
+import CambiarContrasenaModal from '../components/seguridad/CambiarContrasenaModal'
 import {
   VALORES_INICIALES_CONFIGURACION,
   validarCampoConfiguracion,
@@ -94,7 +95,9 @@ function CampoIdentidad({ campo, etiqueta, error, prefijo, children }) {
 }
 
 export default function Configuracion() {
-  const { user } = useAuth()
+  const { user, clearSession } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
   const [params, setParams] = useSearchParams()
   const seccion = params.get('seccion') === 'seguridad' ? 'seguridad' : 'perfil'
   const [estado, setEstado] = useState('cargando')
@@ -118,6 +121,8 @@ export default function Configuracion() {
   const [guardando, setGuardando] = useState(false)
   const [errorGuardado, setErrorGuardado] = useState('')
   const [mensajeGuardado, setMensajeGuardado] = useState('')
+  const [modalContrasena, setModalContrasena] = useState(false)
+  const [contrasenaActualizada, setContrasenaActualizada] = useState('')
   const regionRequest = useRef(0)
   const archivoFotoRef = useRef(null)
   const guardandoRef = useRef(false)
@@ -347,6 +352,15 @@ export default function Configuracion() {
     seleccionarSeccion(seccion === 'perfil' ? 'seguridad' : 'perfil')
   }
 
+  function irAReautenticar() {
+    setModalContrasena(false)
+    clearSession()
+    navigate('/login', {
+      replace: true,
+      state: { from: location.pathname + location.search + location.hash },
+    })
+  }
+
   async function compartir() {
     if (!navigator.clipboard?.writeText) {
       setMensajeCompartir('Copia el enlace desde la barra del navegador.')
@@ -534,29 +548,40 @@ export default function Configuracion() {
             aria-labelledby="tab-seguridad"
             className="configuracion-panel"
           >
+            {contrasenaActualizada && <p role="status" className="configuracion-card configuracion-card--seccion text-xs text-[var(--conf-lime)]">
+              {contrasenaActualizada}
+            </p>}
+
             <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-sesion">
               <h3 id="titulo-sesion" className="configuracion-titulo-seccion">Inicio de sesión y recuperación</h3>
               <Campo campo="correo" etiqueta="Correo de la cuenta" error={errorCorreo} ayuda="Se muestra únicamente el correo de tu propia sesión.">
                 <input {...propsCampo('correo', errorCorreo, true)} type="email" className="configuracion-input" readOnly value={correoMostrado} />
               </Campo>
               <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--conf-muted)]">
-                <span className="configuracion-pendiente">Pendiente · actividad 079</span>
-                El cambio de correo y la recuperación se habilitarán con el servicio de seguridad.
+                <span className="configuracion-pendiente">Pendiente · backend 080</span>
+                El cambio de correo y la recuperación se habilitarán cuando el servicio de seguridad esté disponible.
               </p>
             </section>
 
             <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-password">
               <h3 id="titulo-password" className="configuracion-titulo-seccion">Contraseña</h3>
-              <div className="configuracion-grupo">
-                <Campo campo="contrasena" etiqueta="Nueva contraseña" error={errores.contrasena}
-                  ayuda="Mínimo 8 caracteres, mayúscula, número y carácter especial. Pendiente de la actividad 079.">
-                  <input {...propsCampo('contrasena', errores.contrasena, true)} type="password" className="configuracion-input" disabled autoComplete="new-password" placeholder="Sin cambio" />
-                </Campo>
-                <Campo campo="confirmarContrasena" etiqueta="Confirmar contraseña" error={errores.confirmarContrasena}
-                  ayuda="Pendiente de la actividad 079.">
-                  <input {...propsCampo('confirmarContrasena', errores.confirmarContrasena, true)} type="password" className="configuracion-input" disabled autoComplete="new-password" placeholder="Sin cambio" />
-                </Campo>
+              <p className="mt-2 text-xs leading-5 text-[var(--conf-muted)]">
+                Actualiza la contraseña de tu cuenta desde un diálogo seguro. La confirmación se envía solo cuando el backend responde correctamente.
+              </p>
+              <div className="configuracion-acciones-foto">
+                <button
+                  type="button"
+                  className="configuracion-primary"
+                  aria-haspopup="dialog"
+                  onClick={() => setModalContrasena(true)}
+                >
+                  Cambiar contraseña
+                </button>
+                <span className="configuracion-pendiente">Requiere backend 080</span>
               </div>
+              <p className="mt-2 text-[11px] leading-4 text-[var(--conf-muted)]">
+                Mínimo 8 caracteres, una mayúscula, un número y un carácter especial. No se guardan contraseñas en este navegador.
+              </p>
             </section>
           </div>}
 
@@ -605,6 +630,16 @@ export default function Configuracion() {
           </p>
         </aside>}
       </div>}
+
+      {modalContrasena && <CambiarContrasenaModal
+        correo={correoMostrado}
+        alias={alias}
+        onClose={() => setModalContrasena(false)}
+        onSuccess={(resultado) => setContrasenaActualizada(resultado?.requiereReautenticacion
+          ? 'Contraseña actualizada. Inicia sesión nuevamente para continuar.'
+          : 'Contraseña actualizada correctamente.')}
+        onReauth={irAReautenticar}
+      />}
     </div>
   </div>
 }

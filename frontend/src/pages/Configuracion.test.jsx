@@ -358,23 +358,38 @@ describe('Configuración 077', () => {
     expect(screen.getByLabelText('País').value).toBe('MX')
   })
 
-  it('mantiene Seguridad como área dependiente del servicio de seguridad', async () => {
+  it('mantiene Seguridad como área de la 079 sin campos editable del Perfil', async () => {
     renderConfiguracion({ initial: '/app/configuracion?seccion=seguridad' })
     await screen.findByRole('heading', { name: 'Contraseña' })
-    const contra = screen.getByLabelText('Nueva contraseña')
-    const confirmacion = screen.getByLabelText('Confirmar contraseña')
-    expect(contra.disabled).toBe(true)
-    expect(confirmacion.disabled).toBe(true)
+    expect(screen.getByRole('button', { name: 'Cambiar contraseña' })).toBeTruthy()
     expect(screen.getByDisplayValue('maria@test.invalid')).toBeTruthy()
-    expect(screen.getAllByText(/servicio de seguridad/).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/actividad 079/i).length).toBeGreaterThan(0)
-    expect(screen.getByText(/Pendiente · actividad 079/)).toBeTruthy()
+    expect(screen.getByText(/Pendiente · backend 080/)).toBeTruthy()
+    expect(screen.getByText(/Requiere backend 080/)).toBeTruthy()
+    expect(screen.getByText(/recuperación se habilitará/)).toBeTruthy()
     expect(screen.queryByLabelText('Foto y datos de perfil')).toBeNull()
     expect(screen.queryByLabelText('Nombre')).toBeNull()
     expect(screen.queryByLabelText('Nombre de usuario')).toBeNull()
+    expect(screen.queryByLabelText('Nueva contraseña')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Cambiar foto' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Guardar cambios' })).toBeNull()
     expect(screen.queryByRole('complementary', { name: 'Resumen del perfil' })).toBeNull()
+  })
+
+  it('abre el modal de contraseña desde Seguridad en la misma ruta y restaura el foco', async () => {
+    renderConfiguracion({ initial: '/app/configuracion?seccion=seguridad' })
+    await screen.findByRole('heading', { name: 'Contraseña' })
+    const abrir = screen.getByRole('button', { name: 'Cambiar contraseña' })
+    abrir.focus()
+    fireEvent.click(abrir)
+
+    expect(await screen.findByRole('dialog', { name: 'Cambiar contraseña' })).toBeTruthy()
+    expect(screen.getByTestId('location').textContent).toBe('/app/configuracion?seccion=seguridad')
+    expect(screen.getByLabelText('Contraseña actual')).toBeTruthy()
+    expect(document.activeElement).toBe(screen.getByLabelText('Contraseña actual'))
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(document.activeElement).toBe(abrir)
   })
 
   it('aborta la consulta de perfil al desmontar', async () => {
