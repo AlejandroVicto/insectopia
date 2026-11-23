@@ -135,9 +135,16 @@ public class PublicacionesService {
     @Transactional(readOnly = true)
     public Page<PublicacionResponseDTO> listarPropias(
             int page, int size, InsectopiaUserDetails principal) {
+        return listarVisiblesDe(principal.idUsuario(), page, size, principal);
+    }
+
+    /** Mismo filtro y agregaciones del perfil propio; el autor lo valida el servicio de usuarios. */
+    @Transactional(readOnly = true)
+    public Page<PublicacionResponseDTO> listarVisiblesDe(
+            Long idAutor, int page, int size, InsectopiaUserDetails principal) {
         Pageable pagina = PageRequest.of(page, size, ORDEN_PROPIO);
         Page<Publicacion> propias = publicaciones.findPropiasVisibles(
-                principal.idUsuario(), EstadoPublicacion.VISIBLE, pagina);
+                idAutor, EstadoPublicacion.VISIBLE, pagina);
         List<Long> ids = propias.getContent().stream()
                 .map(Publicacion::getIdPublicacion)
                 .toList();

@@ -43,7 +43,11 @@ function LoginControl() {
 }
 
 function renderInicio(adapter) {
-  api.defaults.adapter = adapter
+  api.defaults.adapter = (config) => {
+    if (config.url === '/api/usuarios/sugeridos') return ok(config, [])
+    if (config.url === '/api/eventos') return ok(config, { ...pagina([]), size: 5, totalPages: 0 })
+    return adapter(config)
+  }
   render(<MemoryRouter initialEntries={['/login']}><AuthProvider>
     <LoginControl />
     <Routes>

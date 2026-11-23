@@ -133,6 +133,17 @@ class EventoServiceTests {
                 () -> service.listar(0, 10, null, EstadoEvento.PENDIENTE, "", null, null, false, actual));
     }
 
+    @Test void navbarBuscaSoloTitulosAprobadosSinUsarDescripcionNiUbicacion() {
+        when(eventos.buscarTitulosPublicos(eq(EstadoEvento.APROBADO), eq("%polillas%"), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of(evento)));
+        var pagina = service.buscarTitulos("Polillas", 5, principal(8));
+        assertEquals("Polillas", pagina.getContent().getFirst().titulo());
+        ArgumentCaptor<Pageable> captor = ArgumentCaptor.forClass(Pageable.class);
+        verify(eventos).buscarTitulosPublicos(eq(EstadoEvento.APROBADO), eq("%polillas%"), captor.capture());
+        assertEquals(5, captor.getValue().getPageSize());
+        assertTrue(service.buscarTitulos("   ", 5, actual).isEmpty());
+    }
+
     @Test void proximosCalculadosEnZonaLocalConLimitesDeTreintaDias() {
         when(eventos.listarPublicos(eq(EstadoEvento.APROBADO), isNull(), any(), any(), any()))
                 .thenReturn(new PageImpl<>(List.of()));

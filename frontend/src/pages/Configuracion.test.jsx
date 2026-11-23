@@ -19,6 +19,10 @@ const perfil = {
   nombreUsuario: 'maria',
   fotoPerfil: 'https://example.test/avatar.png',
   biografia: 'Estudio polinizadores',
+  genero: 'Femenino',
+  fechaNacimiento: '2000-01-04',
+  telefono: '+52 33 1234 5678',
+  correo: 'maria@test.invalid',
   paisCodigo: 'MX',
   estadoRegion: 'Jalisco',
   fechaRegistro: '2022-06-01T10:00:00Z',
@@ -54,7 +58,9 @@ function renderConfiguracion({
   fallarPaises = false,
   fallarRegiones = false,
   estadoGuardado = 404,
-  datosGuardado = {},
+  datosGuardado = perfil,
+  estadoFoto = 200,
+  datosFoto = { ...perfil, fotoPerfil: 'https://api.test.invalid/api/usuarios/7/avatar?v=imagen.png' },
   user = SESSION_USER,
 } = {}) {
   const llamadas = []
@@ -63,6 +69,13 @@ function renderConfiguracion({
     const metodo = String(config.method ?? 'get').toLowerCase()
     if (config.url === '/api/usuarios/me' && metodo === 'put') {
       return estadoGuardado === 200 ? ok(config, datosGuardado) : fail(config, estadoGuardado)
+    }
+    if (config.url === '/api/usuarios/me/configuracion') return ok(config, datosPerfil)
+    if (config.url === '/api/usuarios/me/avatar' && metodo === 'post') {
+      return estadoFoto === 200 ? ok(config, datosFoto) : fail(config, estadoFoto)
+    }
+    if (config.url === '/api/usuarios/me/avatar' && metodo === 'delete') {
+      return estadoFoto === 200 ? ok(config, null) : fail(config, estadoFoto)
     }
     if (config.url === '/api/usuarios/me') {
       if (estadoPerfil === 404) return fail(config, 404)
@@ -100,7 +113,7 @@ describe('Configuración 077', () => {
     expect(screen.getByRole('tab', { name: 'Perfil' }).getAttribute('aria-selected')).toBe('true')
     expect(screen.getByRole('button', { name: 'Cambiar foto' }).disabled).toBe(false)
     expect(screen.getByText('Presentación')).toBeTruthy()
-    expect(screen.getByText('Sitio web')).toBeTruthy()
+    expect(screen.queryByText('Sitio web')).toBeNull()
     expect(screen.getByText('Género')).toBeTruthy()
     expect(screen.getByText('Ubicación')).toBeTruthy()
     expect(screen.getByText('Fecha de nacimiento')).toBeTruthy()
@@ -115,11 +128,11 @@ describe('Configuración 077', () => {
     expect(screen.getByLabelText('Nombre de usuario').closest('.configuracion-identidad-input')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Cancelar selección' })).toBeNull()
     expect(screen.getByLabelText('Biografía').value).toBe('Estudio polinizadores')
-    expect(screen.getByLabelText('Identidad').value).toBe('')
+    expect(screen.getByLabelText('Identidad').value).toBe('Femenino')
     expect(screen.getByLabelText('Identidad').disabled).toBe(false)
-    expect(screen.getByLabelText('Fecha').value).toBe('')
+    expect(screen.getByLabelText('Fecha').value).toBe('2000-01-04')
     expect(screen.getByLabelText('Fecha').disabled).toBe(false)
-    expect(screen.getByLabelText('Teléfono').value).toBe('')
+    expect(screen.getByLabelText('Teléfono').value).toBe('+52 33 1234 5678')
     expect(screen.getByLabelText('Teléfono').disabled).toBe(false)
     expect(screen.getByLabelText('País').value).toBe('MX')
     expect(screen.getByLabelText('Estado').value).toBe('Jalisco')
@@ -127,7 +140,7 @@ describe('Configuración 077', () => {
     expect(within(screen.getByRole('complementary', { name: 'Resumen del perfil' })).getByText('12')).toBeTruthy()
     expect(llamadas.some((config) => config.url === '/api/usuarios/me')).toBe(true)
     expect(llamadas.some((config) => config.url === '/api/catalogos/paises')).toBe(true)
-    expect(screen.queryByText('maria@test.invalid')).toBeNull()
+    expect(screen.getByDisplayValue('maria@test.invalid')).toBeTruthy()
     expect(screen.queryByText(/actividad 079/i)).toBeNull()
   })
 
@@ -204,14 +217,51 @@ describe('Configuración 077', () => {
   })
 
   it('usa la petición de actualización cuando el servicio responde correctamente', async () => {
-    const llamadas = renderConfiguracion({ estadoGuardado: 200 })
+    const llamadas = renderConfiguracion({ estadoGuardado: 200, datosGuardado: { ...perfil, biografia: 'Nueva presentación' } })
     await screen.findByLabelText('Biografía')
+    await waitFor(() => expect(screen.getByLabelText('Estado').disabled).toBe(false))
     fireEvent.change(screen.getByLabelText('Biografía'), { target: { value: 'Nueva presentación' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
 
     expect(await screen.findByText('Tus cambios se guardaron.')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Guardar cambios' }).disabled).toBe(true)
     expect(llamadas.filter((config) => String(config.method).toLowerCase() === 'put')).toHaveLength(1)
+  })
+
+  it('sube la foto sin repetir la actualización de datos y muestra la URL confirmada', async () => {
+    const llamadas = renderConfiguracion()
+    await screen.findByLabelText('Biografía')
+    fireEvent.change(document.querySelector('#config-foto'), {
+      target: { files: [new File(['foto'], 'foto.png', { type: 'image/png' })] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(await screen.findByText('Tus cambios se guardaron.')).toBeTruthy()
+    expect(llamadas.filter(({ method }) => method === 'put')).toHaveLength(0)
+    expect(llamadas.filter(({ method, url }) => method === 'post' && url === '/api/usuarios/me/avatar')).toHaveLength(1)
+  })
+
+  it('si falla la foto tras guardar datos conserva solo la fotografía pendiente para reintentar', async () => {
+    const llamadas = renderConfiguracion({ estadoGuardado: 200, estadoFoto: 503 })
+    await screen.findByLabelText('Biografía')
+    fireEvent.change(screen.getByLabelText('Biografía'), { target: { value: 'Nueva presentación' } })
+    fireEvent.change(document.querySelector('#config-foto'), {
+      target: { files: [new File(['foto'], 'foto.png', { type: 'image/png' })] },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(await screen.findByText(/Los datos se guardaron, pero la foto no/)).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    await waitFor(() => expect(llamadas.filter(({ method, url }) => method === 'post' && url === '/api/usuarios/me/avatar')).toHaveLength(2))
+    expect(llamadas.filter(({ method }) => method === 'put')).toHaveLength(1)
+  })
+
+  it('elimina la foto con DELETE al guardar sin enviar datos de perfil', async () => {
+    const llamadas = renderConfiguracion()
+    await screen.findByLabelText('Biografía')
+    fireEvent.click(screen.getByRole('button', { name: 'Quitar imagen' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar cambios' }))
+    expect(await screen.findByText('Tus cambios se guardaron.')).toBeTruthy()
+    expect(llamadas.filter(({ method, url }) => method === 'delete' && url === '/api/usuarios/me/avatar')).toHaveLength(1)
+    expect(llamadas.filter(({ method }) => method === 'put')).toHaveLength(0)
   })
 
   it('cancela y restaura los valores originales', async () => {
@@ -316,7 +366,8 @@ describe('Configuración 077', () => {
     const llamadas = []
     api.defaults.adapter = (config) => {
       llamadas.push(config)
-      if (config.url === '/api/usuarios/me') return fallar ? fail(config, 503) : ok(config, perfil)
+      if (config.url === '/api/usuarios/me/configuracion') return fallar ? fail(config, 503) : ok(config, perfil)
+      if (config.url === '/api/usuarios/me') return ok(config, perfil)
       if (config.url === '/api/catalogos/paises') return ok(config, paises)
       if (config.url?.endsWith('/regiones')) return ok(config, regiones)
       return ok(config, {})
@@ -335,16 +386,14 @@ describe('Configuración 077', () => {
     fallar = false
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(await screen.findByLabelText('Biografía')).toBeTruthy()
-    expect(llamadas.filter((config) => config.url === '/api/usuarios/me')).toHaveLength(2)
+    expect(llamadas.filter((config) => config.url === '/api/usuarios/me/configuracion')).toHaveLength(2)
   })
 
-  it('usa /api/auth/me ante 404 sin inventar biografía ni estadísticas', async () => {
-    const identidad = { id: 7, role: 'USUARIO', name: 'María Real', nombreUsuario: 'maria', email: 'maria@test.invalid', avatarUrl: null }
-    renderConfiguracion({ estadoPerfil: 404, datosIdentidad: identidad })
-    expect(await screen.findByText(/Perfil parcial/)).toBeTruthy()
+  it('si falla el resumen mantiene los datos privados completos', async () => {
+    renderConfiguracion({ estadoPerfil: 404 })
     expect(await screen.findByLabelText('Biografía')).toBeTruthy()
-    expect(screen.getByLabelText('Biografía').value).toBe('')
-    expect(screen.getByLabelText('País').value).toBe('')
+    expect(screen.getByLabelText('Biografía').value).toBe('Estudio polinizadores')
+    expect(screen.getByLabelText('País').value).toBe('MX')
     expect(within(screen.getByRole('complementary', { name: 'Resumen del perfil' })).getAllByText('—').length).toBeGreaterThan(0)
     fireEvent.click(screen.getByRole('tab', { name: 'Seguridad' }))
     expect(screen.getByDisplayValue('maria@test.invalid')).toBeTruthy()
@@ -363,9 +412,7 @@ describe('Configuración 077', () => {
     await screen.findByRole('heading', { name: 'Contraseña' })
     expect(screen.getByRole('button', { name: 'Cambiar contraseña' })).toBeTruthy()
     expect(screen.getByDisplayValue('maria@test.invalid')).toBeTruthy()
-    expect(screen.getByText(/Pendiente · backend 080/)).toBeTruthy()
-    expect(screen.getByText(/Requiere backend 080/)).toBeTruthy()
-    expect(screen.getByText(/recuperación se habilitará/)).toBeTruthy()
+    expect(screen.getByText(/El correo es de solo lectura/)).toBeTruthy()
     expect(screen.queryByLabelText('Foto y datos de perfil')).toBeNull()
     expect(screen.queryByLabelText('Nombre')).toBeNull()
     expect(screen.queryByLabelText('Nombre de usuario')).toBeNull()
@@ -395,7 +442,7 @@ describe('Configuración 077', () => {
   it('aborta la consulta de perfil al desmontar', async () => {
     let senalPerfil
     api.defaults.adapter = (config) => {
-      if (config.url === '/api/usuarios/me') {
+      if (config.url === '/api/usuarios/me/configuracion') {
         senalPerfil = config.signal
         return new Promise(() => {})
       }

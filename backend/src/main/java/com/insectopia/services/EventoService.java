@@ -108,6 +108,20 @@ public class EventoService {
     }
 
     @Transactional(readOnly = true)
+    public Page<EventoResponseDTO> buscarTitulos(String q, int limite, InsectopiaUserDetails user) {
+        if (limite < 1 || limite > 10) {
+            throw new EventoValidacionException("El límite de búsqueda no es válido");
+        }
+        if (q == null || q.isBlank()) return new PageImpl<>(List.of(), PageRequest.of(0, limite), 0);
+        String texto = q.trim();
+        if (texto.length() > 100) texto = texto.substring(0, 100);
+        String titulo = "%" + texto.toLowerCase(Locale.ROOT)
+                .replace("!", "!!").replace("%", "!%").replace("_", "!_") + "%";
+        return mapearPagina(eventos.buscarTitulosPublicos(EstadoEvento.APROBADO, titulo,
+                PageRequest.of(0, limite, ORDEN)), user.idUsuario());
+    }
+
+    @Transactional(readOnly = true)
     public Page<EventoResponseDTO> propias(int page, int size, String q, EstadoEvento estado,
             String periodo, LocalDate desde, LocalDate hasta, InsectopiaUserDetails user) {
         Filtro f = filtro(q, desde, hasta, periodo, false);

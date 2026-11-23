@@ -69,6 +69,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.GET, "/api/health").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/publicaciones/*/imagen").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/eventos/*/imagen").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/usuarios/*/avatar").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/catalogos/paises", "/api/catalogos/paises/*/regiones").permitAll()
 						.requestMatchers(
 								HttpMethod.POST,

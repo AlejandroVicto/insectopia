@@ -13,13 +13,13 @@ import {
 import { quitarReaccion, reaccionar } from '../services/reaccionesService'
 import { mensajeErrorApi } from '../services/erroresApi'
 import { obtenerPaises } from '../services/catalogoService'
-import Avatar from '../components/inicio/Avatar'
 import PublicationCard from '../components/inicio/PublicationCard'
 import FeedPagination from '../components/inicio/FeedPagination'
 import { FeedEmpty, FeedError, FeedLoading } from '../components/inicio/FeedStates'
 import EditarPublicacionModal from '../components/modales/EditarPublicacionModal'
 import EliminarPublicacionModal from '../components/modales/EliminarPublicacionModal'
 import PerfilUsuariosModal from '../components/perfil/PerfilUsuariosModal'
+import PerfilResumen from '../components/perfil/PerfilResumen'
 import './inicio.css'
 import './mi-perfil.css'
 
@@ -168,18 +168,8 @@ export default function MiPerfil() {
           <button type="button" className="perfil-secondary mt-4" onClick={() => { setIdentity(null); setCountResult(null); setRetry((n) => n + 1) }}>Reintentar</button></div>}
         {!identity && <div className="inicio-card perfil-state" role="status">Cargando tu perfil...</div>}
         {identity?.partial && <p role="status" className="perfil-note">Perfil completo pendiente de GET /api/usuarios/me. Solo se muestra la identidad confirmada por /api/auth/me; biografía, ubicación y estadísticas no están disponibles.</p>}
-        {profile && <>
-          <section className="inicio-card perfil-header" aria-label="Información de mi cuenta">
-            <span className="perfil-big-avatar"><Avatar name={profile.nombre} src={profile.fotoPerfil} /></span>
-            <div className="min-w-0 flex-1"><h2 className="break-words text-xl font-bold">{profile.nombre}</h2>
-              <p className="break-words text-sm text-[var(--inicio-muted)]">@{profile.nombreUsuario}</p></div>
-            <Link to="/app/configuracion?seccion=perfil" className="perfil-primary text-center">Editar perfil</Link>
-          </section>
-          <section className="inicio-card perfil-info"><h2>⌖ &nbsp;Ubicación</h2>
-            <p>{location || 'Ubicación no disponible'}</p></section>
-          <section className="inicio-card perfil-info"><h2>Biografía</h2>
-            <p>{profile.biografia || (identity.partial ? 'Biografía no disponible: pendiente del endpoint de perfil.' : 'Todavía no has agregado una biografía')}</p></section>
-        </>}
+         {profile && <PerfilResumen profile={profile} location={location} parcial={identity.partial}
+           action={<Link to="/app/configuracion?seccion=perfil" className="perfil-primary text-center">Editar perfil</Link>} />}
         <section aria-labelledby="perfil-posts-title" className="min-w-0">
           <h2 id="perfil-posts-title" className="mb-4 px-3 text-base font-bold">Mis Publicaciones</h2>
           {accionError && <div role="alert" className="mb-4 rounded-xl border border-red-500/40 bg-red-950/40 px-4 py-3 text-xs text-red-200">{accionError}</div>}

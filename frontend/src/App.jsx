@@ -14,6 +14,7 @@ import Notificaciones from './pages/Notificaciones'
 import PublicacionDetalle from './pages/PublicacionDetalle'
 import Eventos from './pages/Eventos'
 import MiPerfil from './pages/MiPerfil'
+import PerfilPublico from './pages/PerfilPublico'
 import Configuracion from './pages/Configuracion'
 import Administracion from './pages/Administracion'
 import Moderacion from './pages/Moderacion'
@@ -201,6 +202,7 @@ export default function App() {
             path="/app/perfil"
             element={<MiPerfil />}
           />
+          <Route path="/app/usuarios/:id" element={<PerfilPublico />} />
 
           {/* Actividad 077 - Configuración */}
           <Route

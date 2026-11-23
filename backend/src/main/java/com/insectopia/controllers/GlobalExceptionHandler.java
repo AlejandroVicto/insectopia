@@ -26,6 +26,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.insectopia.dtos.ErrorResponseDTO;
 import com.insectopia.dtos.ErrorResponseDTO.FieldErrorDTO;
+import com.insectopia.dtos.TokenErrorResponseDTO;
 import com.insectopia.exceptions.BusinessRuleException;
 import com.insectopia.exceptions.ImagenInvalidaException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
@@ -37,6 +38,7 @@ import com.insectopia.exceptions.EventoConflictoException;
 import com.insectopia.exceptions.EventoValidacionException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.exceptions.RegistrationValidationException;
+import com.insectopia.exceptions.TokenRecuperacionException;
 
 import jakarta.validation.ConstraintViolationException;
 import tools.jackson.core.JacksonException;
@@ -178,6 +180,16 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(EventoValidacionException.class)
 	public ResponseEntity<ErrorResponseDTO> handleInvalidArgument(EventoValidacionException exception, WebRequest request) {
 		return build(HttpStatus.BAD_REQUEST, exception.getMessage(), path(request));
+	}
+
+	/** Código explícito para el frontend 055; nunca describe la cuenta asociada. */
+	@ExceptionHandler(TokenRecuperacionException.class)
+	public ResponseEntity<TokenErrorResponseDTO> handleTokenRecuperacion(
+			TokenRecuperacionException exception,
+			WebRequest request) {
+		return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+				.body(TokenErrorResponseDTO.of(exception.code(), HttpStatus.BAD_REQUEST,
+						exception.getMessage(), path(request)));
 	}
 
 	@ExceptionHandler(RegistrationValidationException.class)

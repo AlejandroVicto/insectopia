@@ -62,6 +62,14 @@ public class EventoController {
         return PaginaDTO.from(service.listar(page, size, q, estado, periodo, fechaDesde, fechaHasta, proximos, principal));
     }
 
+    @GetMapping("/buscar")
+    public PaginaDTO<EventoResponseDTO> buscarTitulos(
+            @RequestParam @Size(min = 1, max = 100) String q,
+            @RequestParam(defaultValue = "5") @Min(1) @Max(10) int limite,
+            @AuthenticationPrincipal InsectopiaUserDetails principal) {
+        return PaginaDTO.from(service.buscarTitulos(q, limite, principal));
+    }
+
     @GetMapping("/mis-propuestas")
     public PaginaDTO<EventoResponseDTO> propias(
             @RequestParam(defaultValue = "0") @Min(0) int page,

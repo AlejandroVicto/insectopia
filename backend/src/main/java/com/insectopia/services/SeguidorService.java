@@ -7,6 +7,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.insectopia.dtos.UsuarioPublicoDTO;
+import com.insectopia.dtos.UsuarioSugeridoDTO;
 import com.insectopia.dtos.publicaciones.PaginaDTO;
 import com.insectopia.exceptions.RegistrationValidationException;
 import com.insectopia.exceptions.ResourceNotFoundException;
@@ -52,6 +54,41 @@ public class SeguidorService {
 
     /** {@code creada} decide entre HTTP 201 y HTTP 200 (idempotente). */
     public record ResultadoSeguir(boolean creada) {
+    }
+
+    @Transactional(readOnly = true)
+    public List<UsuarioSugeridoDTO> sugeridos(int limite, List<Long> excluir, InsectopiaUserDetails principal) {
+        Long propio = idAutenticado(principal);
+        if (limite < 1 || limite > 5 || (excluir != null && excluir.size() > 20)) {
+            throw new RegistrationValidationException("limite", "Parámetros de sugerencias no válidos");
+        }
+        List<Long> omitidos = (excluir == null ? List.<Long>of() : excluir).stream()
+                .filter(id -> id != null && id > 0).distinct().toList();
+        if (omitidos.isEmpty()) omitidos = List.of(-1L); // IN nunca recibe una lista vacía.
+        long mayor = usuarios.mayorId();
+        if (mayor < 1) return List.of();
+        long pivote = ThreadLocalRandom.current().nextLong(1, mayor + 1);
+        List<UsuarioSugeridoDTO> resultado = new java.util.ArrayList<>(usuarios.sugerirDesde(
+                propio, EstadoUsuario.ACTIVO, omitidos, pivote, PageRequest.of(0, limite)));
+        if (resultado.size() < limite && pivote > 1) {
+            // Recorre desde el principio solo si el tramo elegido no alcanza cinco.
+            List<Long> adicionales = new java.util.ArrayList<>(omitidos);
+            resultado.forEach(u -> adicionales.add(u.id()));
+            resultado.addAll(usuarios.sugerirDesde(propio, EstadoUsuario.ACTIVO, adicionales, 1L,
+                    PageRequest.of(0, limite - resultado.size())));
+        }
+        return resultado;
+    }
+
+    @Transactional(readOnly = true)
+    public List<UsuarioSugeridoDTO> buscarUsuarios(String q, int limite, InsectopiaUserDetails principal) {
+        Long propio = idAutenticado(principal);
+        if (limite < 1 || limite > 10) {
+            throw new RegistrationValidationException("limite", "Límite de búsqueda no válido");
+        }
+        String busqueda = patronBusqueda(q);
+        if (busqueda == null) return List.of();
+        return usuarios.buscarUsuarios(propio, EstadoUsuario.ACTIVO, busqueda, PageRequest.of(0, limite));
     }
 
     @Transactional(readOnly = true)

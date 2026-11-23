@@ -1,3 +1,4 @@
+
 package com.insectopia.repository;
 
 import java.time.LocalDateTime;
@@ -17,67 +18,111 @@ import com.insectopia.models.enums.EstadoEvento;
 import jakarta.persistence.LockModeType;
 
 public interface EventoRepository extends JpaRepository<Evento, Long> {
-    Page<Evento> findByEstado(EstadoEvento estado, Pageable pageable);
-    Page<Evento> findByProponente_IdUsuario(Long idUsuario, Pageable pageable);
-    Page<Evento> findByEstadoOrderByFechaInicioAsc(EstadoEvento estado, Pageable pageable);
-    Page<Evento> findByTituloContainingIgnoreCase(String titulo, Pageable pageable);
-    Page<Evento> findByModerador_IdUsuario(Long idModerador, Pageable pageable);
 
-    @EntityGraph(attributePaths = "proponente")
-    @Query("""
-            select e from Evento e where e.estado = :estado
-            and e.proponente.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
-            and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
-                 or lower(e.ubicacion) like :q escape '!')
-            and (:desde is null or e.fechaInicio >= :desde)
-            and (:hasta is null or e.fechaInicio < :hasta)
-            """)
-    Page<Evento> listarPublicos(@Param("estado") EstadoEvento estado, @Param("q") String q,
-            @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta, Pageable pageable);
+        Page<Evento> findByEstado(EstadoEvento estado, Pageable pageable);
 
-    @EntityGraph(attributePaths = "proponente")
-    @Query("""
-            select e from Evento e where e.proponente.idUsuario = :usuario
-            and (:estado is null or e.estado = :estado)
-            and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
-                 or lower(e.ubicacion) like :q escape '!')
-            and (:desde is null or e.fechaInicio >= :desde)
-            and (:hasta is null or e.fechaInicio < :hasta)
-            """)
-    Page<Evento> listarPropios(@Param("usuario") Long usuario, @Param("estado") EstadoEvento estado,
-            @Param("q") String q, @Param("desde") LocalDateTime desde,
-            @Param("hasta") LocalDateTime hasta, Pageable pageable);
+        Page<Evento> findByProponente_IdUsuario(Long idUsuario, Pageable pageable);
 
-    @EntityGraph(attributePaths = "proponente")
-    @Query("""
-            select e from Evento e join ParticipanteEvento p on p.evento = e
-            where p.usuario.idUsuario = :usuario and p.estado = com.insectopia.models.enums.EstadoParticipanteEvento.INSCRITO
-            and (:estado is null or e.estado = :estado)
-            and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
-                 or lower(e.ubicacion) like :q escape '!')
-            and (:desde is null or e.fechaInicio >= :desde)
-            and (:hasta is null or e.fechaInicio < :hasta)
-            """)
-    Page<Evento> listarParticipaciones(@Param("usuario") Long usuario, @Param("estado") EstadoEvento estado,
-            @Param("q") String q, @Param("desde") LocalDateTime desde,
-            @Param("hasta") LocalDateTime hasta, Pageable pageable);
+        Page<Evento> findByEstadoOrderByFechaInicioAsc(
+                        EstadoEvento estado, Pageable pageable);
 
-    @EntityGraph(attributePaths = {"proponente", "moderador"})
-    @Query("""
-            select e from Evento e where (:estado is null or e.estado = :estado)
-            and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
-                 or lower(e.ubicacion) like :q escape '!')
-            and (:desde is null or e.fechaInicio >= :desde)
-            and (:hasta is null or e.fechaInicio < :hasta)
-            """)
-    Page<Evento> listarParaModeracion(@Param("estado") EstadoEvento estado, @Param("q") String q,
-            @Param("desde") LocalDateTime desde, @Param("hasta") LocalDateTime hasta, Pageable pageable);
+        Page<Evento> findByTituloContainingIgnoreCase(
+                        String titulo, Pageable pageable);
 
-    @EntityGraph(attributePaths = "proponente")
-    @Query("select e from Evento e where e.idEvento = :id")
-    Optional<Evento> obtenerConProponente(@Param("id") Long id);
+        Page<Evento> findByModerador_IdUsuario(
+                        Long idModerador, Pageable pageable);
 
-    @Lock(LockModeType.PESSIMISTIC_WRITE)
-    @Query("select e from Evento e where e.idEvento = :id")
-    Optional<Evento> bloquear(@Param("id") Long id);
+        @EntityGraph(attributePaths = "proponente")
+        @Query("""
+                        select e from Evento e where e.estado = :estado
+                        and e.proponente.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
+                        and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
+                             or lower(e.ubicacion) like :q escape '!')
+                        and (:desde is null or e.fechaInicio >= :desde)
+                        and (:hasta is null or e.fechaInicio < :hasta)
+                        """)
+        Page<Evento> listarPublicos(
+                        @Param("estado") EstadoEvento estado,
+                        @Param("q") String q,
+                        @Param("desde") LocalDateTime desde,
+                        @Param("hasta") LocalDateTime hasta,
+                        Pageable pageable);
+
+        @EntityGraph(attributePaths = "proponente")
+        @Query("""
+                        select e from Evento e where e.proponente.idUsuario = :usuario
+                        and (:estado is null or e.estado = :estado)
+                        and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
+                             or lower(e.ubicacion) like :q escape '!')
+                        and (:desde is null or e.fechaInicio >= :desde)
+                        and (:hasta is null or e.fechaInicio < :hasta)
+                        """)
+        Page<Evento> listarPropios(
+                        @Param("usuario") Long usuario,
+                        @Param("estado") EstadoEvento estado,
+                        @Param("q") String q,
+                        @Param("desde") LocalDateTime desde,
+                        @Param("hasta") LocalDateTime hasta,
+                        Pageable pageable);
+
+        @EntityGraph(attributePaths = "proponente")
+        @Query("""
+                        select e from Evento e join ParticipanteEvento p on p.evento = e
+                        where p.usuario.idUsuario = :usuario and p.estado = com.insectopia.models.enums.EstadoParticipanteEvento.INSCRITO
+                        and (:estado is null or e.estado = :estado)
+                        and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
+                             or lower(e.ubicacion) like :q escape '!')
+                        and (:desde is null or e.fechaInicio >= :desde)
+                        and (:hasta is null or e.fechaInicio < :hasta)
+                        """)
+        Page<Evento> listarParticipaciones(
+                        @Param("usuario") Long usuario,
+                        @Param("estado") EstadoEvento estado,
+                        @Param("q") String q,
+                        @Param("desde") LocalDateTime desde,
+                        @Param("hasta") LocalDateTime hasta,
+                        Pageable pageable);
+
+        /*
+         * Cambios de tu compañera:
+         * Consulta de eventos para el panel de moderación.
+         */
+        @EntityGraph(attributePaths = { "proponente", "moderador" })
+        @Query("""
+                        select e from Evento e where (:estado is null or e.estado = :estado)
+                        and (:q is null or lower(e.titulo) like :q escape '!' or lower(e.descripcion) like :q escape '!'
+                             or lower(e.ubicacion) like :q escape '!')
+                        and (:desde is null or e.fechaInicio >= :desde)
+                        and (:hasta is null or e.fechaInicio < :hasta)
+                        """)
+        Page<Evento> listarParaModeracion(
+                        @Param("estado") EstadoEvento estado,
+                        @Param("q") String q,
+                        @Param("desde") LocalDateTime desde,
+                        @Param("hasta") LocalDateTime hasta,
+                        Pageable pageable);
+
+        /*
+         * Tus cambios:
+         * Búsqueda global del Navbar únicamente por título.
+         * Excluye eventos no públicos y proponentes desactivados.
+         */
+        @EntityGraph(attributePaths = "proponente")
+        @Query("""
+                        select e from Evento e where e.estado = :estado
+                        and e.proponente.estado = com.insectopia.models.enums.EstadoUsuario.ACTIVO
+                        and lower(e.titulo) like :titulo escape '!'
+                        """)
+        Page<Evento> buscarTitulosPublicos(
+                        @Param("estado") EstadoEvento estado,
+                        @Param("titulo") String titulo,
+                        Pageable pageable);
+
+        @EntityGraph(attributePaths = "proponente")
+        @Query("select e from Evento e where e.idEvento = :id")
+        Optional<Evento> obtenerConProponente(@Param("id") Long id);
+
+        @Lock(LockModeType.PESSIMISTIC_WRITE)
+        @Query("select e from Evento e where e.idEvento = :id")
+        Optional<Evento> bloquear(@Param("id") Long id);
 }

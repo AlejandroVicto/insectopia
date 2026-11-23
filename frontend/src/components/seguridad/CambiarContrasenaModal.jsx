@@ -20,8 +20,6 @@ import {
 import './seguridad.css'
 
 const ID_TITULO = 'seguridad-cambiar-titulo'
-const ID_DESCRIPCION = 'seguridad-cambiar-descripcion'
-const DESCRIPCION = 'Usarás esta contraseña para iniciar sesión en tu cuenta de Insectopia. Debe tener al menos 8 caracteres e incluir mayúscula, número y carácter especial.'
 
 function CampoContrasena({
   id,
@@ -221,9 +219,7 @@ export default function CambiarContrasenaModal({
 
   return <ModalContainer
     titleId={ID_TITULO}
-    descriptionId={ID_DESCRIPCION}
     title="Cambiar contraseña"
-    description={DESCRIPCION}
     onClose={solicitarCierre}
     closeLabel="Cerrar cambio de contraseña"
     closeDisabled={enviando}
@@ -308,7 +304,7 @@ export default function CambiarContrasenaModal({
         </div>
 
         <p className="seguridad-recordatorio">
-          ¿Olvidaste tu contraseña? <span>La recuperación se habilitará con el servicio 080.</span>
+          ¿Olvidaste tu contraseña? <span>Utiliza la recuperación de contraseña desde el inicio de sesión.</span>
         </p>
       </div>
 

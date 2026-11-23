@@ -19,16 +19,13 @@ const errorHttp = (status, data = {}, extra = {}) => Object.assign(new Error('Er
   ...extra,
 })
 
-describe('seguridadService - contrato pendiente de la actividad 080', () => {
-  it('no inventa un endpoint productivo ni envía contraseñas mientras falte el contrato', async () => {
-    const transporte = { put: vi.fn() }
-    expect(CONTRATO_SEGURIDAD_080.endpoint).toBeNull()
-    expect(CONTRATO_SEGURIDAD_080.estado).toBe('pendiente')
-
-    await expect(cambiarContrasena(valores, { transporte })).rejects.toMatchObject({
-      codigo: 'contrato_pendiente',
-    })
-    expect(transporte.put).not.toHaveBeenCalled()
+describe('seguridadService - contrato 080', () => {
+  it('envía únicamente al endpoint de la cuenta autenticada', async () => {
+    const transporte = { put: vi.fn().mockResolvedValue({ data: { requiereReautenticacion: true } }) }
+    expect(CONTRATO_SEGURIDAD_080.endpoint).toBe('/api/usuarios/me/contrasena')
+    expect(CONTRATO_SEGURIDAD_080.estado).toBe('disponible')
+    await expect(cambiarContrasena(valores, { transporte })).resolves.toEqual({ requiereReautenticacion: true })
+    expect(transporte.put.mock.calls[0][0]).toBe('/api/usuarios/me/contrasena')
   })
 
   it('prepara un payload propio sin incluir la confirmación ni datos de perfil', () => {

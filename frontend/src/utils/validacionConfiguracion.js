@@ -68,7 +68,7 @@ export function validarCampoConfiguracion(campo, valores, catalogo = {}) {
     case 'genero':
       return GENEROS.includes(valor) ? undefined : 'Selecciona una opción válida.'
     case 'paisCodigo': {
-      if (!valor) return undefined
+      if (!valor) return 'El país es obligatorio.'
       if (!CODIGO_PAIS.test(valor.toUpperCase())) return 'Usa un código ISO de dos letras.'
       if (catalogo.paises?.length && !catalogo.paises.some((pais) => pais.codigo === valor.toUpperCase())) {
         return 'Selecciona un país del catálogo.'
@@ -76,7 +76,7 @@ export function validarCampoConfiguracion(campo, valores, catalogo = {}) {
       return undefined
     }
     case 'estadoRegion': {
-      if (!valor) return undefined
+      if (!valor) return 'La región es obligatoria.'
       if (valor.length > 100) return 'La región no puede superar los 100 caracteres.'
       if (catalogo.regiones?.length && !catalogo.regiones.some((region) => region.nombre === valor)) {
         return 'Selecciona una región del país indicado.'
@@ -84,7 +84,7 @@ export function validarCampoConfiguracion(campo, valores, catalogo = {}) {
       return undefined
     }
     case 'fechaNacimiento':
-      if (!valor) return undefined
+      if (!valor) return 'La fecha de nacimiento es obligatoria.'
       return fechaValidaYNoFutura(valor) ? undefined : 'Ingresa una fecha válida que no sea futura.'
     case 'telefono': {
       if (!valor) return undefined

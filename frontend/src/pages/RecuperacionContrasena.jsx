@@ -193,7 +193,7 @@ function EstadoFinal({ exito }) {
     <div className={`recuperacion-medallon ${exito ? '' : 'recuperacion-medallon-error'}`}><Icono tipo={exito ? 'check' : 'advertencia'} /></div>
     <h1>{exito ? 'Contraseña actualizada' : <>Este enlace ya <br />no es válido</>}</h1>
     <p className="recuperacion-intro">{exito ? <>Tu contraseña se actualizó correctamente.<br />Vuelve a iniciar sesión con tu nueva contraseña.</> : <>El enlace es incorrecto, venció o ya fue utilizado.<br />Solicita uno nuevo para continuar de forma segura.</>}</p>
-    {exito && <Nota tipo="escudo" titulo="Tu cuenta vuelve a estar protegida">Si tenías sesiones abiertas en otros dispositivos, ciérralas por seguridad.</Nota>}
+    {exito && <Nota tipo="escudo" titulo="Tu cuenta vuelve a estar protegida">Las sesiones abiertas anteriormente se han cerrado automáticamente.</Nota>}
     <Link className="recuperacion-primario" to={exito ? '/login' : '/recuperar-contrasena'}>{exito ? 'Volver a iniciar sesión' : 'Solicitar otro enlace'}</Link>
     {exito ? <p className="recuperacion-epilogo">Ya puedes acceder con tu nueva contraseña.</p> : <Volver icono />}
   </div>

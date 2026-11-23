@@ -1,25 +1,12 @@
-// Actividad 079 - Capa de Seguridad, separada del flujo de perfil (077/078).
-//
-// Estado del contrato (verificado en el código fuente del backend):
-//   - AuthController: POST /api/auth/register, POST /api/auth/login,
-//     GET /api/auth/me y POST /api/auth/logout.
-//   - UsuarioController: GET /api/usuarios/me y GET /api/usuarios/me/publicaciones.
-//   - No existe todavía ningún endpoint de cambio de contraseña, recuperación
-//     ni desactivación de cuenta. Esos son responsabilidad de la actividad 080.
-//
-// Por eso NO se inventa una ruta productiva. Mientras `endpoint` sea null,
-// `cambiarContrasena` rechaza con `codigo: 'contrato_pendiente'` antes de
-// crear cualquier petición HTTP. Las pruebas inyectan un endpoint de mock y un
-// transporte falso; ese valor nunca se usa en la aplicación.
+// Actividad 080: contrato de cambio de contraseña separado de perfil.
 
 import api from './api'
 
 export const CONTRATO_SEGURIDAD_080 = Object.freeze({
-  estado: 'pendiente',
-  endpoint: null,
-  metodo: null,
-  dto: null,
-  nota: 'Faltan la ruta, el método HTTP y el DTO del backend 080. Este frontend no envía contraseñas a una URL supuesta.',
+  estado: 'disponible',
+  endpoint: '/api/usuarios/me/contrasena',
+  metodo: 'PUT',
+  dto: ['contrasenaActual', 'contrasenaNueva'],
 })
 
 // Solo para pruebas. No es un endpoint del backend ni se usa por defecto.
@@ -69,8 +56,7 @@ function sinSecretos(texto, valores) {
 }
 
 export function construirPayloadCambioContrasena(valores) {
-  // Propuesta de DTO, no un contrato confirmado. La confirmación se valida en
-  // el cliente y nunca se envía.
+  // La confirmación se valida en el cliente y nunca se envía.
   return {
     contrasenaActual: String(valores?.contrasenaActual ?? ''),
     contrasenaNueva: String(valores?.contrasenaNueva ?? ''),
@@ -147,13 +133,6 @@ export function cambiarContrasena(
   valores,
   { transporte = api, endpoint = CONTRATO_SEGURIDAD_080.endpoint, signal } = {},
 ) {
-  if (!endpoint) {
-    return Promise.reject(errorSeguridad(
-      'contrato_pendiente',
-      'El cambio de contraseña estará disponible cuando el backend 080 publique su contrato. Tus contraseñas no se enviaron.',
-    ))
-  }
-
   return transporte.put(
     endpoint,
     construirPayloadCambioContrasena(valores),

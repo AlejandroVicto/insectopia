@@ -9,6 +9,7 @@ import com.insectopia.dtos.publicaciones.PaginaDTO;
 import com.insectopia.dtos.publicaciones.PublicacionResponseDTO;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Usuario;
+import com.insectopia.models.enums.EstadoUsuario;
 import com.insectopia.repository.SeguidorRepository;
 import com.insectopia.repository.UsuarioRepository;
 import com.insectopia.security.InsectopiaUserDetails;
@@ -50,6 +51,18 @@ public class UsuarioService {
             throw new ResourceNotFoundException("usuario", idUsuario);
         }
         return PaginaDTO.from(publicaciones.listarPropias(page, size, principal));
+    }
+
+    @Transactional(readOnly = true)
+    public PaginaDTO<PublicacionResponseDTO> publicacionesPublicas(
+            Long idAutor, int page, int size, InsectopiaUserDetails principal) {
+        idAutenticado(principal);
+        Usuario autor = usuarios.findById(idAutor)
+                .orElseThrow(() -> new ResourceNotFoundException("usuario", idAutor));
+        if (autor.getEstado() != EstadoUsuario.ACTIVO) {
+            throw new ResourceNotFoundException("usuario", idAutor);
+        }
+        return PaginaDTO.from(publicaciones.listarVisiblesDe(idAutor, page, size, principal));
     }
 
     private Long idAutenticado(InsectopiaUserDetails principal) {

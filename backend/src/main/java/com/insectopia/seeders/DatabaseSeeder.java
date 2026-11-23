@@ -1029,8 +1029,11 @@ public class DatabaseSeeder implements CommandLineRunner {
                     MARCA_REPORTE + numero(i + 1)
                             + "] Reporte ficticio de demostración.");
             reporte.setEstado(estado);
+            // Todas las fechas demo deben estar en el pasado: si alguna queda en el
+            // futuro se coloca por encima de los reportes reales en la bandeja
+            // (ORDER BY fecha_reporte DESC) y estos parecen "no aparecer".
             reporte.setFechaReporte(
-                    LocalDateTime.now().minusDays(10).plusDays(i));
+                    LocalDateTime.now().minusDays(15).plusDays(i));
 
             if (estado == EstadoReporte.RESUELTO
                     || estado == EstadoReporte.RECHAZADO) {

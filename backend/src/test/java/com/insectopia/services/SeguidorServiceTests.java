@@ -34,6 +34,7 @@ import org.springframework.transaction.support.DefaultTransactionStatus;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import com.insectopia.dtos.UsuarioPublicoDTO;
+import com.insectopia.dtos.UsuarioSugeridoDTO;
 import com.insectopia.dtos.publicaciones.PaginaDTO;
 import com.insectopia.exceptions.RegistrationValidationException;
 import com.insectopia.exceptions.ResourceNotFoundException;
@@ -95,6 +96,30 @@ class SeguidorServiceTests {
                 "seguidor" + idSeguidor, EstadoUsuario.ACTIVO));
         relacion.setSeguido(usuario(idSeguido, "Seguido", "seguido", EstadoUsuario.ACTIVO));
         return relacion;
+    }
+
+    @Test
+    void sugerenciasLimitadasExcluyenSeguidosEnLaConsultaYPidenReemplazoSinNMasUno() {
+        when(usuarios.mayorId()).thenReturn(20L);
+        when(usuarios.sugerirDesde(eq(7L), eq(EstadoUsuario.ACTIVO), eq(List.of(9L)),
+                any(Long.class), any())).thenReturn(List.of(
+                    new UsuarioSugeridoDTO(10L, "Diez", "diez", null),
+                    new UsuarioSugeridoDTO(11L, "Once", "once", null)));
+        var sugeridos = service.sugeridos(2, List.of(9L), principal);
+        assertEquals(List.of(10L, 11L), sugeridos.stream().map(UsuarioSugeridoDTO::id).toList());
+        verify(usuarios).sugerirDesde(eq(7L), eq(EstadoUsuario.ACTIVO), eq(List.of(9L)),
+                any(Long.class), eq(PageRequest.of(0, 2)));
+        verifyNoInteractions(seguidores);
+    }
+
+    @Test
+    void navbarBuscaUsuariosActivosEnBdSinTraerDatosPrivados() {
+        when(usuarios.buscarUsuarios(7L, EstadoUsuario.ACTIVO, "%elena%", PageRequest.of(0, 5)))
+                .thenReturn(List.of(new UsuarioSugeridoDTO(9L, "Elena", "elena", null)));
+        var encontrados = service.buscarUsuarios("  Elena  ", 5, principal);
+        assertEquals(List.of(9L), encontrados.stream().map(UsuarioSugeridoDTO::id).toList());
+        verify(usuarios).buscarUsuarios(7L, EstadoUsuario.ACTIVO, "%elena%", PageRequest.of(0, 5));
+        assertTrue(service.buscarUsuarios("   ", 5, principal).isEmpty());
     }
 
     @Test

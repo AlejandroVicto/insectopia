@@ -89,6 +89,10 @@ export function consultarEventos({ page = 0, size = 10, filtros = {}, proximos =
   })
 }
 
+export function buscarEventosPorTitulo({ q, limite = 5, signal } = {}) {
+  return api.get(`${RUTA_EVENTOS}/buscar`, { params: { q, limite }, signal })
+}
+
 export function consultarEvento(id, { signal } = {}) {
   if (!idValido(id)) return Promise.reject(new TypeError('Se requiere el identificador del evento'))
   return api.get(`${RUTA_EVENTOS}/${encodeURIComponent(String(id))}`, { signal })

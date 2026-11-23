@@ -7,6 +7,10 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.LinkOption;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
 import java.util.Iterator;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -41,6 +45,15 @@ public class AlmacenamientoImagenesService {
     }
 
     public String guardar(MultipartFile archivo) {
+        return guardar(archivo, false);
+    }
+
+    /** Solo para avatares: marca persistente ANTES de crear el archivo. */
+    public String guardarAvatar(MultipartFile archivo) {
+        return guardar(archivo, true);
+    }
+
+    private String guardar(MultipartFile archivo, boolean avatar) {
         if (archivo == null || archivo.isEmpty()) throw new ImagenInvalidaException(HttpStatus.BAD_REQUEST, "La imagen es obligatoria");
         if (archivo.getSize() > MAX_BYTES) throw new ImagenInvalidaException(HttpStatus.CONTENT_TOO_LARGE, "La imagen supera 5 MB");
         String original = archivo.getOriginalFilename();
@@ -65,10 +78,15 @@ public class AlmacenamientoImagenesService {
             Files.createDirectories(directorio);
             String nombre = UUID.randomUUID() + ("PNG".equals(formato) ? ".png" : ".jpg");
             Path destino = rutaSegura(nombre);
+            Path marca = marcaSegura(nombre);
+            if (avatar) Files.write(marca, new byte[0], StandardOpenOption.CREATE_NEW);
             try {
                 Files.write(destino, limpio, StandardOpenOption.CREATE_NEW);
             } catch (IOException exception) {
-                Files.deleteIfExists(destino);
+                // Si falla el borrado, la marca permanece para un reintento posterior.
+                if (!Files.exists(destino) || Files.deleteIfExists(destino)) {
+                    if (avatar) Files.deleteIfExists(marca);
+                }
                 throw exception;
             }
             return nombre;
@@ -150,6 +168,52 @@ public class AlmacenamientoImagenesService {
             log.warn("Limpieza de imagen pendiente; se reintentará", exception);
             return false;
         }
+    }
+
+    /** Nunca elimina la marca si el archivo aún puede estar presente. */
+    public boolean eliminarAvatarPendiente(String nombre) {
+        if (!eliminarPendiente(nombre)) return false;
+        return confirmarAvatar(nombre);
+    }
+
+    /** En commit (o si la BD todavía lo referencia), quitar únicamente la marca. */
+    public boolean confirmarAvatar(String nombre) {
+        try {
+            Files.deleteIfExists(marcaSegura(nombre));
+            return true;
+        } catch (IOException | ResourceNotFoundException exception) {
+            log.warn("No se pudo confirmar un avatar; se reintentará", exception);
+            return false;
+        }
+    }
+
+    /** Sólo marcas propias maduras; el procesador debe consultar la BD antes de borrar. */
+    public List<String> avataresPendientes(Duration antiguedad) {
+        if (!Files.isDirectory(directorio)) return List.of();
+        Instant limite = Instant.now().minus(antiguedad);
+        try (var archivos = Files.list(directorio)) {
+            return archivos.filter(ruta -> ruta.getFileName().toString().endsWith(".pendiente"))
+                    .filter(ruta -> Files.isRegularFile(ruta, LinkOption.NOFOLLOW_LINKS))
+                    .map(ruta -> ruta.getFileName().toString())
+                    .filter(nombre -> NOMBRE.matcher(nombre.substring(0, nombre.length() - ".pendiente".length())).matches())
+                    .filter(nombre -> {
+                        try {
+                            return Files.getLastModifiedTime(directorio.resolve(nombre), LinkOption.NOFOLLOW_LINKS)
+                                    .toInstant().isBefore(limite);
+                        } catch (IOException exception) {
+                            log.warn("No se pudo inspeccionar un avatar pendiente", exception);
+                            return false;
+                        }
+                    })
+                    .map(nombre -> nombre.substring(0, nombre.length() - ".pendiente".length()))
+                    .toList();
+        } catch (IOException exception) {
+            throw new IllegalStateException("No se pudo inspeccionar la limpieza de avatares", exception);
+        }
+    }
+
+    private Path marcaSegura(String nombre) {
+        return rutaSegura(nombre).resolveSibling(nombre + ".pendiente");
     }
 
     private Path rutaSegura(String nombre) {

@@ -28,7 +28,7 @@ function PrivateLayoutContent({ notificationCount }) {
   const isNotificaciones = pathname === '/app/notificaciones'
   const isPublicacion = pathname.startsWith('/app/publicaciones/')
   const isEventos = pathname === '/app/eventos'
-  const isPerfil = pathname === '/app/perfil'
+  const isPerfil = pathname === '/app/perfil' || pathname.startsWith('/app/usuarios/')
   const isConfiguracion = pathname === '/app/configuracion'
   const isAdministracion = pathname === '/administracion'
   const isModeracion = pathname === '/moderacion'

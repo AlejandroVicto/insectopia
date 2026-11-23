@@ -47,21 +47,21 @@ function ParamsProbe() {
   return <span data-testid="params">{useLocation().search}</span>
 }
 
-function LoginControl() {
+function LoginControl({ destino = '/app/eventos' }) {
   const { setSession } = useAuth()
   const navigate = useNavigate()
   return <button onClick={() => {
     setSession({ token: 'jwt-de-prueba', user: { id: 7, role: 'USUARIO', name: 'Usuaria Real', email: 'usuaria@ejemplo.test' } })
-    navigate('/app/eventos')
+    navigate(destino)
   }}>Preparar sesión</button>
 }
 
-function renderEventos({ demo = false, adapter = vi.fn(), authenticated = true } = {}) {
+function renderEventos({ demo = false, adapter = vi.fn(), authenticated = true, destino = '/app/eventos' } = {}) {
   api.defaults.adapter = adapter
   render(
     <MemoryRouter initialEntries={[authenticated ? '/login' : '/app/eventos']}>
       <AuthProvider>
-        <LoginControl />
+        <LoginControl destino={destino} />
         <ParamsProbe />
         <Routes>
           <Route path="/login" element={<p>Pantalla de login</p>} />
@@ -80,6 +80,18 @@ function renderEventos({ demo = false, adapter = vi.fn(), authenticated = true }
 }
 
 describe('Eventos 069', () => {
+  it('abre desde la URL la ficha real de un evento y permite cerrarla', async () => {
+    const adapter = vi.fn((config) => config.url === '/api/eventos/40'
+      ? ok(config, raw(40)) : ok(config, pagina([])))
+    renderEventos({ destino: '/app/eventos?evento=40', adapter })
+    const modal = await screen.findByRole('dialog', { name: 'Detalles del evento' })
+    expect(within(modal).getByText('Evento 40')).toBeTruthy()
+    expect(adapter.mock.calls.some(([config]) => config.url === '/api/eventos/40')).toBe(true)
+    fireEvent.click(within(modal).getByRole('button', { name: 'Cerrar' }))
+    expect(screen.queryByRole('dialog', { name: 'Detalles del evento' })).toBeNull()
+    expect(screen.getByTestId('params').textContent).toBe('')
+  })
+
   it('protege la ruta y no monta la pantalla sin sesión', async () => {
     renderEventos({ authenticated: false })
     await waitFor(() => expect(screen.getByText('Pantalla de login')).toBeTruthy())

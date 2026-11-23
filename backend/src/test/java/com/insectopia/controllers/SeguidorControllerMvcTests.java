@@ -41,6 +41,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import com.insectopia.dtos.UsuarioPublicoDTO;
+import com.insectopia.dtos.UsuarioSugeridoDTO;
 import com.insectopia.dtos.publicaciones.PaginaDTO;
 import com.insectopia.exceptions.RegistrationValidationException;
 import com.insectopia.exceptions.ResourceNotFoundException;
@@ -56,6 +57,7 @@ import com.insectopia.security.JwtService;
 import com.insectopia.security.Permissions;
 import com.insectopia.security.SecurityConfig;
 import com.insectopia.services.SeguidorService;
+import com.insectopia.services.UsuarioService;
 
 /** Actividad 076: autenticación, contrato JSON, idempotencia y códigos HTTP. */
 @WebMvcTest(SeguidorController.class)
@@ -80,6 +82,7 @@ class SeguidorControllerMvcTests {
     @Autowired private JwtService jwt;
 
     @MockitoBean private SeguidorService service;
+    @MockitoBean private UsuarioService perfiles;
     @MockitoBean private UsuarioRepository usuarios;
     @MockitoBean private TokenRevocadoRepository revocados;
 
@@ -116,6 +119,38 @@ class SeguidorControllerMvcTests {
     private static UsuarioPublicoDTO persona(Long id) {
         return new UsuarioPublicoDTO(id, "Clara", "clara", null, "Observación",
                 Boolean.TRUE, 12, 4);
+    }
+
+    @Test
+    void sugerenciasYPaginaPublicaUsanJwtYSoloDatosPublicos() throws Exception {
+        mvc.perform(get("/api/usuarios/sugeridos")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/usuarios/11/publicaciones")).andExpect(status().isUnauthorized());
+        when(service.sugeridos(5, List.of(9L), principal)).thenReturn(
+                List.of(new UsuarioSugeridoDTO(11L, "Clara", "clara", null)));
+        mvc.perform(bearer(get("/api/usuarios/sugeridos").param("excluir", "9")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(11))
+                .andExpect(jsonPath("$[0].correo").doesNotExist());
+        verify(service).sugeridos(5, List.of(9L), principal);
+        when(perfiles.publicacionesPublicas(11L, 0, 10, principal)).thenReturn(
+                PaginaDTO.from(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0)));
+        mvc.perform(bearer(get("/api/usuarios/11/publicaciones")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(0));
+        verify(perfiles).publicacionesPublicas(11L, 0, 10, principal);
+    }
+
+    @Test
+    void buscarUsuariosDeLaNavbarRequiereJwtYDevuelveSoloIdentidad() throws Exception {
+        mvc.perform(get("/api/usuarios/buscar").param("q", "elena")).andExpect(status().isUnauthorized());
+        when(service.buscarUsuarios("elena", 5, principal)).thenReturn(
+                List.of(new UsuarioSugeridoDTO(9L, "Elena", "elena", null)));
+        mvc.perform(bearer(get("/api/usuarios/buscar").param("q", "elena")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(9))
+                .andExpect(jsonPath("$[0].nombreUsuario").value("elena"))
+                .andExpect(jsonPath("$[0].correo").doesNotExist());
+        verify(service).buscarUsuarios("elena", 5, principal);
     }
 
     @Test

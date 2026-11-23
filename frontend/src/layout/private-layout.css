@@ -48,6 +48,66 @@
   background: var(--nav-lime);
 }
 
+.private-shell .nav-search-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 60;
+  width: 100%;
+  max-height: 420px;
+  overflow-y: auto;
+  border: 1px solid #2f4737;
+  border-radius: 16px;
+  background: #19261e;
+  padding: 8px;
+  box-shadow: 0 18px 40px #0008;
+  color: #f3f8ef;
+}
+
+.private-shell .nav-search-titulo {
+  padding: 8px 10px 4px;
+  color: #a8e223;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.private-shell .nav-search-opcion {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 10px;
+  border-radius: 10px;
+  padding: 8px 10px;
+  color: #f3f8ef;
+  font-size: 12px;
+}
+
+.private-shell .nav-search-opcion:hover,
+.private-shell .nav-search-opcion--activa {
+  background: #354b3a;
+}
+
+.private-shell .nav-search-opcion:focus-visible {
+  outline: 2px solid #a8e223;
+}
+
+.private-shell .nav-search-tipo {
+  flex: none;
+  border: 1px solid #a8e22355;
+  border-radius: 999px;
+  background: #a8e22322;
+  padding: 1px 7px;
+  color: #a8e223;
+  font-size: 10px;
+}
+
+.private-shell .nav-search-mensaje {
+  padding: 12px 10px;
+  color: #a5b7a7;
+  font-size: 12px;
+}
+
 .private-shell .nav-badge {
   display: inline-block;
   margin-left: 5px;

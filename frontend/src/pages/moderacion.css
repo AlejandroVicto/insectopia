@@ -90,6 +90,7 @@
 .mod-bandeja-cabecera h2 { margin: 0; font-size: 17px; font-weight: 800; }
 .mod-bandeja-cabecera p { margin: 3px 0 0; color: var(--mod-suave); font-size: 11px; }
 
+.mod-bandeja-acciones { display: flex; flex: none; align-items: center; justify-content: flex-end; gap: 8px; }
 .mod-tabs { display: flex; flex: none; gap: 6px; overflow-x: auto; }
 .mod-tab {
   min-height: 32px;
@@ -170,6 +171,7 @@
 .mod-btn--primario:hover:not(:disabled) { background: #b9f13f; }
 .mod-btn--peligro { border-color: #8b4a45; background: #372b28; color: var(--mod-rojo); }
 .mod-btn--peligro:hover:not(:disabled) { background: #4a3531; }
+.mod-btn--actualizar { white-space: nowrap; }
 .mod-limpiar { flex: none; }
 
 .mod-estado { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 32px 16px; border: 1px solid var(--mod-borde); border-radius: 12px; text-align: center; }
@@ -224,6 +226,7 @@
   .mod-limpiar { grid-column: auto; }
   .mod-bandeja { padding: 12px; }
   .mod-bandeja-cabecera { flex-direction: column; align-items: flex-start; }
+  .mod-bandeja-acciones { width: 100%; flex-wrap: wrap; }
   .mod-tabs { width: 100%; }
   .mod-paginacion { flex-wrap: wrap; justify-content: center; }
   .mod-detalle { grid-template-columns: minmax(0, 1fr); }

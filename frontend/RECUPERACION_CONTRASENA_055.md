@@ -3,6 +3,7 @@
 ## Archivos
 
 - `src/App.jsx`: rutas públicas; no se cambió el funcionamiento del login ni del registro.
+- `src/pages/Registro.jsx`: se retiraron la barra superior derecha y el icono de búsqueda para mantener la misma composición institucional que login y recuperación.
 - `src/pages/RecuperacionContrasena.jsx`, `src/pages/recuperacion.css`: layout institucional compartido, formularios, estados, iconos, accesibilidad y estilos de escritorio 1440 × 900.
 - `src/services/recuperacionService.js`: solicitudes Axios públicas y clasificación conservadora de errores.
 - `src/pages/RecuperacionContrasena.test.jsx`, `src/services/recuperacionService.test.js`: pruebas del flujo, contrato, privacidad y navegación.
@@ -37,6 +38,6 @@ En el árbol local, `AuthController` todavía **no** implementa ninguno de los d
 
 ## Verificación
 
-- `npm test`: **29 archivos, 303 pruebas satisfactorias** (incluidas las existentes de login y registro).
+- Pruebas dirigidas finales: **132 pruebas frontend** de los layouts y vistas implicados y **51 pruebas backend** de servicios y controladores implicados, todas satisfactorias.
 - `npm run lint`: **correcto**, sin errores.
 - `npm run build`: **correcto**. Vite mantiene el aviso no bloqueante del bundle principal > 500 kB.

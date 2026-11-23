@@ -59,6 +59,7 @@ public class AdminEliminacionService {
                 .forEach(nombre -> archivos.registrar("publicacion", nombre));
         jdbc.queryForList("SELECT imagen FROM eventos WHERE id_proponente = ? AND imagen IS NOT NULL", String.class, id)
                 .forEach(nombre -> archivos.registrar("evento", nombre));
+        archivos.registrarAvatar(objetivo);
 
         // Redactar contenido personal histórico, manteniendo reportes y eventos de terceros.
         jdbc.update("UPDATE reportes SET descripcion = NULL, resolucion = NULL WHERE id_reportante = ? OR id_publicacion IN (SELECT id_publicacion FROM publicaciones WHERE id_usuario = ?)", id, id);

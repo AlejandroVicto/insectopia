@@ -77,6 +77,21 @@ class UsuarioServiceTests {
     }
 
     @Test
+    void publicacionesAjenasSoloSeConsultanSiElAutorEstaActivo() {
+        Usuario otro = new Usuario();
+        otro.setIdUsuario(9L);
+        otro.setEstado(EstadoUsuario.ACTIVO);
+        when(usuarios.findById(9L)).thenReturn(Optional.of(otro));
+        when(publicaciones.listarVisiblesDe(9L, 0, 10, principal)).thenReturn(
+                new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+        assertEquals(0, service.publicacionesPublicas(9L, 0, 10, principal).totalElements());
+        verify(publicaciones).listarVisiblesDe(9L, 0, 10, principal);
+        otro.setEstado(EstadoUsuario.DESACTIVADO);
+        assertThrows(ResourceNotFoundException.class,
+                () -> service.publicacionesPublicas(9L, 0, 10, principal));
+    }
+
+    @Test
     void perfilLeeElRegistroRealYLosConteosReales() {
         when(usuarios.findById(7L)).thenReturn(Optional.of(usuario));
         when(seguidores.countBySeguido_IdUsuario(7L)).thenReturn(12L);

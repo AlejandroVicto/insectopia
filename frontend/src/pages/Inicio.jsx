@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { adaptarPaginaPublicaciones } from '../adapters/publicacionesAdapter'
-import { consultarDemo, eventosDemo, sugerenciasDemo, tendenciasDemo } from '../data/inicioDemo'
+import { consultarDemo } from '../data/inicioDemo'
 import { consultarPublicaciones } from '../services/publicacionesService'
 import { quitarReaccion, reaccionar } from '../services/reaccionesService'
 import { mensajeErrorApi } from '../services/erroresApi'
@@ -15,7 +15,7 @@ import PostComposer from '../components/inicio/PostComposer'
 import PublicationCard from '../components/inicio/PublicationCard'
 import FeedPagination from '../components/inicio/FeedPagination'
 import { FeedEmpty, FeedError, FeedLoading } from '../components/inicio/FeedStates'
-import { SuggestedUsers, TrendingSpecies, UpcomingEvents } from '../components/inicio/InicioAside'
+import { SuggestedUsers, UpcomingEvents } from '../components/inicio/InicioAside'
 import { useCrearPublicacion } from '../context/useCrearPublicacion'
 import './inicio.css'
 
@@ -166,10 +166,8 @@ export default function Inicio({ demo = INICIO_DEMO }) {
         </>}
       </div>
       <aside aria-label="Información complementaria" className="inicio-scroll grid min-h-0 min-w-0 content-start gap-3.5 overflow-y-auto overscroll-contain" tabIndex={0}>
-        <SuggestedUsers users={demo ? sugerenciasDemo : []} />
-        <TrendingSpecies species={demo ? tendenciasDemo : []} />
-        <UpcomingEvents events={demo ? eventosDemo : []} />
-        {!demo && <p className="text-[10px] text-[var(--inicio-muted)]">Sugerencias, tendencias y eventos pendientes de sus propias API.</p>}
+        <SuggestedUsers demo={demo} userId={user?.id} />
+        <UpcomingEvents demo={demo} />
       </aside>
     </div>
     {!demo && <>

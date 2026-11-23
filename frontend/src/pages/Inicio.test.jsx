@@ -44,7 +44,11 @@ function LoginControl() {
 }
 
 function renderInicio({ demo = true, adapter = vi.fn(), authenticated = true } = {}) {
-  api.defaults.adapter = adapter
+  api.defaults.adapter = (config) => {
+    if (config.url === '/api/usuarios/sugeridos' || config.url === '/api/usuarios/buscar') return ok(config, [])
+    if (config.url === '/api/eventos' || config.url === '/api/eventos/buscar') return ok(config, { ...page([], 0, 0), size: 5 })
+    return adapter(config)
+  }
   render(<MemoryRouter initialEntries={[authenticated ? '/login' : '/app']}><AuthProvider>
     <LoginControl />
     <Routes>
@@ -84,10 +88,12 @@ describe('Inicio y feed', () => {
     expect(screen.getByRole('button', { name: 'Me gusta: 3500' }).disabled).toBe(true)
     expect(screen.getByRole('button', { name: 'Comentar: 1100' }).disabled).toBe(true)
     expect(screen.getByRole('button', { name: /Publicar/ }).disabled).toBe(true)
-    expect(screen.getAllByRole('button', { name: 'Seguir' }).every((button) => button.disabled)).toBe(true)
-    expect(screen.getByRole('heading', { name: 'ESPECIES EN TENDENCIA' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Seguir' })).toBeNull()
+    expect(screen.getByRole('heading', { name: 'PERSONAS SUGERIDAS' })).toBeTruthy()
+    expect(screen.queryByRole('heading', { name: 'ESPECIES EN TENDENCIA' })).toBeNull()
     expect(screen.getByRole('heading', { name: 'PRÓXIMOS EVENTOS' })).toBeTruthy()
-    expect(screen.getByRole('link', { name: 'Ver detalles' }).getAttribute('href')).toBe('/app/eventos')
+    expect(screen.getByRole('link', { name: 'Ver todos' }).getAttribute('href')).toBe('/app/eventos')
+    expect(screen.queryByRole('img', { name: /mapa de eventos/i })).toBeNull()
     fireEvent.error(image)
     expect(screen.getByText('Imagen no disponible')).toBeTruthy()
     expect(adapter).not.toHaveBeenCalled()
@@ -122,18 +128,16 @@ describe('Inicio y feed', () => {
     expect(screen.getByText('Página 1 de 2')).toBeTruthy()
   })
 
-  it('busca con debounce, permite limpiar y muestra vacío sin publicaciones inventadas', async () => {
+  it('la búsqueda de la navbar está disponible pero no altera el feed de Inicio', async () => {
     const adapter = renderInicio()
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
     expect(screen.getByText('Página 2 de 2')).toBeTruthy()
-    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' })
+    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios o títulos de eventos' })
     expect(search.disabled).toBe(false)
     fireEvent.change(search, { target: { value: 'nada-coincide' } })
     expect(screen.getByRole('article', { name: 'Publicación demo-4' })).toBeTruthy()
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Aún no hay avistamientos' })).toBeTruthy())
-    fireEvent.click(screen.getByRole('button', { name: 'Limpiar filtros' }))
-    expect(screen.getByRole('article', { name: 'Publicación demo-1' })).toBeTruthy()
-    expect(search.value).toBe('')
+    await screen.findByText('Sin resultados para “nada-coincide”.')
+    expect(screen.getByRole('article', { name: 'Publicación demo-4' })).toBeTruthy()
     expect(adapter).not.toHaveBeenCalled()
   })
 
@@ -150,17 +154,17 @@ describe('Inicio y feed', () => {
     await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params.page).toBe(1))
   })
 
-  it('en API real buscar desde la página 2 envía q al servidor y vuelve a la primera página', async () => {
+  it('en API real la navbar busca usuarios y eventos sin añadir q a publicaciones', async () => {
     const adapter = vi.fn((config) => ok(config, page([raw(config.params.page === 0 ? 11 : 12)], config.params.page, 2)))
     renderInicio({ demo: false, adapter })
     await waitFor(() => expect(screen.getByRole('article', { name: 'Publicación 11' })).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
     await waitFor(() => expect(screen.getByRole('article', { name: 'Publicación 12' })).toBeTruthy())
-    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' })
+    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios o títulos de eventos' })
     fireEvent.change(search, { target: { value: 'polillas' } })
-    await waitFor(() => expect(adapter.mock.calls.at(-1)[0].params).toEqual({ page: 0, size: 10, feed: 'para-ti', q: 'polillas' }))
-    await waitFor(() => expect(screen.getByRole('article', { name: 'Publicación 11' })).toBeTruthy())
-    expect(screen.getByText('Página 1 de 2')).toBeTruthy()
+    await screen.findByText('Sin resultados para “polillas”.')
+    expect(screen.getByRole('article', { name: 'Publicación 12' })).toBeTruthy()
+    expect(adapter.mock.calls.at(-1)[0].params).not.toHaveProperty('q')
   })
 
   it('cancela la solicitud anterior e ignora su respuesta tardía al cambiar de filtro', async () => {

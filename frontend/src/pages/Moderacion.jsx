@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useAuth } from '../auth/useAuth'
 import { listarPropuestas, aprobarPropuesta, rechazarPropuesta } from '../services/moderacionService'
 import { listarReportes, resolverReporte } from '../services/reportesService'
+import { suscribirseAReportesCreados } from '../services/reportesEventos'
 import { mensajeErrorApi } from '../services/erroresApi'
 import ModeracionTabs from '../components/moderacion/ModeracionTabs'
 import ModeracionFiltros from '../components/moderacion/ModeracionFiltros'
@@ -154,6 +155,23 @@ export default function Moderacion() {
     setRevision((valor) => valor + 1)
   }, [])
 
+  // Un reporte creado en otra pantalla (o pestaña) debe aparecer en la bandeja:
+  // se limpian filtro y página para que nunca quede oculto por un estado distinto.
+  const alCrearReporte = useCallback(() => {
+    setReportes({ estado: 'cargando', datos: null, error: '' })
+    setFiltrosReportes({ ...FILTROS_REPORTES_INICIALES })
+    setPaginaReportes(0)
+    setRevision((valor) => valor + 1)
+  }, [])
+
+  useEffect(() => suscribirseAReportesCreados(alCrearReporte), [alCrearReporte])
+
+  function actualizarBandeja() {
+    if (seccion === 'eventos') setEventos({ estado: 'cargando', datos: null, error: '' })
+    else setReportes({ estado: 'cargando', datos: null, error: '' })
+    setRevision((valor) => valor + 1)
+  }
+
   const datosVisibles = seccion === 'eventos' ? eventos : reportes
   const paginaActual = seccion === 'eventos' ? paginaEventos : paginaReportes
   const contenido = Array.isArray(datosVisibles.datos?.content) ? datosVisibles.datos.content : []
@@ -251,9 +269,19 @@ export default function Moderacion() {
           <div className="mod-bandeja-cabecera">
             <div>
               <h2 className="font-display">Bandeja de revisión</h2>
-              <p>Filtro y paginación en el backend · datos reales de la API</p>
             </div>
-            <ModeracionTabs value={seccion} onChange={setSeccion} />
+            <div className="mod-bandeja-acciones">
+              <ModeracionTabs value={seccion} onChange={setSeccion} />
+              <button
+                type="button"
+                className="mod-btn mod-btn--actualizar"
+                onClick={actualizarBandeja}
+                aria-label="Actualizar bandeja de revisión"
+                title="Recargar los datos desde el backend"
+              >
+                Actualizar
+              </button>
+            </div>
           </div>
 
           <ModeracionFiltros
@@ -300,10 +328,6 @@ export default function Moderacion() {
           </div>
         </section>
 
-        <footer className="mod-privacidad">
-          <p className="mod-privacidad-titulo">NAVEGACIÓN Y PRIVACIDAD</p>
-          <p>El backend protege rutas por JWT y roles. La interfaz muestra solo acciones autorizadas.</p>
-        </footer>
       </div>
 
       {modal?.tipo === 'revisar' && (

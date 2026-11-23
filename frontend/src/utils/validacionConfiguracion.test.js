@@ -38,7 +38,7 @@ describe('validación de configuración 077', () => {
 
   it('valida género, fecha y teléfono sin exigirlos', () => {
     expect(validarCampoConfiguracion('genero', { genero: '' })).toBeUndefined()
-    expect(validarCampoConfiguracion('fechaNacimiento', { fechaNacimiento: '' })).toBeUndefined()
+    expect(validarCampoConfiguracion('fechaNacimiento', { fechaNacimiento: '' })).toBe('La fecha de nacimiento es obligatoria.')
     expect(validarCampoConfiguracion('telefono', { telefono: '' })).toBeUndefined()
     expect(validarCampoConfiguracion('genero', { genero: 'FEMENINO' })).toBe('Selecciona una opción válida.')
     expect(validarCampoConfiguracion('fechaNacimiento', { fechaNacimiento: '2004-02-30' })).toMatch(/fecha válida/)

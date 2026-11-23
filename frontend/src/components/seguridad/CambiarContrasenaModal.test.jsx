@@ -56,14 +56,11 @@ afterEach(() => {
 describe('CambiarContrasenaModal - actividad 079', () => {
   it('es un diálogo accesible, centrado, con ancho máximo y foco inicial', () => {
     const { opener } = renderModal()
-    const dialog = screen.getByRole('dialog', {
-      name: 'Cambiar contraseña',
-      description: /Usarás esta contraseña para iniciar sesión/,
-    })
+    const dialog = screen.getByRole('dialog', { name: 'Cambiar contraseña' })
 
     expect(dialog.getAttribute('aria-modal')).toBe('true')
     expect(dialog.getAttribute('aria-labelledby')).toBe('seguridad-cambiar-titulo')
-    expect(dialog.getAttribute('aria-describedby')).toBe('seguridad-cambiar-descripcion')
+    expect(dialog.getAttribute('aria-describedby')).toBeNull()
     expect(dialog.style.maxWidth).toBe('530px')
     expect(dialog.className).toContain('seguridad-modal')
     expect(document.activeElement).toBe(screen.getByLabelText('Contraseña actual'))

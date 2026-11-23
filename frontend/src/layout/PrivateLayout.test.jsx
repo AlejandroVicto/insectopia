@@ -64,8 +64,16 @@ function SessionControls({ role, user = {} }) {
 
 function start(role, user) {
   const adapter = api.defaults.adapter
-  api.defaults.adapter = (config) => config.url === '/api/publicaciones'
-    ? Promise.resolve({ data: { content: [], number: 0, size: 10, totalElements: 0, totalPages: 0, first: true, last: true }, status: 200, config, headers: {} })
+  const paginaVacia = { content: [], number: 0, size: 10, totalElements: 0, totalPages: 0, first: true, last: true }
+  const respuestasInicio = {
+    '/api/publicaciones': paginaVacia,
+    '/api/usuarios/sugeridos': [],
+    '/api/eventos': paginaVacia,
+    '/api/usuarios/buscar': [],
+    '/api/eventos/buscar': paginaVacia,
+  }
+  api.defaults.adapter = (config) => Object.hasOwn(respuestasInicio, config.url)
+    ? Promise.resolve({ data: respuestasInicio[config.url], status: 200, config, headers: {} })
     : typeof adapter === 'function' ? adapter(config) : Promise.reject(new Error('Solicitud no simulada'))
   render(
     <MemoryRouter initialEntries={['/login']}>
@@ -149,10 +157,10 @@ describe('layout de escritorio', () => {
     expect(screen.getByRole('img', { name: 'Avatar predeterminado' }).textContent).toBe('PR')
     expect(screen.getAllByRole('link', { name: 'Notificaciones' })).toHaveLength(2)
     expect(navigation().textContent).not.toContain('· 5')
-    expect(screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' }).disabled).toBe(false)
+    expect(screen.getByRole('searchbox', { name: 'Buscar usuarios o títulos de eventos' }).disabled).toBe(false)
     expect(screen.getByRole('button', { name: '+ Crear publicación' }).disabled).toBe(false)
     const header = document.querySelector('.private-shell > header')
-    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios, publicaciones o eventos' })
+    const search = screen.getByRole('searchbox', { name: 'Buscar usuarios o títulos de eventos' })
     const actions = screen.getByRole('button', { name: '+ Crear publicación' }).parentElement
     expect(header.className).toContain('grid-cols-')
     expect(header.children[1].contains(search)).toBe(true)

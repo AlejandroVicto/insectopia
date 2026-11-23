@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { adaptarPaginaEventos } from '../adapters/eventosAdapter'
-import { CONTRATO_FILTROS_CONFIRMADO, consultarEventos, consultarMisParticipaciones, consultarMisPropuestas, operacionDemo } from '../services/eventosService'
+import { adaptarEvento, adaptarPaginaEventos } from '../adapters/eventosAdapter'
+import { CONTRATO_FILTROS_CONFIRMADO, consultarEvento, consultarEventos, consultarMisParticipaciones, consultarMisPropuestas, operacionDemo } from '../services/eventosService'
 import { consultarEventosDemo, consultarMisPropuestasDemo } from '../data/eventosDemo'
 import { useAuth } from '../auth/useAuth'
 import EventoCard from '../components/eventos/EventoCard'
@@ -58,6 +58,9 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   const [retry, setRetry] = useState(0)
   const [resultado, setResultado] = useState(null)
   const [seleccionadoId, setSeleccionadoId] = useState(null)
+  const [eventoEnlazado, setEventoEnlazado] = useState(null)
+  const [errorEnlace, setErrorEnlace] = useState(false)
+  const eventoParam = params.get('evento')
   const [modal, setModal] = useState(null)
   const listaRef = useRef(null)
 
@@ -84,7 +87,24 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
     setModal({ tipo, eventoId: evento?.id ?? null })
   }, [])
 
-  const cerrarModal = useCallback(() => setModal(null), [])
+  const cerrarModal = useCallback(() => {
+    setModal(null)
+    if (eventoParam) actualizarParams({ evento: null }, { replace: true })
+  }, [eventoParam, actualizarParams])
+
+  useEffect(() => {
+    if (demo || !eventoParam) return undefined
+    if (!/^\d+$/.test(eventoParam)) return undefined
+    const controller = new AbortController()
+    consultarEvento(eventoParam, { signal: controller.signal }).then(({ data }) => {
+      if (controller.signal.aborted) return
+      const evento = adaptarEvento(data)
+      setEventoEnlazado(evento)
+      setModal({ tipo: 'detalles', eventoId: evento.id })
+      setErrorEnlace(false)
+    }).catch(() => { if (!controller.signal.aborted) setErrorEnlace(true) })
+    return () => controller.abort()
+  }, [demo, eventoParam])
 
   const recargar = useCallback(() => setRetry((valor) => valor + 1), [])
 
@@ -140,7 +160,8 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
   const eventos = visible.status === 'success' ? visible.data.content : []
   const seleccionado = eventos.find((evento) => String(evento.id) === String(seleccionadoId)) ?? eventos[0] ?? null
   const eventoModal = modal?.eventoId != null
-    ? eventos.find((evento) => String(evento.id) === String(modal.eventoId)) ?? seleccionado
+    ? (eventoEnlazado && String(eventoEnlazado.id) === String(modal.eventoId) ? eventoEnlazado : null)
+      ?? eventos.find((evento) => String(evento.id) === String(modal.eventoId)) ?? seleccionado
     : null
 
   function limpiarFiltros() {
@@ -185,6 +206,7 @@ export default function Eventos({ demo = EVENTOS_DEMO }) {
           })} />
 
           {demo && <p className="evt-demo-label" role="note">Vista de demostración · datos ilustrativos, no registros de MySQL</p>}
+          {errorEnlace && <p role="alert" className="evt-filter-pending">No se pudo abrir el evento seleccionado. Puedes buscarlo en la lista o intentarlo de nuevo.</p>}
           {filtrosActivos && !demo && !CONTRATO_FILTROS_CONFIRMADO && (
             <p role="note" className="evt-filter-pending">
               Los filtros están pendientes del contrato del backend 070; el listado no los aplica todavía.

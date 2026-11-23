@@ -12,6 +12,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Base64;
+import java.util.List;
 import java.util.Optional;
 import java.security.SecureRandom;
 
@@ -21,6 +22,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockMultipartFile;
@@ -81,6 +84,23 @@ class EventoImagenMvcTests {
         usuario.setRol(rol);
         when(usuarios.findById(7L)).thenReturn(Optional.of(usuario));
         token = jwtService.issue(usuario);
+    }
+
+    @Test void buscarTitulosDeLaNavbarRequiereJwt() throws Exception {
+        mvc.perform(get("/api/eventos/buscar").param("q", "bio"))
+                .andExpect(status().isUnauthorized());
+        when(service.buscarTitulos(eq("bio"), eq(5), any())).thenReturn(new PageImpl<>(
+                List.of(new EventoResponseDTO(40L, "Bioblitz", "Otra coincidencia", "Oaxaca", null,
+                        LocalDateTime.of(2099, 5, 5, 20, 0), LocalDateTime.of(2099, 5, 5, 23, 0),
+                        30, 0L, EstadoEvento.APROBADO,
+                        new EventoResponseDTO.ProponentePublico("Nombre", "usuario"), null, false, null)),
+                PageRequest.of(0, 5), 1));
+        mvc.perform(get("/api/eventos/buscar").param("q", "bio")
+                        .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].titulo").value("Bioblitz"))
+                .andExpect(jsonPath("$.content[0].estado").value("APROBADO"));
+        verify(service).buscarTitulos(eq("bio"), eq(5), any());
     }
 
     @Test void multipartAceptaJpgPngTrasAutenticacionYEntregaDto() throws Exception {

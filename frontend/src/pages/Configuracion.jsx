@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
 import { adaptarPerfil } from '../adapters/perfilAdapter'
-import { actualizarMiPerfil, consultarIdentidad, consultarMiPerfil } from '../services/perfilService'
+import { actualizarMiPerfil, consultarConfiguracionPerfil, consultarMiPerfil, subirAvatar, quitarAvatar } from '../services/perfilService'
 import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import { mensajeErrorApi } from '../services/erroresApi'
 import { LIMITES, TIPOS_IMAGEN_ACEPTADOS } from '../constants/modalesPublicaciones'
@@ -95,14 +95,13 @@ function CampoIdentidad({ campo, etiqueta, error, prefijo, children }) {
 }
 
 export default function Configuracion() {
-  const { user, clearSession } = useAuth()
+  const { user, token, setSession, clearSession } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
   const [params, setParams] = useSearchParams()
   const seccion = params.get('seccion') === 'seguridad' ? 'seguridad' : 'perfil'
   const [estado, setEstado] = useState('cargando')
   const [perfil, setPerfil] = useState(null)
-  const [parcial, setParcial] = useState(false)
   const [correoRespaldo, setCorreoRespaldo] = useState('')
   const [intento, setIntento] = useState(0)
   const [valores, setValores] = useState({ ...VALORES_INICIALES_CONFIGURACION })
@@ -142,7 +141,7 @@ export default function Configuracion() {
     let activo = true
     const controller = new AbortController()
 
-    function aplicar(datos, esParcial) {
+    function aplicar(datos, resumen) {
       if (!activo) return
       const adaptado = adaptarPerfil(datos)
       const siguiente = {
@@ -150,11 +149,15 @@ export default function Configuracion() {
         nombre: adaptado.nombre,
         nombreUsuario: adaptado.nombreUsuario,
         biografia: adaptado.biografia ?? '',
+        genero: datos.genero ?? '',
         paisCodigo: adaptado.paisCodigo ?? '',
         estadoRegion: adaptado.estadoRegion ?? '',
+        fechaNacimiento: datos.fechaNacimiento ?? '',
+        telefono: datos.telefono ?? '',
       }
-      setPerfil({ ...adaptado, fotoPerfil: adaptado.fotoPerfil ?? null })
-      setParcial(esParcial)
+      setPerfil({ ...adaptado, fechaRegistro: resumen?.fechaRegistro,
+        seguidores: resumen?.totalSeguidores, publicaciones: resumen?.totalPublicaciones })
+      setCorreoRespaldo(datos.correo ?? '')
       setValores(siguiente)
       setInicial(siguiente)
       setTocados({})
@@ -169,22 +172,11 @@ export default function Configuracion() {
       setEstado('success')
     }
 
-    consultarMiPerfil({ signal: controller.signal })
-      .then(({ data }) => aplicar(data, false))
-      .catch(async (error) => {
-        if (controller.signal.aborted || !activo) return
-        if (error.response?.status !== 404) {
-          setEstado('error')
-          return
-        }
-        try {
-          const { data } = await consultarIdentidad({ signal: controller.signal })
-          if (typeof data?.email === 'string') setCorreoRespaldo(data.email)
-          aplicar(data, true)
-        } catch {
-          if (activo) setEstado('error')
-        }
-      })
+    Promise.all([
+      consultarConfiguracionPerfil({ signal: controller.signal }),
+      consultarMiPerfil({ signal: controller.signal }).catch(() => ({ data: null })),
+    ]).then(([{ data }, { data: resumen }]) => aplicar(data, resumen))
+      .catch(() => { if (activo && !controller.signal.aborted) setEstado('error') })
 
     return () => {
       activo = false
@@ -294,12 +286,13 @@ export default function Configuracion() {
     setErrorGuardado('')
     setMensajeGuardado('')
 
-    if (cargandoRegiones) {
+    const hayDatos = CAMPOS_EDITABLES.some((campo) => valores[campo] !== inicial[campo])
+    if (hayDatos && cargandoRegiones) {
       setErrorGuardado('Espera a que terminen de cargar las regiones antes de guardar.')
       return
     }
 
-    const nuevosErrores = validarFormularioConfiguracion(valores, catalogo)
+    const nuevosErrores = hayDatos ? validarFormularioConfiguracion(valores, catalogo) : {}
     if (errorRegiones && valores.estadoRegion) {
       nuevosErrores.estadoRegion = 'Selecciona una región válida para el país indicado.'
     }
@@ -314,15 +307,46 @@ export default function Configuracion() {
     if (!hayCambios) return
     guardandoRef.current = true
     setGuardando(true)
+    let datosConfirmados = false
     try {
-      await actualizarMiPerfil(valores)
-      setInicial({ ...valores })
-      setMensajeGuardado(fotoPendiente
-        ? 'Los datos se guardaron. La foto seleccionada sigue pendiente: aún no hay servicio de carga.'
-        : 'Tus cambios se guardaron.')
+      if (hayDatos) {
+        const { data } = await actualizarMiPerfil(valores)
+        const confirmado = adaptarPerfil(data)
+        const siguiente = {
+          ...valores, nombre: confirmado.nombre, nombreUsuario: confirmado.nombreUsuario,
+          biografia: data.biografia ?? '', genero: data.genero ?? '', paisCodigo: data.paisCodigo,
+          estadoRegion: data.estadoRegion, fechaNacimiento: data.fechaNacimiento, telefono: data.telefono ?? '',
+        }
+        setValores(siguiente)
+        setInicial(siguiente)
+        setPerfil((prev) => ({ ...prev, ...confirmado }))
+        if (user && token) setSession({ token, user: { ...user, name: confirmado.nombre } })
+        datosConfirmados = true
+      }
+      if (fotoPendiente) {
+        const respuesta = archivoFoto ? await subirAvatar(archivoFoto) : await quitarAvatar()
+        const urlConfirmada = archivoFoto ? adaptarPerfil(respuesta.data).fotoPerfil : null
+        setFotoInicial(urlConfirmada)
+        setFotoActual(urlConfirmada)
+        setArchivoFoto(null)
+        setVistaPrevia(null)
+        if (archivoFotoRef.current) archivoFotoRef.current.value = ''
+        setPerfil((prev) => ({ ...prev, fotoPerfil: urlConfirmada }))
+        if (user && token) setSession({ token, user: { ...user, name: valores.nombre, avatarUrl: urlConfirmada } })
+      }
+      setMensajeGuardado('Tus cambios se guardaron.')
     } catch (error) {
       const status = error?.response?.status
-      setErrorGuardado([404, 405].includes(status)
+      if (!datosConfirmados && Array.isArray(error?.response?.data?.details)) {
+        const porCampo = Object.fromEntries(error.response.data.details
+          .filter(({ field }) => CAMPOS_EDITABLES.includes(field))
+          .map(({ field, message }) => [field, message]))
+        setErrores(porCampo)
+        setTocados((prev) => ({ ...prev, ...Object.fromEntries(Object.keys(porCampo).map((campo) => [campo, true])) }))
+      }
+      setErrorGuardado(datosConfirmados && fotoPendiente
+        ? `Los datos se guardaron, pero la foto no. Puedes reintentar solo la fotografía. ${mensajeErrorApi(error, '')}`
+        : [404, 405].includes(status)
         ? 'La actualización de perfil aún no está disponible en el servidor. Tus cambios siguen pendientes.'
         : mensajeErrorApi(error, 'No se pudo guardar. Tus cambios siguen pendientes.'))
     } finally {
@@ -394,9 +418,6 @@ export default function Configuracion() {
         <Tab id="tab-seguridad" seccion="seguridad" actual={seccion} onSelect={seleccionarSeccion}>Seguridad</Tab>
       </div>
 
-      {parcial && <p role="status" className="configuracion-card configuracion-card--seccion mb-4 text-xs text-[var(--conf-muted)]">
-        Perfil parcial: solo se confirmaron nombre, usuario y avatar. El resto de campos aparece vacío.
-      </p>}
 
       {estado === 'cargando' && <div role="status" className="configuracion-card configuracion-card--seccion text-sm text-[var(--conf-muted)]">
         Cargando tu configuración...
@@ -445,7 +466,7 @@ export default function Configuracion() {
                 {fotoActual && <button type="button" className="configuracion-secondary" onClick={quitarFoto}>Quitar imagen</button>}
               </div>
               <p id="foto-ayuda" className="mt-2 text-[11px] leading-4 text-[var(--conf-muted)]">
-                JPG o PNG de hasta 5 MB. La imagen se previsualiza aquí; no se envía a ningún servicio.
+                JPG o PNG de hasta 5 MB. La imagen se enviará al guardar los cambios.
               </p>
               {archivoFoto && <p role="status" className="mt-1 truncate text-[11px] text-[var(--conf-lime)]">Archivo seleccionado: {archivoFoto.name}</p>}
               {errorFoto && <p role="alert" className="mt-1 text-[11px] text-red-400">{errorFoto}</p>}
@@ -466,13 +487,6 @@ export default function Configuracion() {
                 <textarea {...propsCampo('biografia', errores.biografia, true)} className="configuracion-textarea" maxLength={500}
                   value={valores.biografia} onChange={(event) => cambiar('biografia', event.target.value)} onBlur={() => marcar('biografia')}
                   placeholder="Cuéntale a la comunidad qué observas..." />
-              </Campo>
-            </section>
-
-            <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-web">
-              <h3 id="titulo-web" className="configuracion-titulo-seccion">Sitio web</h3>
-              <Campo campo="sitioWeb" etiqueta="Enlace" ayuda="Podrás guardar un enlace cuando el servicio de perfil lo permita.">
-                <input {...propsCampo('sitioWeb', errores.sitioWeb, true)} type="url" className="configuracion-input" disabled placeholder="https://" />
               </Campo>
             </section>
 
@@ -521,7 +535,7 @@ export default function Configuracion() {
 
             <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-nacimiento">
               <h3 id="titulo-nacimiento" className="configuracion-titulo-seccion">Fecha de nacimiento</h3>
-              <Campo campo="fechaNacimiento" etiqueta="Fecha" error={errores.fechaNacimiento} ayuda="Opcional.">
+              <Campo campo="fechaNacimiento" etiqueta="Fecha" error={errores.fechaNacimiento} ayuda="Obligatoria.">
                 <input {...propsCampo('fechaNacimiento', errores.fechaNacimiento, true)} type="date" className="configuracion-input"
                   value={valores.fechaNacimiento} onChange={(event) => cambiar('fechaNacimiento', event.target.value)} onBlur={() => marcar('fechaNacimiento')} />
               </Campo>
@@ -554,12 +568,11 @@ export default function Configuracion() {
 
             <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-sesion">
               <h3 id="titulo-sesion" className="configuracion-titulo-seccion">Inicio de sesión y recuperación</h3>
-              <Campo campo="correo" etiqueta="Correo de la cuenta" error={errorCorreo} ayuda="Se muestra únicamente el correo de tu propia sesión.">
+              <Campo campo="correo" etiqueta="Correo de la cuenta" error={errorCorreo}>
                 <input {...propsCampo('correo', errorCorreo, true)} type="email" className="configuracion-input" readOnly value={correoMostrado} />
               </Campo>
               <p className="mt-3 flex flex-wrap items-center gap-2 text-xs text-[var(--conf-muted)]">
-                <span className="configuracion-pendiente">Pendiente · backend 080</span>
-                El cambio de correo y la recuperación se habilitarán cuando el servicio de seguridad esté disponible.
+                El correo es de solo lectura. Para recuperarlo utiliza el flujo de recuperación de contraseña.
               </p>
             </section>
 
@@ -577,11 +590,7 @@ export default function Configuracion() {
                 >
                   Cambiar contraseña
                 </button>
-                <span className="configuracion-pendiente">Requiere backend 080</span>
               </div>
-              <p className="mt-2 text-[11px] leading-4 text-[var(--conf-muted)]">
-                Mínimo 8 caracteres, una mayúscula, un número y un carácter especial. No se guardan contraseñas en este navegador.
-              </p>
             </section>
           </div>}
 
@@ -625,16 +634,13 @@ export default function Configuracion() {
               </div>
             </dl>
           </div>
-          <p className="mt-3 text-[10px] leading-4 text-[var(--conf-muted)]">
-            Solo datos públicos y de tu propia sesión. No se muestran contraseñas, tokens ni datos privados de otras cuentas.
-          </p>
         </aside>}
       </div>}
 
       {modalContrasena && <CambiarContrasenaModal
         correo={correoMostrado}
         alias={alias}
-        onClose={() => setModalContrasena(false)}
+        onClose={() => { if (contrasenaActualizada) irAReautenticar(); else setModalContrasena(false) }}
         onSuccess={(resultado) => setContrasenaActualizada(resultado?.requiereReautenticacion
           ? 'Contraseña actualizada. Inicia sesión nuevamente para continuar.'
           : 'Contraseña actualizada correctamente.')}

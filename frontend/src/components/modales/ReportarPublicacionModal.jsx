@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import CampoModal from './CampoModal'
 import ModalContainer from './ModalContainer'
 import { crearReporte } from '../../services/reportesService'
+import { notificarReporteCreado } from '../../services/reportesEventos'
 import { mensajeErrorApi } from '../../services/erroresApi'
 import {
   CLASE_AVISO,
@@ -50,6 +51,7 @@ function ReportarPublicacionForm({ publicacion, onClose, onSuccess }) {
         motivo,
         descripcion,
       })
+      notificarReporteCreado()
       onSuccess?.(data, publicacion)
       onClose?.()
     } catch (error) {

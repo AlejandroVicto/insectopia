@@ -93,7 +93,7 @@ export default function ModalContainer({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        aria-describedby={descriptionId}
+        aria-describedby={description ? descriptionId : undefined}
         className={`relative my-auto flex max-h-[min(90dvh,736px)] w-full max-w-[672px] min-w-0 flex-col overflow-hidden rounded-2xl border border-[#415c48] bg-[#1d2820] text-[#f3f8ef] shadow-2xl focus:outline-none ${className}`}
         style={ancho || alto
           ? {
@@ -122,7 +122,7 @@ export default function ModalContainer({
                 </p>
               )}
               <h2 id={titleId} className="font-display text-xl font-bold leading-7 text-stone-100 sm:text-2xl">{title}</h2>
-              <p id={descriptionId} className="mt-1 text-xs leading-4 text-[#a5b7a7]">{description}</p>
+              {description && <p id={descriptionId} className="mt-1 text-xs leading-4 text-[#a5b7a7]">{description}</p>}
             </div>
           </div>
           <button

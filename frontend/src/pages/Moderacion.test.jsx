@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom'
 import Moderacion from './Moderacion'
 import * as moderacion from '../services/moderacionService'
 import * as reportesService from '../services/reportesService'
+import { notificarReporteCreado } from '../services/reportesEventos'
 
 vi.mock('../auth/useAuth', () => ({ useAuth: () => ({ role: 'MODERADOR' }) }))
 vi.mock('../services/moderacionService', async (original) => ({
@@ -112,6 +113,36 @@ describe('Moderación 085: panel funcional', () => {
     await waitFor(() => expect(screen.getByText('Reporte #5 · SPAM')).toBeTruthy())
     expect(screen.getByRole('button', { name: 'Resolver' })).toBeTruthy()
     expect(llamadasReportes().at(-1)[0]).toMatchObject({ page: 0, size: 10 })
+  })
+
+  it('muestra los reportes recientes al crearse uno: limpia filtros y vuelve a la primera página', async () => {
+    configurarListados({ reportes: [appendiceReporte(5)], paginasReportes: 3 })
+    renderPanel()
+    await waitFor(() => expect(llamadasReportes().length).toBeGreaterThan(0))
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Reportes' }))
+    await screen.findByText('Reporte #5 · SPAM')
+
+    fireEvent.change(screen.getByLabelText('Estado del reporte'), { target: { value: 'RESUELTO' } })
+    await waitFor(() => expect(llamadasReportes().at(-1)[0].estado).toBe('RESUELTO'))
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente ›' }))
+    await waitFor(() => expect(llamadasReportes().at(-1)[0].page).toBe(1))
+
+    act(() => { notificarReporteCreado() })
+
+    await waitFor(() => expect(llamadasReportes().at(-1)[0]).toMatchObject({ page: 0, size: 10 }))
+    expect(llamadasReportes().at(-1)[0].estado).toBe('')
+    expect(screen.getByLabelText('Estado del reporte').value).toBe('')
+  })
+
+  it('permite recargar manualmente la bandeja desde el backend', async () => {
+    renderPanel()
+    await waitFor(() => expect(llamadasReportes().length).toBeGreaterThan(0))
+    const llamadasAntes = llamadasReportes().length
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actualizar bandeja de revisión' }))
+
+    await waitFor(() => expect(llamadasReportes().length).toBeGreaterThan(llamadasAntes))
   })
 
   it('navega entre secciones con teclado y expone pestañas accesibles', async () => {
@@ -306,6 +337,7 @@ describe('Moderación 085: panel funcional', () => {
     expect(screen.getByRole('region', { name: 'Bandeja de revisión' })).toBeTruthy()
     expect(document.querySelector('.mod-tabla-contenedor')).toBeTruthy()
     expect(screen.getByRole('search', { name: 'Búsqueda y filtros de propuestas' })).toBeTruthy()
-    expect(screen.getByRole('contentinfo')).toBeTruthy()
+    expect(screen.queryByText('NAVEGACIÓN Y PRIVACIDAD')).toBeNull()
+    expect(screen.queryByText('Filtro y paginación en el backend · datos reales de la API')).toBeNull()
   })
 })
