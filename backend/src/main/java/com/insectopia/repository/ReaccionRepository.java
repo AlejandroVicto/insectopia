@@ -1,10 +1,14 @@
 package com.insectopia.repository;
 
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Reaccion;
 
@@ -39,4 +43,24 @@ public interface ReaccionRepository
             Long idUsuario,
             Pageable pageable
     );
+
+    /** Actividad 074: totales agrupados de una página, sin una consulta por publicación. */
+    @Query("""
+            select r.publicacion.idPublicacion, count(r)
+            from Reaccion r
+            where r.publicacion.idPublicacion in :ids
+            group by r.publicacion.idPublicacion
+            """)
+    List<Object[]> contarPorPublicaciones(@Param("ids") Collection<Long> ids);
+
+    /** Actividad 074: reacción propia de cada publicación de la página en una sola consulta. */
+    @Query("""
+            select r.publicacion.idPublicacion, r.tipo
+            from Reaccion r
+            where r.publicacion.idPublicacion in :ids
+              and r.usuario.idUsuario = :idUsuario
+            """)
+    List<Object[]> tiposDelUsuario(
+            @Param("ids") Collection<Long> ids,
+            @Param("idUsuario") Long idUsuario);
 }

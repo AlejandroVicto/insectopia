@@ -47,4 +47,34 @@ public interface PublicacionRepository
             EstadoPublicacion estado,
             Pageable pageable
     );
+
+    /**
+     * Actividad 074: mismo criterio de visibilidad que el listado propio, de modo
+     * que {@code totalPublicaciones} y {@code totalElements} no puedan divergir.
+     */
+    long countByUsuario_IdUsuarioAndEstado(
+            Long idUsuario,
+            EstadoPublicacion estado
+    );
+
+    /**
+     * Actividad 074: página de publicaciones propias. El autor se obtiene con
+     * {@code join fetch} para que el mapeo a DTO no dispare una consulta por fila.
+     * El orden se recibe en {@code Pageable} (fecha descendente, id descendente).
+     */
+    @Query(value = """
+            select p from Publicacion p
+            join fetch p.usuario
+            where p.usuario.idUsuario = :idUsuario
+              and p.estado = :estado
+            """, countQuery = """
+            select count(p) from Publicacion p
+            where p.usuario.idUsuario = :idUsuario
+              and p.estado = :estado
+            """)
+    Page<Publicacion> findPropiasVisibles(
+            @Param("idUsuario") Long idUsuario,
+            @Param("estado") EstadoPublicacion estado,
+            Pageable pageable
+    );
 }

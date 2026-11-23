@@ -1,8 +1,10 @@
 package com.insectopia.services;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
@@ -55,6 +57,8 @@ public class PublicacionesService {
     public static final String TIPO_REACCION = "ME_GUSTA";
     private static final int CONTENIDO_MAX = 5000;
     private static final int COMENTARIO_MAX = 1000;
+    private static final Sort ORDEN_PROPIO = Sort.by(
+            Sort.Order.desc("fechaPublicacion"), Sort.Order.desc("idPublicacion"));
 
     private final PublicacionRepository publicaciones;
     private final ComentarioRepository comentarios;
@@ -112,6 +116,41 @@ public class PublicacionesService {
 
         return publicaciones.findAll(filtros, pagina)
                 .map(publicacion -> mapear(publicacion, principal));
+    }
+
+    /** Actividad 074: conteo visible propio, compartido con el DTO de perfil. */
+    @Transactional(readOnly = true)
+    public long contarPropiasVisibles(Long idUsuario) {
+        return publicaciones.countByUsuario_IdUsuarioAndEstado(
+                idUsuario, EstadoPublicacion.VISIBLE);
+    }
+
+    /**
+     * Actividad 074: publicaciones propias visibles con paginación en base de datos.
+     * Los totales y la reacción propia se resuelven en tres consultas agrupadas
+     * para toda la página, no una consulta por publicación.
+     */
+    @Transactional(readOnly = true)
+    public Page<PublicacionResponseDTO> listarPropias(
+            int page, int size, InsectopiaUserDetails principal) {
+        Pageable pagina = PageRequest.of(page, size, ORDEN_PROPIO);
+        Page<Publicacion> propias = publicaciones.findPropiasVisibles(
+                principal.idUsuario(), EstadoPublicacion.VISIBLE, pagina);
+        List<Long> ids = propias.getContent().stream()
+                .map(Publicacion::getIdPublicacion)
+                .toList();
+        Map<Long, Long> totalesComentarios = ids.isEmpty()
+                ? Map.of() : indiceConteos(comentarios.contarPorPublicaciones(ids));
+        Map<Long, Long> totalesReacciones = ids.isEmpty()
+                ? Map.of() : indiceConteos(reacciones.contarPorPublicaciones(ids));
+        Map<Long, String> reaccionesPropias = ids.isEmpty()
+                ? Map.of() : indiceTipos(reacciones.tiposDelUsuario(ids, principal.idUsuario()));
+
+        return propias.map(publicacion -> PublicacionResponseDTO.from(
+                publicacion,
+                totalesComentarios.getOrDefault(publicacion.getIdPublicacion(), 0L),
+                totalesReacciones.getOrDefault(publicacion.getIdPublicacion(), 0L),
+                reaccionesPropias.get(publicacion.getIdPublicacion())));
     }
 
     @Transactional(readOnly = true)
@@ -359,6 +398,22 @@ public class PublicacionesService {
     private Usuario usuario(InsectopiaUserDetails principal) {
         return usuarios.findById(principal.idUsuario())
                 .orElseThrow(() -> new ResourceNotFoundException("usuario", principal.idUsuario()));
+    }
+
+    private static Map<Long, Long> indiceConteos(List<Object[]> filas) {
+        Map<Long, Long> indice = new HashMap<>();
+        for (Object[] fila : filas) {
+            indice.put(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
+        }
+        return indice;
+    }
+
+    private static Map<Long, String> indiceTipos(List<Object[]> filas) {
+        Map<Long, String> indice = new HashMap<>();
+        for (Object[] fila : filas) {
+            indice.put(((Number) fila[0]).longValue(), (String) fila[1]);
+        }
+        return indice;
     }
 
     private PublicacionResponseDTO mapear(

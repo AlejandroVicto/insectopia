@@ -1,8 +1,13 @@
 package com.insectopia.repository;
 
+import java.util.Collection;
+import java.util.List;
+
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.insectopia.models.Comentario;
 
@@ -31,4 +36,13 @@ public interface ComentarioRepository
             Long idComentario,
             Long idUsuario
     );
+
+    /** Actividad 074: conteos agrupados de una página, sin una consulta por publicación. */
+    @Query("""
+            select c.publicacion.idPublicacion, count(c)
+            from Comentario c
+            where c.publicacion.idPublicacion in :ids
+            group by c.publicacion.idPublicacion
+            """)
+    List<Object[]> contarPorPublicaciones(@Param("ids") Collection<Long> ids);
 }
