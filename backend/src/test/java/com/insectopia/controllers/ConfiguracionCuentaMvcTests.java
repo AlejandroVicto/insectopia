@@ -77,6 +77,9 @@ class ConfiguracionCuentaMvcTests {
 
     @Test void sinJwtEs401YLaLecturaPrivadaNoFiltraRoles() throws Exception {
         mvc.perform(get("/api/usuarios/me/configuracion")).andExpect(status().isUnauthorized());
+        mvc.perform(put("/api/usuarios/me/preferencias").contentType(MediaType.APPLICATION_JSON)
+                .content("{\"recibirSms\":true,\"recibirWhatsapp\":false}"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(put("/api/usuarios/me").contentType(MediaType.APPLICATION_JSON).content(perfilJson()))
                 .andExpect(status().isUnauthorized());
         mvc.perform(put("/api/usuarios/me/contrasena").contentType(MediaType.APPLICATION_JSON)
@@ -84,9 +87,27 @@ class ConfiguracionCuentaMvcTests {
                 .andExpect(status().isUnauthorized());
     }
 
+    @Test void preferenciasSoloDelPrincipalYValidacionEstricta() throws Exception {
+        mvc.perform(put("/api/usuarios/me/preferencias").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"recibirSms\":true}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(put("/api/usuarios/me/preferencias").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"recibirSms\":true,\"recibirWhatsapp\":false,\"idUsuario\":9}"))
+                .andExpect(status().isBadRequest());
+        when(configuracion.actualizarPreferencias(any(), any())).thenReturn(
+                new ConfiguracionPerfilResponseDTO(7L, "María", "maria", null, null, "MX", "Jalisco",
+                        LocalDate.of(2000, 2, 2), "+521234567890", "uno@test.invalid", null, true, false));
+        mvc.perform(put("/api/usuarios/me/preferencias").header(HttpHeaders.AUTHORIZATION, bearer)
+                .contentType(MediaType.APPLICATION_JSON).content("{\"recibirSms\":true,\"recibirWhatsapp\":false}"))
+                .andExpect(status().isOk()).andExpect(jsonPath("$.recibirSms").value(true))
+                .andExpect(jsonPath("$.recibirWhatsapp").value(false));
+        verify(configuracion).actualizarPreferencias(any(), any());
+    }
+
     @Test void edicionNormalizaYNoAdmiteCamposAdministrativos() throws Exception {
         ConfiguracionPerfilResponseDTO dto = new ConfiguracionPerfilResponseDTO(7L, "María", "maria_2", null,
-                "Femenino", "MX", "Jalisco", LocalDate.of(2000, 2, 2), null, "uno@test.invalid", null);
+                "Femenino", "MX", "Jalisco", LocalDate.of(2000, 2, 2), null, "uno@test.invalid", null, false, false);
         when(configuracion.actualizar(any(), any())).thenReturn(dto);
         mvc.perform(put("/api/usuarios/me").header(HttpHeaders.AUTHORIZATION, bearer)
                 .contentType(MediaType.APPLICATION_JSON).content(perfilJson()))

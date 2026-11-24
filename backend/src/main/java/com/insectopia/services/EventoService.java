@@ -50,17 +50,19 @@ public class EventoService {
     private final ParticipanteEventoRepository participantes;
     private final UsuarioRepository usuarios;
     private final NotificacionService notificaciones;
+    private final SmsService sms;
     private final AlmacenamientoImagenesService imagenes;
     private final ZoneId zona;
 
     public EventoService(EventoRepository eventos, ParticipanteEventoRepository participantes,
-            UsuarioRepository usuarios, NotificacionService notificaciones,
+            UsuarioRepository usuarios, NotificacionService notificaciones, SmsService sms,
             @Qualifier("imagenesEventos") AlmacenamientoImagenesService imagenes,
             @Value("${insectopia.eventos.zone:America/Mexico_City}") String zona) {
         this.eventos = eventos;
         this.participantes = participantes;
         this.usuarios = usuarios;
         this.notificaciones = notificaciones;
+        this.sms = sms;
         this.imagenes = imagenes;
         this.zona = ZoneId.of(zona);
     }
@@ -276,7 +278,7 @@ public class EventoService {
         }
         long ocupados = participantes.countByEvento_IdEventoAndEstado(id, EstadoParticipanteEvento.INSCRITO);
         if (ocupados >= evento.getCupoMaximo()) throw new EventoConflictoException("El cupo está completo");
-        Usuario usuario = usuarios.getReferenceById(user.idUsuario());
+        Usuario usuario = participacion == null ? usuarios.getReferenceById(user.idUsuario()) : participacion.getUsuario();
         if (participacion == null) {
             participacion = new ParticipanteEvento();
             participacion.setId(clave);
@@ -288,6 +290,7 @@ public class EventoService {
         participacion.setEstado(EstadoParticipanteEvento.INSCRITO);
         participantes.save(participacion);
         notificaciones.porParticipacion(evento, usuario, true);
+        sms.registrar(id, user.idUsuario(), Boolean.TRUE.equals(usuario.getRecibirSms()));
         return respuesta(evento, ocupados + 1, EstadoParticipanteEvento.INSCRITO, user.idUsuario());
     }
 
@@ -303,6 +306,7 @@ public class EventoService {
         if (!evento.getFechaInicio().isAfter(actual)) throw new EventoConflictoException("El evento ya comenzó");
         participacion.setEstado(EstadoParticipanteEvento.CANCELADO);
         participacion.setFechaCancelacion(actual);
+        sms.cancelar(id, user.idUsuario());
         notificaciones.porParticipacion(evento, participacion.getUsuario(), false);
     }
 

@@ -24,6 +24,7 @@ import com.insectopia.dtos.ActualizarPerfilRequestDTO;
 import com.insectopia.dtos.CambiarContrasenaRequest;
 import com.insectopia.dtos.CambiarContrasenaResponseDTO;
 import com.insectopia.dtos.ConfiguracionPerfilResponseDTO;
+import com.insectopia.dtos.PreferenciasComunicacionRequestDTO;
 import com.insectopia.exceptions.RegistrationValidationException;
 import com.insectopia.exceptions.ResourceNotFoundException;
 import com.insectopia.models.Usuario;
@@ -102,6 +103,8 @@ public class ConfiguracionCuentaService {
         usuario.setEstadoRegion(region);
         usuario.setFechaNacimiento(datos.fechaNacimiento());
         usuario.setTelefono(datos.telefono());
+        if (Boolean.TRUE.equals(usuario.getRecibirSms()) && !SmsSettings.e164(datos.telefono()))
+            throw new RegistrationValidationException("telefono", "Para recibir SMS se requiere un teléfono E.164.");
         try {
             usuarios.saveAndFlush(usuario);
         } catch (DataIntegrityViolationException exception) {
@@ -109,6 +112,21 @@ public class ConfiguracionCuentaService {
             if (duplicado != null && "nombreUsuario".equals(duplicado.getField())) throw duplicado;
             throw exception;
         }
+        return ConfiguracionPerfilResponseDTO.from(usuario);
+    }
+
+    @Transactional
+    public ConfiguracionPerfilResponseDTO actualizarPreferencias(PreferenciasComunicacionRequestDTO datos,
+            InsectopiaUserDetails principal) {
+        Usuario usuario = propio(principal);
+        if ((Boolean.TRUE.equals(datos.recibirSms()) || Boolean.TRUE.equals(datos.recibirWhatsapp()))
+                && usuario.getTelefono() == null)
+            throw new RegistrationValidationException("telefono", "Se requiere un teléfono para recibir comunicaciones.");
+        if (Boolean.TRUE.equals(datos.recibirSms()) && !SmsSettings.e164(usuario.getTelefono()))
+            throw new RegistrationValidationException("telefono", "Para recibir SMS se requiere un teléfono E.164.");
+        usuario.setRecibirSms(datos.recibirSms());
+        usuario.setRecibirWhatsapp(datos.recibirWhatsapp());
+        usuarios.saveAndFlush(usuario);
         return ConfiguracionPerfilResponseDTO.from(usuario);
     }
 

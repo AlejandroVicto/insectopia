@@ -21,6 +21,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.insectopia.dtos.ActualizarPerfilRequestDTO;
 import com.insectopia.dtos.CambiarContrasenaRequest;
+import com.insectopia.dtos.PreferenciasComunicacionRequestDTO;
 import com.insectopia.exceptions.CatalogoNoDisponibleException;
 import com.insectopia.exceptions.DuplicateResourceException;
 import com.insectopia.exceptions.RegistrationValidationException;
@@ -60,6 +61,24 @@ class ConfiguracionCuentaServiceTests {
     private ActualizarPerfilRequestDTO datos() {
         return new ActualizarPerfilRequestDTO(" Ana ", " ANA_2 ", "bio", "Otro", "mx",
                 " Jalisco ", LocalDate.of(1999, 1, 1), null);
+    }
+
+    @Test void preferenciasRequierenTelefonoE164ParaSmsYNoActivanPorDefecto() {
+        when(usuarios.bloquearPorId(7L)).thenReturn(Optional.of(usuario));
+        assertFalse(usuario.getRecibirSms());
+        assertEquals("telefono", assertThrows(RegistrationValidationException.class,
+                () -> service.actualizarPreferencias(new PreferenciasComunicacionRequestDTO(true, false), principal)).getField());
+        usuario.setTelefono("55 1234 5678");
+        assertEquals("telefono", assertThrows(RegistrationValidationException.class,
+                () -> service.actualizarPreferencias(new PreferenciasComunicacionRequestDTO(true, false), principal)).getField());
+        usuario.setTelefono("+521234567890");
+        var respuesta = service.actualizarPreferencias(new PreferenciasComunicacionRequestDTO(true, false), principal);
+        assertTrue(respuesta.recibirSms());
+        assertFalse(respuesta.recibirWhatsapp());
+        assertEquals(3, usuario.getVersionToken());
+        verify(usuarios).saveAndFlush(usuario);
+        service.actualizarPreferencias(new PreferenciasComunicacionRequestDTO(false, false), principal);
+        assertFalse(usuario.getRecibirSms());
     }
 
     @Test void actualizaSoloCamposPermitidosYIdentidadDelPrincipal() {

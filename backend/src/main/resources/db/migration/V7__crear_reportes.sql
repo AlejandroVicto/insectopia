@@ -5,14 +5,14 @@
 -- Compatible con MySQL 8.4 y Flyway
 --
 -- No se insertan datos de prueba en esta migracion.
--- Las reglas referenciales RESTRICT impiden destruir el
--- historial de reportes al eliminar usuarios o publicaciones.
+-- Las referencias opcionales se desligan al eliminar usuarios
+-- o publicaciones, conservando el historial de reportes.
 -- ============================================================
 
 CREATE TABLE reportes (
     id_reporte BIGINT NOT NULL AUTO_INCREMENT,
-    id_reportante BIGINT NOT NULL,
-    id_publicacion BIGINT NOT NULL,
+    id_reportante BIGINT NULL,
+    id_publicacion BIGINT NULL,
     id_moderador BIGINT NULL,
     motivo VARCHAR(100) NOT NULL,
     descripcion VARCHAR(500) NULL,
@@ -43,19 +43,19 @@ CREATE TABLE reportes (
     CONSTRAINT fk_reportes_reportante
         FOREIGN KEY (id_reportante)
         REFERENCES usuarios (id_usuario)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT,
 
     CONSTRAINT fk_reportes_publicacion
         FOREIGN KEY (id_publicacion)
         REFERENCES publicaciones (id_publicacion)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT,
 
     CONSTRAINT fk_reportes_moderador
         FOREIGN KEY (id_moderador)
         REFERENCES usuarios (id_usuario)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4

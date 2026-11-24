@@ -44,6 +44,7 @@ class EventoServiceTests {
     @Mock ParticipanteEventoRepository participantes;
     @Mock UsuarioRepository usuarios;
     @Mock NotificacionService notificaciones;
+    @Mock SmsService sms;
     @Mock AlmacenamientoImagenesService imagenes;
     EventoService service;
     InsectopiaUserDetails actual;
@@ -52,7 +53,7 @@ class EventoServiceTests {
     Evento evento;
 
     @BeforeEach void preparar() {
-        service = new EventoService(eventos, participantes, usuarios, notificaciones, imagenes, "America/Mexico_City");
+        service = new EventoService(eventos, participantes, usuarios, notificaciones, sms, imagenes, "America/Mexico_City");
         actual = principal(7);
         proponente = usuario(7);
         inscrito = usuario(8);
@@ -202,10 +203,12 @@ class EventoServiceTests {
         verify(participantes).save(captor.capture());
         assertEquals(new ParticipanteEventoId(12L, 8L), captor.getValue().getId());
         verify(notificaciones).porParticipacion(evento, inscrito, true);
+        verify(sms).registrar(12L, 8L, false);
         when(participantes.findById(new ParticipanteEventoId(12L, 8L)))
                 .thenReturn(Optional.of(captor.getValue()));
         assertThrows(EventoConflictoException.class, () -> service.inscribir(12L, principal(8)));
         verify(notificaciones, times(1)).porParticipacion(evento, inscrito, true);
+        verify(sms, times(1)).registrar(12L, 8L, false);
     }
 
     @Test void rechazaEstadosFechasYCupoSinCrearAvisos() {
@@ -221,6 +224,7 @@ class EventoServiceTests {
         when(participantes.countByEvento_IdEventoAndEstado(12L, EstadoParticipanteEvento.INSCRITO)).thenReturn(1L);
         assertThrows(EventoConflictoException.class, () -> service.inscribir(12L, principal(8)));
         verifyNoInteractions(notificaciones);
+        verifyNoInteractions(sms);
     }
 
     @Test void cancelarYReinscribirReutilizaLaMismaClaveCompuesta() {
@@ -235,11 +239,21 @@ class EventoServiceTests {
         assertEquals(EstadoParticipanteEvento.CANCELADO, p.getEstado());
         assertNotNull(p.getFechaCancelacion());
         verify(notificaciones).porParticipacion(evento, inscrito, false);
+        verify(sms).cancelar(12L, 8L);
         assertThrows(EventoConflictoException.class, () -> service.cancelarInscripcion(12L, principal(8)));
         service.inscribir(12L, principal(8));
         assertEquals(EstadoParticipanteEvento.INSCRITO, p.getEstado());
         assertNull(p.getFechaCancelacion());
         verify(participantes).save(same(p));
+    }
+
+    @Test void consentimientoSePropagaYUnFalloExternoNoOcurreDuranteInscripcion() {
+        inscrito.setRecibirSms(true);
+        when(eventos.bloquear(12L)).thenReturn(Optional.of(evento));
+        when(usuarios.getReferenceById(8L)).thenReturn(inscrito);
+        service.inscribir(12L, principal(8));
+        verify(sms).registrar(12L, 8L, true);
+        verify(notificaciones).porParticipacion(evento, inscrito, true);
     }
 
     @Test void imagenSoloPendientePropiaSeGuardaEnDirectorioEventosYLimpiaAnteriorTrasCommit() {

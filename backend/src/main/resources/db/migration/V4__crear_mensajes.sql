@@ -30,6 +30,8 @@ CREATE TABLE participantes_conversacion (
     fecha_ingreso DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     fecha_ultima_lectura DATETIME NULL,
     oculta BOOLEAN NOT NULL DEFAULT FALSE,
+    -- Desempate de mensajes con la misma fecha; NULL conserva la semantica de lectura anterior.
+    id_ultimo_mensaje_leido BIGINT NULL,
 
     CONSTRAINT pk_participantes_conversacion
         PRIMARY KEY (id_conversacion, id_usuario),

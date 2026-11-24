@@ -11,7 +11,7 @@
 
 CREATE TABLE eventos (
     id_evento BIGINT NOT NULL AUTO_INCREMENT,
-    id_proponente BIGINT NOT NULL,
+    id_proponente BIGINT NULL,
     id_moderador BIGINT NULL,
     titulo VARCHAR(150) NOT NULL,
     descripcion TEXT NOT NULL,
@@ -56,13 +56,13 @@ CREATE TABLE eventos (
     CONSTRAINT fk_eventos_proponente
         FOREIGN KEY (id_proponente)
         REFERENCES usuarios (id_usuario)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT,
 
     CONSTRAINT fk_eventos_moderador
         FOREIGN KEY (id_moderador)
         REFERENCES usuarios (id_usuario)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT
 ) ENGINE=InnoDB
   DEFAULT CHARSET=utf8mb4

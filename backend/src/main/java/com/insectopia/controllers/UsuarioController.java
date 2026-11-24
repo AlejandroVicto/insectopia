@@ -21,6 +21,7 @@ import com.insectopia.dtos.ActualizarPerfilRequestDTO;
 import com.insectopia.dtos.CambiarContrasenaRequest;
 import com.insectopia.dtos.CambiarContrasenaResponseDTO;
 import com.insectopia.dtos.ConfiguracionPerfilResponseDTO;
+import com.insectopia.dtos.PreferenciasComunicacionRequestDTO;
 import com.insectopia.services.ConfiguracionCuentaService;
 import jakarta.validation.Valid;
 import com.insectopia.dtos.publicaciones.PaginaDTO;
@@ -65,6 +66,12 @@ public class UsuarioController {
     public ConfiguracionPerfilResponseDTO actualizar(@Valid @RequestBody ActualizarPerfilRequestDTO datos,
             @AuthenticationPrincipal InsectopiaUserDetails principal) {
         return configuracion.actualizar(datos, principal);
+    }
+
+    @PutMapping("/preferencias")
+    public ConfiguracionPerfilResponseDTO actualizarPreferencias(@Valid @RequestBody PreferenciasComunicacionRequestDTO datos,
+            @AuthenticationPrincipal InsectopiaUserDetails principal) {
+        return configuracion.actualizarPreferencias(datos, principal);
     }
 
     @PutMapping("/contrasena")

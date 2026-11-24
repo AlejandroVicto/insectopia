@@ -48,7 +48,7 @@ CREATE TABLE publicaciones (
 
 CREATE TABLE comentarios (
     id_comentario BIGINT NOT NULL AUTO_INCREMENT,
-    id_publicacion BIGINT NOT NULL,
+    id_publicacion BIGINT NULL,
     id_usuario BIGINT NOT NULL,
     contenido TEXT NOT NULL,
 
@@ -71,7 +71,7 @@ CREATE TABLE comentarios (
     CONSTRAINT fk_comentarios_publicaciones
         FOREIGN KEY (id_publicacion)
         REFERENCES publicaciones (id_publicacion)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT,
 
     CONSTRAINT fk_comentarios_usuarios
@@ -86,7 +86,7 @@ CREATE TABLE comentarios (
 
 CREATE TABLE reacciones (
     id_reaccion BIGINT NOT NULL AUTO_INCREMENT,
-    id_publicacion BIGINT NOT NULL,
+    id_publicacion BIGINT NULL,
     id_usuario BIGINT NOT NULL,
     tipo VARCHAR(30) NOT NULL DEFAULT 'ME_GUSTA',
 
@@ -105,7 +105,7 @@ CREATE TABLE reacciones (
     CONSTRAINT fk_reacciones_publicaciones
         FOREIGN KEY (id_publicacion)
         REFERENCES publicaciones (id_publicacion)
-        ON DELETE RESTRICT
+        ON DELETE SET NULL
         ON UPDATE RESTRICT,
 
     CONSTRAINT fk_reacciones_usuarios
