@@ -1,10 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../auth/useAuth'
+import { ROLES } from '../auth/roles'
 import { adaptarPerfil } from '../adapters/perfilAdapter'
 import { actualizarMiPerfil, consultarConfiguracionPerfil, consultarMiPerfil, subirAvatar, quitarAvatar } from '../services/perfilService'
 import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import { mensajeErrorApi } from '../services/erroresApi'
+import {
+  consultarVinculoGoogle,
+  desvincularGoogle,
+  iniciarVinculacionGoogle,
+  normalizarErrorGoogle,
+  obtenerConfiguracionGoogle,
+  redirigirAGoogle,
+} from '../services/googleService'
 import { LIMITES, TIPOS_IMAGEN_ACEPTADOS } from '../constants/modalesPublicaciones'
 import Avatar from '../components/inicio/Avatar'
 import CambiarContrasenaModal from '../components/seguridad/CambiarContrasenaModal'
@@ -122,6 +131,10 @@ export default function Configuracion() {
   const [mensajeGuardado, setMensajeGuardado] = useState('')
   const [modalContrasena, setModalContrasena] = useState(false)
   const [contrasenaActualizada, setContrasenaActualizada] = useState('')
+  const [googleEstado, setGoogleEstado] = useState('cargando')
+  const [googleVinculado, setGoogleVinculado] = useState(false)
+  const [googleMensaje, setGoogleMensaje] = useState(location.state?.googleMensaje ?? '')
+  const [googleAccion, setGoogleAccion] = useState('')
   const regionRequest = useRef(0)
   const archivoFotoRef = useRef(null)
   const guardandoRef = useRef(false)
@@ -215,6 +228,27 @@ export default function Configuracion() {
       })
     return () => { activo = false }
   }, [codigoPais])
+
+  useEffect(() => {
+    if (seccion !== 'seguridad') return undefined
+    let activo = true
+    const controller = new AbortController()
+    setGoogleEstado('cargando')
+    Promise.all([
+      obtenerConfiguracionGoogle({ senal: controller.signal }),
+      consultarVinculoGoogle({ senal: controller.signal }),
+    ]).then(([config, vinculo]) => {
+      if (!activo) return
+      setGoogleVinculado(vinculo.vinculado)
+      setGoogleEstado(config.enabled ? 'listo' : 'no_disponible')
+    }).catch(() => {
+      if (activo && !controller.signal.aborted) setGoogleEstado('error')
+    })
+    return () => {
+      activo = false
+      controller.abort()
+    }
+  }, [seccion])
 
   useEffect(() => () => {
     if (vistaPrevia && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(vistaPrevia)
@@ -383,6 +417,34 @@ export default function Configuracion() {
       replace: true,
       state: { from: location.pathname + location.search + location.hash },
     })
+  }
+
+  async function vincularGoogle() {
+    if (googleAccion) return
+    setGoogleAccion('vinculando')
+    setGoogleMensaje('')
+    try {
+      const { authorizationUrl } = await iniciarVinculacionGoogle()
+      redirigirAGoogle(authorizationUrl)
+    } catch (error) {
+      setGoogleMensaje(normalizarErrorGoogle(error).message)
+      setGoogleAccion('')
+    }
+  }
+
+  async function desvincularCuentaGoogle() {
+    if (googleAccion) return
+    setGoogleAccion('desvinculando')
+    setGoogleMensaje('')
+    try {
+      await desvincularGoogle()
+      setGoogleVinculado(false)
+      setGoogleMensaje('La identidad de Google se desvinculó correctamente.')
+    } catch (error) {
+      setGoogleMensaje(normalizarErrorGoogle(error).message)
+    } finally {
+      setGoogleAccion('')
+    }
   }
 
   async function compartir() {
@@ -591,6 +653,54 @@ export default function Configuracion() {
                   Cambiar contraseña
                 </button>
               </div>
+            </section>
+
+            <section className="configuracion-card configuracion-card--seccion" aria-labelledby="titulo-google">
+              <h3 id="titulo-google" className="configuracion-titulo-seccion">Google</h3>
+              <p className="mt-2 text-xs leading-5 text-[var(--conf-muted)]">
+                {googleVinculado
+                  ? 'Tu cuenta tiene una identidad de Google vinculada.'
+                  : 'Vincula Google para iniciar sesión con tu cuenta de Google. La vinculación requiere confirmar tu identidad en el proveedor.'}
+              </p>
+              {googleMensaje && (
+                <p role="status" className="mt-3 text-xs leading-5 text-[var(--conf-lime)]">{googleMensaje}</p>
+              )}
+              {googleEstado === 'error' && (
+                <p role="alert" className="mt-3 text-xs leading-5 text-red-400">
+                  No se pudo consultar el estado de Google. Inténtalo de nuevo recargando la pantalla.
+                </p>
+              )}
+              {user?.role === ROLES.ADMINISTRADOR ? (
+                <p role="status" className="mt-3 text-xs leading-5 text-[var(--conf-muted)]">
+                  Las cuentas administrativas o de evaluación no pueden vincular ni desvincular Google.
+                </p>
+              ) : googleEstado === 'no_disponible' ? (
+                <p role="status" className="mt-3 text-xs leading-5 text-[var(--conf-muted)]">
+                  Google no está configurado en este entorno. El inicio de sesión con contraseña sigue disponible.
+                </p>
+              ) : googleEstado === 'listo' ? (
+                <div className="configuracion-acciones-foto">
+                  {googleVinculado ? (
+                    <button
+                      type="button"
+                      className="configuracion-secondary"
+                      disabled={Boolean(googleAccion)}
+                      onClick={desvincularCuentaGoogle}
+                    >
+                      {googleAccion === 'desvinculando' ? 'Desvinculando…' : 'Desvincular Google'}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="configuracion-primary"
+                      disabled={Boolean(googleAccion)}
+                      onClick={vincularGoogle}
+                    >
+                      {googleAccion === 'vinculando' ? 'Abriendo Google…' : 'Vincular Google'}
+                    </button>
+                  )}
+                </div>
+              ) : null}
             </section>
           </div>}
 

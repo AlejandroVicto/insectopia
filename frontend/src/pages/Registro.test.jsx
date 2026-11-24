@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { AuthProvider } from '../auth/AuthProvider'
+import { useAuth } from '../auth/useAuth'
 import api from '../services/api'
 import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import Registro from './Registro'
@@ -13,27 +15,40 @@ vi.mock('../services/catalogoService', () => ({
 
 const adaptadorOriginal = api.defaults.adapter
 
-function respuestaOk(config) {
-  return Promise.resolve({
-    data: { idUsuario: 1 },
-    status: 201,
-    statusText: 'Created',
-    headers: {},
-    config,
-  })
+function respuesta(config, data, status = 200) {
+  return Promise.resolve({ data, status, statusText: status === 201 ? 'Created' : 'OK', headers: {}, config })
 }
 
-function renderRegistro({ adaptador = vi.fn(respuestaOk) } = {}) {
+function respuestaOk(config) {
+  return respuesta(config, { idUsuario: 1 }, 201)
+}
+
+function SesionProbe() {
+  const { role, isAuthenticated } = useAuth()
+  return <output data-testid="sesion">{isAuthenticated ? role : 'sin sesión'}</output>
+}
+
+function UbicacionProbe() {
+  const location = useLocation()
+  return <output data-testid="cancelado">{String(location.state?.googleCancelado ?? false)}</output>
+}
+
+function renderRegistro({ adaptador = vi.fn(respuestaOk), estado = null } = {}) {
   api.defaults.adapter = adaptador
   const resultado = render(
-    <MemoryRouter initialEntries={['/registro']}>
-      <Routes>
-        <Route
-          path="/registro"
-          element={<Registro />}
-        />
-        <Route path="/login" element={<p>Pantalla de inicio de sesión</p>} />
-      </Routes>
+    <MemoryRouter initialEntries={[{ pathname: '/registro', state: estado }]}>
+      <AuthProvider>
+        <SesionProbe />
+        <UbicacionProbe />
+        <Routes>
+          <Route
+            path="/registro"
+            element={<Registro />}
+          />
+          <Route path="/app" element={<p>Área general</p>} />
+          <Route path="/login" element={<p>Pantalla de inicio de sesión</p>} />
+        </Routes>
+      </AuthProvider>
     </MemoryRouter>,
   )
   return { ...resultado, adaptador }
@@ -67,6 +82,36 @@ async function completarFormulario() {
     target: { value: 'ClaveSegura1!' },
   })
   fireEvent.click(screen.getByLabelText(/acepto los términos/i))
+}
+
+const estadoGoogle = {
+  registrationToken: 'token_registro_opaco',
+  perfil: { email: 'maria@test.invalid', nombre: 'María Google' },
+}
+
+async function completarFormularioGoogle() {
+  await waitFor(() => expect(screen.getByRole('option', { name: 'México' })).toBeTruthy())
+  fireEvent.change(screen.getByLabelText('Nombre completo'), { target: { value: 'María González' } })
+  fireEvent.change(screen.getByLabelText('Nombre de usuario'), { target: { value: 'MARIA_insectos' } })
+  fireEvent.change(screen.getByLabelText('Fecha de nacimiento'), { target: { value: '1995-05-20' } })
+  fireEvent.change(screen.getByLabelText('País'), { target: { value: 'MX' } })
+  await waitFor(() => expect(screen.getByLabelText('Estado / Región').disabled).toBe(false))
+  fireEvent.change(screen.getByLabelText('Estado / Región'), { target: { value: 'Oaxaca' } })
+  fireEvent.click(screen.getByLabelText(/acepto los términos/i))
+}
+
+function adaptadorGoogle(config) {
+  if (config.url === '/api/google/register') {
+    return respuesta(config, {
+      token: 'jwt-del-backend',
+      user: { id: 9, role: 'USUARIO', name: 'María González', email: 'maria@test.invalid' },
+    })
+  }
+  if (config.url === '/api/google/register/cancel') return respuesta(config, { cancelado: true })
+  if (config.url === '/api/google/config') {
+    return respuesta(config, { enabled: true, loginUrl: '/oauth2/authorization/google' })
+  }
+  return respuestaOk(config)
 }
 
 beforeEach(() => {
@@ -286,7 +331,7 @@ describe('pantalla de registro', () => {
     expect(screen.getByLabelText(/^fecha de nacimiento$/i).disabled).toBe(false)
     fireEvent.click(screen.getByRole('button', { name: /crear cuenta/i }))
     expect(screen.getByText('El país es obligatorio.')).toBeTruthy()
-    expect(adaptador).not.toHaveBeenCalled()
+    expect(adaptador.mock.calls.every(([config]) => config.url === '/api/google/config')).toBe(true)
     expect(screen.queryByText('Pantalla de inicio de sesión')).toBeNull()
   })
 
@@ -314,9 +359,9 @@ describe('pantalla de registro', () => {
     fireEvent.click(boton)
 
     expect(screen.getByRole('button', { name: /creando cuenta/i }).disabled).toBe(true)
-    await waitFor(() => expect(adaptador).toHaveBeenCalledOnce())
+    await waitFor(() => expect(llamadaA(adaptador, '/api/auth/register')).toBeTruthy())
 
-    const config = adaptador.mock.calls[0][0]
+    const config = llamadaA(adaptador, '/api/auth/register')
     const payload = JSON.parse(config.data)
     expect(config.url).toBe('/api/auth/register')
     expect(config.skipAuth).toBe(true)
@@ -410,3 +455,108 @@ describe('pantalla de registro', () => {
     expect(screen.getByRole('alert').textContent).not.toContain('ClaveSegura1!')
   })
 })
+
+describe('registro con Google en el formulario tradicional', () => {
+  it('autocompleta el correo verificado de Google en solo lectura y el nombre, sin campos de contraseña', async () => {
+    renderRegistro({ adaptador: vi.fn(adaptadorGoogle), estado: estadoGoogle })
+
+    const correo = await screen.findByLabelText(/^correo electrónico$/i)
+    expect(correo.value).toBe('maria@test.invalid')
+    expect(correo.readOnly).toBe(true)
+    expect(screen.getByLabelText(/^nombre completo$/i).value).toBe('María Google')
+    expect(screen.queryByLabelText(/^contraseña$/i)).toBeNull()
+    expect(screen.queryByLabelText(/^confirmar contraseña$/i)).toBeNull()
+    expect(screen.getByText(/no se solicita ninguna contraseña/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: /crear cuenta con google/i })).toBeTruthy()
+  })
+
+  it('valida el perfil sin exigir correo ni contraseña', async () => {
+    const adaptador = vi.fn(adaptadorGoogle)
+    renderRegistro({ adaptador, estado: estadoGoogle })
+
+    await screen.findByLabelText(/^correo electrónico$/i)
+    fireEvent.click(screen.getByRole('button', { name: /crear cuenta con google/i }))
+
+    expect(screen.getByText('El nombre de usuario es obligatorio.')).toBeTruthy()
+    expect(screen.getByText('La fecha de nacimiento es obligatoria.')).toBeTruthy()
+    expect(screen.getByText('El país es obligatorio.')).toBeTruthy()
+    expect(screen.queryByText('El correo electrónico es obligatorio.')).toBeNull()
+    expect(screen.queryByText('La contraseña es obligatoria.')).toBeNull()
+    expect(llamadaA(adaptador, '/api/google/register')).toBeUndefined()
+  })
+
+  it('envía el perfil al endpoint Google, guarda la sesión y navega según el rol', async () => {
+    const adaptador = vi.fn(adaptadorGoogle)
+    renderRegistro({ adaptador, estado: estadoGoogle })
+
+    await completarFormularioGoogle()
+    fireEvent.click(screen.getByRole('button', { name: /crear cuenta con google/i }))
+
+    await waitFor(() => expect(llamadaA(adaptador, '/api/google/register')).toBeTruthy())
+    const config = llamadaA(adaptador, '/api/google/register')
+    const payload = JSON.parse(config.data)
+    expect(config.url).toBe('/api/google/register')
+    expect(config.skipAuth).toBe(true)
+    expect(payload).toMatchObject({ token: { token: 'token_registro_opaco' } })
+    expect(payload.datos).toMatchObject({
+      nombre: 'María González',
+      nombreUsuario: 'maria_insectos',
+      fechaNacimiento: '1995-05-20',
+      genero: null,
+      paisCodigo: 'MX',
+      estadoRegion: 'Oaxaca',
+      telefono: null,
+      recibirSms: false,
+      recibirWhatsapp: false,
+      aceptarTerminos: true,
+    })
+    expect(payload.datos).not.toHaveProperty('correo')
+    expect(payload.datos).not.toHaveProperty('contrasena')
+
+    expect(await screen.findByText('Área general')).toBeTruthy()
+    expect(screen.getByTestId('sesion').textContent).toBe('USUARIO')
+  })
+
+  it('muestra el mensaje de registro temporal no disponible sin un token válido', () => {
+    renderRegistro({
+      estado: { registrationToken: 'token?invalido', perfil: estadoGoogle.perfil },
+      adaptador: vi.fn(adaptadorGoogle),
+    })
+
+    expect(screen.getByRole('alert').textContent).toMatch(/registro temporal de google no está disponible/i)
+    expect(screen.queryByLabelText(/^correo electrónico$/i)).toBeNull()
+  })
+
+  it('mantiene el mensaje de expiración devuelto por el backend', async () => {
+    const adaptador = vi.fn((config) => config.url === '/api/google/register'
+      ? Promise.reject({
+        config,
+        response: { status: 400, data: { message: 'El registro de Google expiró. Inicia sesión nuevamente.' } },
+      })
+      : adaptadorGoogle(config))
+    renderRegistro({ adaptador, estado: estadoGoogle })
+
+    await completarFormularioGoogle()
+    fireEvent.click(screen.getByRole('button', { name: /crear cuenta con google/i }))
+
+    expect(await screen.findByRole('alert')).toBeTruthy()
+    expect(screen.getByRole('alert').textContent).toMatch(/expiró/i)
+  })
+
+  it('cancela el registro y vuelve al inicio de sesión', async () => {
+    const adaptador = vi.fn(adaptadorGoogle)
+    renderRegistro({ adaptador, estado: estadoGoogle })
+
+    await screen.findByLabelText(/^correo electrónico$/i)
+    fireEvent.click(screen.getByRole('button', { name: /cancelar y volver/i }))
+
+    expect(await screen.findByText('Pantalla de inicio de sesión')).toBeTruthy()
+    expect(llamadaA(adaptador, '/api/google/register/cancel')).toBeTruthy()
+    expect(screen.getByTestId('cancelado').textContent).toBe('true')
+    expect(llamadaA(adaptador, '/api/google/register')).toBeUndefined()
+  })
+})
+
+function llamadaA(adaptador, url) {
+  return adaptador.mock.calls.map(([config]) => config).find((config) => config.url === url)
+}

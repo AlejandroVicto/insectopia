@@ -1,20 +1,40 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo.png'
+import { useAuth } from '../auth/useAuth'
+import { ROLES } from '../auth/roles'
 import {
   normalizarErrorRegistro,
   registrarUsuario,
 } from '../services/authService'
 import { obtenerPaises, obtenerRegiones } from '../services/catalogoService'
 import {
+  cancelarRegistroGoogle,
+  completarRegistroGoogle,
+  normalizarErrorGoogle,
+} from '../services/googleService'
+import { adaptarRespuestaLogin } from '../services/loginService'
+import {
   CAMPOS_VALIDABLES,
   VALORES_INICIALES,
   validarCampo,
   validarFormulario,
 } from '../utils/validacionRegistro'
+import {
+  CAMPOS_VALIDABLES_GOOGLE,
+  VALORES_INICIALES_GOOGLE,
+  validarCampoGoogle,
+  validarFormularioGoogle,
+} from '../utils/validacionRegistroGoogle'
 import './registro.css'
 
 const prefijo = 'registro'
+const TOKEN_GOOGLE = /^[A-Za-z0-9_-]{1,128}$/
+const DESTINOS_POR_ROL = {
+  [ROLES.USUARIO]: '/app',
+  [ROLES.MODERADOR]: '/moderacion',
+  [ROLES.ADMINISTRADOR]: '/administracion',
+}
 
 function idDe(campo) {
   return `${prefijo}-${campo}`
@@ -163,12 +183,54 @@ function PanelInstitucional() {
   )
 }
 
-export default function Registro() {
+function RegistroGoogleNoDisponible({ mensaje }) {
+  return (
+    <main className="registro-shell relative min-h-screen bg-neutral-900 font-['Mulish'] text-white lg:grid lg:place-items-center">
+      <section className="mx-auto w-full max-w-[520px] px-5 py-12 text-center sm:px-8">
+        <img src={logo} alt="Insectopia" className="mx-auto mb-6 w-40 object-contain" />
+        <h2 className="font-['Plus_Jakarta_Sans'] text-2xl font-bold">No pudimos continuar el registro</h2>
+        <p role="alert" className="mt-3 text-sm leading-6 text-gray-400">
+          {mensaje}
+        </p>
+        <Link to="/login" className="mt-6 inline-block rounded-lg bg-lime-400 px-5 py-2.5 text-sm font-bold text-neutral-950 hover:bg-lime-300">
+          Volver al inicio de sesión
+        </Link>
+      </section>
+    </main>
+  )
+}
+
+export default function Registro({ modo = 'normal' }) {
   const navigate = useNavigate()
-  const [valores, setValores] = useState({ ...VALORES_INICIALES })
+  const ubicacion = useLocation()
+  const { setSession } = useAuth()
+
+  const estadoGoogle = ubicacion.state?.registrationToken ? ubicacion.state : null
+  const esGoogle = modo === 'google' || Boolean(estadoGoogle)
+  const tokenGoogle = String(estadoGoogle?.registrationToken ?? '')
+  const tokenGoogleValido = TOKEN_GOOGLE.test(tokenGoogle)
+  const perfilGoogle = estadoGoogle?.perfil ?? {}
+  const correoGoogle = String(perfilGoogle?.correo ?? perfilGoogle?.email ?? '').trim()
+  const correoGoogleValido = !validarCampo('correo', { correo: correoGoogle })
+  const registrarGoogle = esGoogle && tokenGoogleValido && correoGoogleValido
+
+  const validar = esGoogle ? validarCampoGoogle : validarCampo
+  const validarTodo = esGoogle ? validarFormularioGoogle : validarFormulario
+  const camposValidables = esGoogle ? CAMPOS_VALIDABLES_GOOGLE : CAMPOS_VALIDABLES
+
+  const valoresIniciales = registrarGoogle
+    ? {
+      ...VALORES_INICIALES_GOOGLE,
+      correo: correoGoogle,
+      nombre: String(perfilGoogle?.nombre ?? '').trim().slice(0, 100),
+    }
+    : { ...VALORES_INICIALES }
+
+  const [valores, setValores] = useState(valoresIniciales)
   const [errores, setErrores] = useState({})
   const [errorGeneral, setErrorGeneral] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [cancelando, setCancelando] = useState(false)
   const [mostrarContrasena, setMostrarContrasena] = useState(false)
   const [mostrarConfirmacion, setMostrarConfirmacion] = useState(false)
   const fechaRef = useRef(null)
@@ -181,6 +243,7 @@ export default function Registro() {
   const [intentosCatalogo, setIntentosCatalogo] = useState(0)
 
   useEffect(() => {
+    if (esGoogle && !registrarGoogle) return undefined
     let activo = true
     obtenerPaises()
       .then((datos) => {
@@ -198,7 +261,7 @@ export default function Registro() {
         if (activo) setCargandoPaises(false)
       })
     return () => { activo = false }
-  }, [intentosCatalogo])
+  }, [intentosCatalogo, esGoogle, registrarGoogle])
 
   useEffect(() => {
     const codigo = valores.paisCodigo
@@ -240,12 +303,12 @@ export default function Registro() {
     setValores(siguientes)
     setErrores((actuales) => {
       const catalogo = { paises, regiones: name === 'paisCodigo' ? [] : regiones }
-      const proximos = { ...actuales, [name]: validarCampo(name, siguientes, catalogo) }
+      const proximos = { ...actuales, [name]: validar(name, siguientes, catalogo) }
       if (name === 'paisCodigo') {
-        proximos.estadoRegion = validarCampo('estadoRegion', siguientes)
+        proximos.estadoRegion = validar('estadoRegion', siguientes)
       }
-      if (name === 'recibirSms' || name === 'recibirWhatsapp') {
-        proximos.telefono = validarCampo('telefono', siguientes)
+      if (name === 'recibirSms' || name === 'recibirWhatsapp' || (esGoogle && name === 'telefono')) {
+        proximos.telefono = validar('telefono', siguientes)
       }
       if (name === 'contrasena') {
         proximos.confirmarContrasena = validarCampo('confirmarContrasena', siguientes)
@@ -259,19 +322,21 @@ export default function Registro() {
     const { name } = evento.target
     setErrores((actuales) => ({
       ...actuales,
-      [name]: validarCampo(name, valores, { paises, regiones }),
+      [name]: validar(name, valores, { paises, regiones }),
     }))
   }
 
   async function manejarEnvio(evento) {
     evento.preventDefault()
 
-    const erroresEnvio = validarFormulario(valores, { paises, regiones })
+    if (esGoogle && !registrarGoogle) return
+
+    const erroresEnvio = validarTodo(valores, { paises, regiones })
     setErrores(erroresEnvio)
     setErrorGeneral('')
 
     if (Object.keys(erroresEnvio).length > 0) {
-      const primerCampo = CAMPOS_VALIDABLES.find((campo) => erroresEnvio[campo])
+      const primerCampo = camposValidables.find((campo) => erroresEnvio[campo])
       document.getElementById(idDe(primerCampo))?.focus()
       return
     }
@@ -283,10 +348,17 @@ export default function Registro() {
 
     setEnviando(true)
     try {
-      await registrarUsuario(valores)
-      navigate('/login', { replace: true, state: { registroExitoso: true } })
+      if (esGoogle) {
+        const data = await completarRegistroGoogle(tokenGoogle, valores)
+        const sesion = adaptarRespuestaLogin(data)
+        setSession(sesion)
+        navigate(DESTINOS_POR_ROL[sesion.user.role] ?? '/app', { replace: true })
+      } else {
+        await registrarUsuario(valores)
+        navigate('/login', { replace: true, state: { registroExitoso: true } })
+      }
     } catch (error) {
-      const { message, fieldErrors } = normalizarErrorRegistro(error)
+      const { message, fieldErrors } = esGoogle ? normalizarErrorGoogle(error) : normalizarErrorRegistro(error)
       setErrores((actuales) => ({ ...actuales, ...fieldErrors }))
       setErrorGeneral(message)
     } finally {
@@ -294,7 +366,31 @@ export default function Registro() {
     }
   }
 
-  const botonDeshabilitado = enviando
+  async function cancelarRegistro() {
+    if (cancelando) return
+    setCancelando(true)
+    try {
+      await cancelarRegistroGoogle(tokenGoogle)
+    } catch {
+      // La navegación cancela el flujo aunque no podamos confirmar la invalidación remota.
+    } finally {
+      navigate('/login', { replace: true, state: { googleCancelado: true } })
+    }
+  }
+
+  if (esGoogle && !registrarGoogle) {
+    return (
+      <RegistroGoogleNoDisponible
+        mensaje={
+          tokenGoogleValido
+            ? 'El registro de Google no es válido. Inicia sesión con Google nuevamente.'
+            : 'El registro temporal de Google no está disponible. Inicia sesión con Google nuevamente para continuar.'
+        }
+      />
+    )
+  }
+
+  const botonDeshabilitado = enviando || cancelando
 
   return (
     <main className="registro-shell relative min-h-screen bg-neutral-900 font-['Mulish'] text-white lg:grid lg:h-screen lg:grid-cols-2">
@@ -383,13 +479,19 @@ export default function Registro() {
                 type="email"
                 autoComplete="email"
                 value={valores.correo}
-                onChange={actualizarCampo}
-                onBlur={validarAlSalir}
+                onChange={esGoogle ? undefined : actualizarCampo}
+                onBlur={esGoogle ? undefined : validarAlSalir}
+                readOnly={esGoogle}
                 aria-invalid={Boolean(errores.correo)}
-                aria-describedby={describir('correo', errores)}
-                className={claseInput(Boolean(errores.correo))}
+                aria-describedby={describir('correo', errores, esGoogle)}
+                className={claseInput(Boolean(errores.correo), esGoogle ? 'cursor-not-allowed text-gray-300' : '')}
                 placeholder="ej. correo@ejemplo.com"
               />
+              {esGoogle && (
+                <p id={idAyuda('correo')} className="text-xs leading-4 text-gray-500">
+                  Verificado por Google. No se puede modificar ni se envía desde este formulario.
+                </p>
+              )}
               <MensajeError campo="correo" errores={errores} />
             </div>
 
@@ -546,6 +648,8 @@ export default function Registro() {
               </label>
             </div>
 
+            {!esGoogle && (
+            <>
             <div className="flex min-w-0 flex-col gap-1.5">
               <Etiqueta htmlFor={idDe('contrasena')}>Contraseña</Etiqueta>
               <div className="relative">
@@ -609,6 +713,8 @@ export default function Registro() {
               </div>
               <MensajeError campo="confirmarContrasena" errores={errores} />
             </div>
+            </>
+            )}
 
             <div className="flex flex-col gap-1">
               <div className="flex items-start gap-2.5">
@@ -635,16 +741,32 @@ export default function Registro() {
               disabled={botonDeshabilitado}
               className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-lime-400 text-sm font-bold text-neutral-950 shadow-sm transition hover:bg-lime-300 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lime-400 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {enviando ? 'Creando cuenta…' : 'Crear cuenta'}
+              {enviando ? 'Creando cuenta…' : esGoogle ? 'Crear cuenta con Google' : 'Crear cuenta'}
               {!enviando && (
                 <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" className="size-4">
                   <path d="M5 12h13m-5-5 5 5-5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </button>
+            {esGoogle && (
+              <button
+                type="button"
+                onClick={cancelarRegistro}
+                disabled={botonDeshabilitado}
+                className="h-10 w-full rounded-lg border border-zinc-700 text-sm font-bold text-gray-300 transition hover:border-zinc-500 hover:text-white disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {cancelando ? 'Cancelando…' : 'Cancelar y volver al inicio de sesión'}
+              </button>
+            )}
           </form>
 
-          <p className="pt-1 text-center text-xs leading-4 text-gray-400">
+          {esGoogle && (
+            <p className="pt-1 text-center text-xs leading-4 text-gray-400">
+              Tu cuenta se crea solo al completar este formulario. No se solicita ninguna contraseña.
+            </p>
+          )}
+
+          <p className="pt-6 text-center text-xs leading-4 text-gray-400">
             ¿Ya tienes una cuenta?{' '}
             <Link to="/login" className="font-semibold text-lime-400 hover:underline">
               Iniciar sesión

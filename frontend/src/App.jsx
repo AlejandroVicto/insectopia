@@ -1,11 +1,12 @@
 
 import { useEffect, useState } from 'react'
-import { Route, Routes } from 'react-router-dom'
+import { Navigate, Route, Routes } from 'react-router-dom'
 import api from './services/api'
 import ProtectedRoute from './auth/ProtectedRoute'
 import { ROUTE_ROLES } from './auth/roles'
 import Login from './pages/Login'
 import Registro from './pages/Registro'
+import GoogleResultado from './pages/GoogleResultado'
 import RecuperacionContrasena from './pages/RecuperacionContrasena'
 import PrivateLayout from './layout/PrivateLayout'
 import Inicio from './pages/Inicio'
@@ -156,6 +157,10 @@ export default function App() {
       {/* Rutas públicas */}
       <Route path="/login" element={<Login />} />
       <Route path="/registro" element={<Registro />} />
+
+      {/* Google OAuth 2.0 / OIDC: el alta pendiente usa el formulario tradicional en modo Google */}
+      <Route path="/auth/google/resultado" element={<GoogleResultado />} />
+      <Route path="/registro/google" element={<Navigate to="/registro" replace />} />
 
       {/* Actividad 055 - Recuperación de contraseña */}
       <Route

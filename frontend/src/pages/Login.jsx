@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import logo from '../assets/logo.png'
 import { useAuth } from '../auth/useAuth'
 import { ROLES } from '../auth/roles'
+import BotonGoogle from '../components/auth/BotonGoogle'
 import {
   LOGIN_DISPONIBLE,
   adaptarRespuestaLogin,
@@ -110,17 +111,6 @@ function IconoOjo({ visible }) {
   )
 }
 
-function IconoGoogle() {
-  return (
-    <svg aria-hidden="true" viewBox="0 0 24 24" className="size-6">
-      <path fill="#4285F4" d="M21.6 12.2c0-.7-.1-1.4-.2-2H12v3.8h5.4a4.6 4.6 0 0 1-2 3v2.5h3.2c1.9-1.7 3-4.3 3-7.3Z" />
-      <path fill="#34A853" d="M12 22c2.7 0 5-.9 6.6-2.5l-3.2-2.5c-.9.6-2 1-3.4 1a6 6 0 0 1-5.6-4.1H3.1v2.6A10 10 0 0 0 12 22Z" />
-      <path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.5H3.1a10 10 0 0 0 0 9l3.3-2.6Z" />
-      <path fill="#EA4335" d="M12 6c1.5 0 2.8.5 3.8 1.5l2.9-2.9A10 10 0 0 0 3.1 7.5l3.3 2.6A6 6 0 0 1 12 6Z" />
-    </svg>
-  )
-}
-
 function PanelInstitucional() {
   return (
     <aside className="relative flex min-w-0 flex-col items-center justify-center overflow-hidden border-b border-zinc-800 bg-zinc-900 px-6 py-8 lg:h-full lg:border-b-0 lg:border-r lg:border-neutral-700 lg:px-12 lg:py-8 xl:py-12">
@@ -135,22 +125,6 @@ function PanelInstitucional() {
         Insectopia
       </p>
     </aside>
-  )
-}
-
-function BotonProveedor({ nombre, children }) {
-  const mensaje = `${nombre} no disponible: inicio de sesión externo aún no implementado.`
-  return (
-    <button
-      type="button"
-      disabled
-      aria-label={mensaje}
-      title={mensaje}
-      className="flex h-14 w-full min-w-0 items-center justify-center gap-3 rounded-md border border-neutral-200 bg-gray-100 px-4 text-base font-bold text-black/60 disabled:cursor-not-allowed disabled:opacity-70"
-    >
-      {children}
-      <span aria-hidden="true">{nombre}</span>
-    </button>
   )
 }
 
@@ -317,13 +291,8 @@ export default function Login({ servicioDisponible = LOGIN_DISPONIBLE }) {
           <div className="mt-6 text-center">
             <p className="text-base font-bold text-stone-50">O inicia sesión con</p>
             <div className="mt-4 w-full">
-              <BotonProveedor nombre="Google">
-                <IconoGoogle />
-              </BotonProveedor>
+              <BotonGoogle />
             </div>
-            <p role="status" className="mt-3 text-xs text-zinc-400">
-              Google estará disponible cuando se integre OAuth.
-            </p>
           </div>
 
           <p className="mt-6 text-center text-base font-bold text-stone-50">

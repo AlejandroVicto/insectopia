@@ -146,7 +146,7 @@ describe('pantalla de inicio de sesión', () => {
     )
   })
 
-  it('mantiene solo a Google, a ancho completo y sin sesión ficticia', () => {
+  it('mantiene solo a Google, a ancho completo y sin sesión ficticia', async () => {
     const { adaptador } = renderLogin()
 
     const google = screen.getByRole('button', { name: /google/i })
@@ -158,11 +158,11 @@ describe('pantalla de inicio de sesión', () => {
 
     expect(screen.queryByRole('button', { name: /facebook/i })).toBeNull()
     expect(screen.queryByText(/facebook/i)).toBeNull()
-    expect(screen.getByText(/google estará disponible cuando se integre OAuth/i)).toBeTruthy()
+    expect(await screen.findByText(/google estará disponible cuando se integre OAuth/i)).toBeTruthy()
 
     fireEvent.click(google)
 
-    expect(adaptador).not.toHaveBeenCalled()
+    expect(adaptador.mock.calls.map(([config]) => config.url)).toEqual(['/api/google/config'])
     expect(screen.getByText('Sesión: sin sesión')).toBeTruthy()
   })
 
@@ -220,12 +220,13 @@ describe('pantalla de inicio de sesión', () => {
     enviar()
 
     await waitFor(() => expect(screen.getByText('Área administración')).toBeTruthy())
-    expect(interpretarCuerpo(adaptador)).toEqual({
+    const llamadaLogin = llamadaA(adaptador, LOGIN_ENDPOINT)
+    expect(JSON.parse(llamadaLogin.data)).toEqual({
       correo: 'maria@ejemplo.com',
       contrasena: 'clave-cualquiera',
     })
-    expect(adaptador.mock.calls[0][0].url).toBe(LOGIN_ENDPOINT)
-    expect(adaptador.mock.calls[0][0].skipAuth).toBe(true)
+    expect(llamadaLogin.url).toBe(LOGIN_ENDPOINT)
+    expect(llamadaLogin.skipAuth).toBe(true)
     expect(screen.getByText('Sesión: ADMINISTRADOR')).toBeTruthy()
   })
 
@@ -238,8 +239,8 @@ describe('pantalla de inicio de sesión', () => {
     enviar()
     await waitFor(() => expect(screen.getByText('Área general')).toBeTruthy())
     fireEvent.click(screen.getByRole('button', { name: 'Consultar perfil protegido' }))
-    await waitFor(() => expect(adaptador).toHaveBeenCalledTimes(2))
-    expect(adaptador.mock.calls[1][0].headers.get('Authorization')).toBe('Bearer jwt-firmado')
+    await waitFor(() => expect(llamadaA(adaptador, '/api/auth/me')).toBeTruthy())
+    expect(llamadaA(adaptador, '/api/auth/me').headers.get('Authorization')).toBe('Bearer jwt-firmado')
   })
 
   it.each([
@@ -282,6 +283,6 @@ describe('pantalla de inicio de sesión', () => {
   })
 })
 
-function interpretarCuerpo(adaptador) {
-  return JSON.parse(adaptador.mock.calls[0][0].data)
+function llamadaA(adaptador, url) {
+  return adaptador.mock.calls.map(([config]) => config).find((config) => config.url === url)
 }

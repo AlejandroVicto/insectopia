@@ -5,6 +5,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -21,6 +22,7 @@ import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
 import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -51,12 +53,31 @@ public class SecurityConfig {
 	}
 
 	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http, JwtAuthenticationFilter jwtFilter) throws Exception {
+	public SecurityFilterChain securityFilterChain(
+			HttpSecurity http,
+			JwtAuthenticationFilter jwtFilter,
+			ObjectProvider<ClientRegistrationRepository> clientRegistrations,
+			ObjectProvider<GoogleOAuthSuccessHandler> googleSuccessHandler,
+			ObjectProvider<GoogleOAuthFailureHandler> googleFailureHandler) throws Exception {
+		ClientRegistrationRepository registrations = clientRegistrations.getIfAvailable();
+		if (registrations != null && registrations.findByRegistrationId("google") != null) {
+			var success = googleSuccessHandler.getIfAvailable();
+			var failure = googleFailureHandler.getIfAvailable();
+			if (success == null || failure == null) {
+				throw new IllegalStateException("Faltan los manejadores OAuth de Google");
+			}
+			http.oauth2Login(oauth -> oauth
+					.authorizationEndpoint(endpoint -> endpoint.authorizationRequestResolver(
+							new GoogleOAuthAuthorizationRequestResolver(registrations)))
+					.successHandler(success)
+					.failureHandler(failure));
+		}
+
 		http
 				.cors(Customizer.withDefaults())
 				.csrf(csrf -> csrf.disable())
 				.sessionManagement(session -> session
-						.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+						.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
 				.securityContext(context -> context.requireExplicitSave(true))
 				.requestCache(cache -> cache.disable())
 				.formLogin(form -> form.disable())
@@ -77,6 +98,13 @@ public class SecurityConfig {
 								"/api/auth/register",
 								"/api/auth/forgot-password",
 								"/api/auth/reset-password").permitAll()
+					.requestMatchers(HttpMethod.GET, "/api/google/config").permitAll()
+					.requestMatchers(
+							HttpMethod.POST,
+							"/api/google/exchange",
+							"/api/google/register",
+							"/api/google/register/cancel").permitAll()
+					.requestMatchers("/oauth2/authorization/**", "/login/oauth2/**").permitAll()
 					.requestMatchers("/api/admin/**").hasAuthority(Permissions.MODULO_ADMINISTRAR)
 				.anyRequest().authenticated())
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);

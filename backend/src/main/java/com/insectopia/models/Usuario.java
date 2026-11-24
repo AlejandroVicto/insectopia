@@ -49,6 +49,10 @@ public class Usuario {
     @Column(name = "contrasena", nullable = false, length = 255)
     private String contrasena;
 
+    /** False for Google-only accounts whose BCrypt value is an unknown random secret. */
+    @Column(name = "acceso_local_valido", nullable = false)
+    private Boolean accesoLocalValido = Boolean.TRUE;
+
     @Column(name = "fecha_nacimiento", nullable = false)
     private LocalDate fechaNacimiento;
 
@@ -110,6 +114,9 @@ public class Usuario {
         }
         if (recibirWhatsapp == null) {
             recibirWhatsapp = Boolean.FALSE;
+        }
+        if (accesoLocalValido == null) {
+            accesoLocalValido = Boolean.TRUE;
         }
         if (versionToken == null) {
             versionToken = 0;
@@ -175,6 +182,14 @@ public class Usuario {
 
     public void setContrasena(String contrasena) {
         this.contrasena = contrasena;
+    }
+
+    public Boolean getAccesoLocalValido() {
+        return accesoLocalValido;
+    }
+
+    public void setAccesoLocalValido(Boolean accesoLocalValido) {
+        this.accesoLocalValido = accesoLocalValido;
     }
 
     public LocalDate getFechaNacimiento() {

@@ -13,7 +13,7 @@ Insectopia reúne en una plataforma las observaciones y fotografías de insectos
 | Capa | Tecnología | Versión / finalidad |
 |---|---|---|
 | Backend | Java, Spring Boot, Maven Wrapper | Java 21; Spring Boot 4.1.2; API REST |
-| Seguridad | Spring Security, JWT (JJWT), BCrypt | Autenticación, autorización por roles y contraseñas hasheadas |
+| Seguridad | Spring Security, OAuth2 Client, JWT (JJWT), BCrypt | Autenticación, autorización por roles, OIDC de Google y contraseñas hasheadas |
 | Persistencia | Spring Data JPA, Hibernate, Flyway | Repositorios, ORM y migraciones SQL |
 | Base de datos | MySQL | 8.4; esquema `insectopia_bd` |
 | Frontend | React, Vite, JavaScript | React 19.3.1; Vite 8.3.6 |
@@ -94,7 +94,7 @@ El acceso se controla realmente desde Spring Security y las reglas del backend; 
 - **Usuario de MySQL:** `insectopia_user` (contraseña privada, no incluida en el repositorio).
 - **Codificación:** `utf8mb4`, collation `utf8mb4_unicode_ci`.
 - **Estructura:** 17 tablas de aplicación y `flyway_schema_history` (18 tablas físicas en total).
-- **Migraciones activas locales:** V1–V10 en `backend/src/main/resources/db/migration/`.
+- **Migraciones activas locales:** V1–V10 aplicadas; `V11__crear_identidades_oauth.sql` está creada pero **todavía no aplicada** a `insectopia_bd`.
 
 Las tablas son `roles`, `usuarios`, `seguidores`, `publicaciones`, `comentarios`, `reacciones`, `conversaciones`, `participantes_conversacion`, `mensajes`, `notificaciones`, `eventos`, `participantes_evento`, `reportes`, `tokens_recuperacion`, `tokens_revocados`, `auditoria_roles` y `limpieza_archivos_pendientes`.
 
@@ -234,6 +234,8 @@ Las relaciones muchos-a-muchos incluyen usuarios/usuarios mediante `seguidores`,
 
 Los cambios que antes estaban en **V11** se integraron en V4. Los de **V12** se integraron en V3, V6, V7 y V10. Esta consolidación es para **instalaciones nuevas**: no deben reutilizarse los SQL reescritos sobre bases que tengan un historial Flyway anterior sin preparar una migración específica.
 
+**V11 nueva (Google OAuth):** `backend/src/main/resources/db/migration/V11__crear_identidades_oauth.sql` es una migración aditiva distinta de la V11 histórica ya consolidada. No modifica V1–V10 ni datos existentes; agrega `usuarios.acceso_local_valido` y crea cuatro tablas: `identidades_oauth`, `oauth_registros_pendientes`, `oauth_vinculaciones_pendientes` y `oauth_codigos_intercambio`. Los códigos y tokens sensibles se guardan como hash SHA-256. **No se ejecutó contra `insectopia_bd` durante este trabajo.** Flyway la aplicará automáticamente la próxima vez que arranque el backend con este código; por eso debe existir un respaldo verificado y revisarse el impacto antes de iniciarlo.
+
 **Validación local realizada:** se creó una base vacía `insectopia_bd`; Flyway aplicó exitosamente las diez migraciones y Spring Boot inició con Hibernate/JPA. También se inspeccionaron claves foráneas con `ON DELETE SET NULL`. Sigue pendiente una comparación exhaustiva de esquema, índices y restricciones contra la base anterior.
 
 ## 5. Requisitos previos
@@ -301,7 +303,13 @@ APP_ENVIRONMENT=local
 APP_FRONTEND_BASE_URL=http://localhost:5173
 APP_API_PUBLIC_URL=http://localhost:8080
 TWILIO_SMS_ENABLED=false
+GOOGLE_OAUTH_ENABLED=false
+GOOGLE_CLIENT_ID=<client-id-de-google-si-se-usa>
+GOOGLE_CLIENT_SECRET=<secreto-de-google-si-se-usa>
+GOOGLE_REDIRECT_URI=http://localhost:8080/login/oauth2/code/google
 ```
+
+`GOOGLE_*` pertenece **solo al backend**. Nunca copies `GOOGLE_CLIENT_SECRET` al frontend ni a un archivo versionado. Con `GOOGLE_OAUTH_ENABLED=false`, o con cualquier credencial incompleta, no se registra el cliente OAuth: el backend sigue arrancando y el botón de Google aparece deshabilitado con una explicación.
 
 Estas líneas son **una plantilla explicativa**; conserva las demás variables de `.env.example` y reemplaza los valores entre ángulos por los verdaderos valores locales. `JWT_SECRET` debe ser Base64 válido. Por ejemplo, para generar 32 bytes aleatorios en PowerShell sin mostrar la clave en pantalla:
 
@@ -441,6 +449,49 @@ Authorization: Bearer <JWT>
 
 El backend emplea DTOs, Bean Validation, Spring Security y manejo global de excepciones. Las contraseñas se almacenan con BCrypt. Los códigos HTTP incluyen `200`, `201`, `204`, `400`, `401`, `403`, `404`, `409`, `422` y `500`, de acuerdo con la operación.
 
+### 8.1 Acceso con Google (OAuth 2.0 / OpenID Connect)
+
+**Estado:** implementado en backend y frontend, con pruebas enfocadas de compilación y comportamiento. **No se ha comprobado un inicio de sesión real contra Google** porque no hay credenciales autorizadas; por ahora no debe afirmarse que el flujo completo funciona en producción.
+
+Se usa el starter oficial `spring-boot-starter-oauth2-client`, flujo **Authorization Code + OIDC** y únicamente los scopes `openid email profile`. No se solicitan permisos de Drive, Gmail, contactos ni ninguna otra API de Google.
+
+#### Flujo
+
+1. React consulta `GET /api/google/config`. Si Google no está configurado, el botón se deshabilita y se explica el motivo; el login con contraseña sigue disponible.
+2. El botón lleva al backend a `/oauth2/authorization/google`. Spring Security genera el `state` y el `nonce`; la intención (`login` o `vinculacion`) y el token de vinculación se anexan como sufijo interno sin sustituir el `state` aleatorio.
+3. Google redirige a `/login/oauth2/code/google`. Spring valida emisor, audiencia/client ID, firma, expiración, `state` y `nonce`. El backend exige `email_verified=true` y usa el `sub` estable como identidad del proveedor.
+4. El backend aplica una de estas reglas:
+   - `sub` ya vinculado → `LOGIN_COMPLETO`.
+   - Correo local existente sin vínculo → `VINCULACION_REQUERIDA`; **nunca se vincula automáticamente**, aunque el correo esté verificado.
+   - Correo nuevo → `REGISTRO_PENDIENTE`; no se crea el usuario hasta completar el formulario.
+5. El callback devuelve al frontend un código opaco de intercambio: `/auth/google/resultado?code=...`. La página elimina `code`, `state` y `error` del historial con `replaceState` y envía el código por cuerpo a `POST /api/google/exchange`.
+6. El intercambio entrega el **JWT de Insectopia** y los datos de usuario. El token de registro viaja únicamente en el `state` del router de React, nunca en la URL.
+
+Los códigos de intercambio son aleatorios, de un solo uso y de corta duración. Sus hashes, los tokens de registro y los de vinculación se guardan en la base: no se almacenan JWT, tokens de Google, secretos ni contraseñas en claro. Las respuestas OAuth incluyen cabeceras `no-store`, `no-cache`, `Referrer-Policy: no-referrer` y `X-Content-Type-Options: nosniff`.
+
+#### Configuración local
+
+1. En Google Cloud Console, crear un cliente OAuth de tipo **Aplicación web**.
+2. Registrar exactamente esta URI autorizada de redirección:
+
+   ```text
+   http://localhost:8080/login/oauth2/code/google
+   ```
+
+   Debe coincidir carácter por carácter con `GOOGLE_REDIRECT_URI`. En producción se reemplaza por la URL HTTPS definitiva y se agrega también en Google Cloud Console.
+
+3. Completar en `backend/.env` las variables de la sección 6.3: `GOOGLE_OAUTH_ENABLED=true`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REDIRECT_URI`. No crear un `.env` en `frontend/`.
+4. Antes de arrancar el backend con la nueva versión, respaldar y verificar `insectopia_bd`: Flyway detectará la nueva V11 y la aplicará automáticamente.
+5. Iniciar backend y frontend como en la sección 6. Comprobar primero el estado deshabilitado; después, con las credenciales reales, verificar login para un correo nuevo, registro incompleto, vinculación manual desde Perfil → Seguridad, desvinculación y rechazo de una cuenta de evaluación/administradora.
+
+#### JWT frente a Google
+
+Google solo confirma una identidad externa. La sesión de la aplicación sigue siendo el JWT emitido por el backend, con la misma revocación, `versionToken`, roles y permisos por recurso que el login con contraseña. Los roles **nunca** se toman de Google: una cuenta nueva se crea transaccionalmente solo como `USUARIO` al enviar el formulario válido. La vinculación requiere sesión previa, pertenece al usuario autenticado, está ligada al `sub`, expira rápido y rechaza un `sub` ya usado por otra cuenta. Las cuentas administrativas/de evaluación no pueden vincular ni desvincular Google, y ninguna cuenta puede quedar sin un método de acceso válido.
+
+#### Producción
+
+Google exige HTTPS y orígenes/URI de redirección exactos para el dominio publicado. Configura `APP_FRONTEND_BASE_URL` y `GOOGLE_REDIRECT_URI` con el dominio HTTPS real, registra ese mismo valor en Google Cloud Console y no reutilices el cliente local. Mantén `GOOGLE_CLIENT_SECRET` únicamente en variables de entorno privadas del servidor.
+
 ## 9. Datos de demostración
 
 El perfil `demo` ejecuta `DatabaseSeeder` después de Flyway. En una carga limpia se esperan los siguientes registros:
@@ -552,9 +603,10 @@ Procedimiento general pendiente de ejecutar y verificar:
 3. Compilar el backend como JAR y ejecutarlo mediante `systemd`, sin perfil `demo`.
 4. Generar el build de React mediante `npm run build` y servirlo con Nginx.
 5. Configurar HTTPS mediante Let's Encrypt y Certbot.
-6. Configurar Postfix, DNS de correo y entrega real.
-7. Proteger y persistir directorios de imágenes, logs y respaldos.
-8. Comprobar el acceso con los tres roles y documentar URL del sitio y URL base de la API.
+6. Si se habilita Google, registrar la URI HTTPS exacta `https://<dominio>/login/oauth2/code/google` en Google Cloud Console y actualizar `GOOGLE_REDIRECT_URI`, `APP_FRONTEND_BASE_URL` y el origen autorizado. Nunca reutilizar el cliente de `localhost`.
+7. Configurar Postfix, DNS de correo y entrega real.
+8. Proteger y persistir directorios de imágenes, logs y respaldos.
+9. Comprobar el acceso con los tres roles y documentar URL del sitio y URL base de la API.
 
 **URL pública del sitio:** pendiente.  
 **URL base pública de la API:** pendiente.
@@ -565,6 +617,8 @@ Procedimiento general pendiente de ejecutar y verificar:
 |---|---|
 | Backend Spring Boot y frontend React | Implementados localmente |
 | Autenticación JWT y tres roles | Implementados |
+| Google OAuth / OIDC | Implementado y cubierto por pruebas enfocadas; **sin prueba real con Google ni verificación en producción** |
+| Migración V11 de OAuth | Creada; **no aplicada** a `insectopia_bd`; requiere respaldo verificado |
 | Migraciones Flyway V1–V10 | **Aplicadas exitosamente en `insectopia_bd` vacía** |
 | Hibernate/JPA | **Arranque validado contra el esquema nuevo** |
 | Datos de demostración | Seeder implementado; comprobar conteos finales después de pruebas |

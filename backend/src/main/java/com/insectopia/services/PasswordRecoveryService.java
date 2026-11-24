@@ -151,6 +151,8 @@ public class PasswordRecoveryService {
 
             // La contraseña del DTO no se recorta ni se transforma antes de BCrypt.
             usuario.setContrasena(codificador.encode(request.contrasena()));
+            // Tras un restablecimiento existe una contraseña local conocida por el usuario.
+            usuario.setAccesoLocalValido(Boolean.TRUE);
             int version = usuario.getVersionToken() == null ? 0 : usuario.getVersionToken();
             usuario.setVersionToken(version + 1);
             token.setFechaUso(ahora);

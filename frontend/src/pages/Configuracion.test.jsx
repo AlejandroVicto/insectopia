@@ -6,11 +6,18 @@ import api from '../services/api'
 import { AuthProvider } from '../auth/AuthProvider'
 import { useAuth } from '../auth/useAuth'
 import Configuracion from './Configuracion'
+import { redirigirAGoogle } from '../services/googleService'
+
+vi.mock('../services/googleService', async (importOriginal) => ({
+  ...await importOriginal(),
+  redirigirAGoogle: vi.fn(),
+}))
 
 const originalAdapter = api.defaults.adapter
 afterEach(() => {
   cleanup()
   api.defaults.adapter = originalAdapter
+  vi.clearAllMocks()
 })
 
 const perfil = {
@@ -61,6 +68,13 @@ function renderConfiguracion({
   datosGuardado = perfil,
   estadoFoto = 200,
   datosFoto = { ...perfil, fotoPerfil: 'https://api.test.invalid/api/usuarios/7/avatar?v=imagen.png' },
+  datosGoogleConfig = { enabled: true, loginUrl: '/oauth2/authorization/google' },
+  datosGoogleVinculo = { vinculado: false, proveedor: null },
+  datosGoogleLink = {
+    authorizationUrl: '/oauth2/authorization/google?intent=vinculacion&linkToken=token_opaco_123',
+    expiraEn: '2026-01-01T00:00:00Z',
+  },
+  fallarDesvincular = false,
   user = SESSION_USER,
 } = {}) {
   const llamadas = []
@@ -83,6 +97,12 @@ function renderConfiguracion({
       return ok(config, datosPerfil)
     }
     if (config.url === '/api/auth/me') return ok(config, datosIdentidad)
+    if (config.url === '/api/google/config') return ok(config, datosGoogleConfig)
+    if (config.url === '/api/google/link' && metodo === 'get') return ok(config, datosGoogleVinculo)
+    if (config.url === '/api/google/link' && metodo === 'post') return ok(config, datosGoogleLink)
+    if (config.url === '/api/google/link' && metodo === 'delete') {
+      return fallarDesvincular ? fail(config, 409, { message: 'No se puede desvincular' }) : ok(config, null)
+    }
     if (config.url === '/api/catalogos/paises') {
       return fallarPaises ? Promise.reject(new Error('catálogo caído')) : ok(config, datosPaises)
     }
@@ -462,5 +482,55 @@ describe('Configuración 077', () => {
     await waitFor(() => expect(senalPerfil).toBeTruthy())
     vista.unmount()
     expect(senalPerfil.aborted).toBe(true)
+  })
+
+  it('inicia la vinculación con una solicitud autenticada y solo redirige a la URL validada', async () => {
+    const llamadas = renderConfiguracion({ initial: '/app/configuracion?seccion=seguridad' })
+
+    const boton = await screen.findByRole('button', { name: 'Vincular Google' })
+    fireEvent.click(boton)
+
+    await waitFor(() => expect(redirigirAGoogle).toHaveBeenCalledWith(expect.stringContaining(
+      '/oauth2/authorization/google?intent=vinculacion&linkToken=token_opaco_123',
+    )))
+    const post = llamadas.find((config) => config.url === '/api/google/link' && config.method === 'post')
+    expect(post).toBeTruthy()
+    expect(post.headers.get('Authorization')).toBe('Bearer jwt-solo-en-prueba')
+  })
+
+  it('desvincula Google y actualiza el estado sin recargar la página', async () => {
+    const llamadas = renderConfiguracion({
+      initial: '/app/configuracion?seccion=seguridad',
+      datosGoogleVinculo: { vinculado: true, proveedor: 'GOOGLE' },
+    })
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Desvincular Google' }))
+
+    expect(await screen.findByText(/se desvinculó correctamente/i)).toBeTruthy()
+    await waitFor(() => expect(llamadas.some((config) => config.url === '/api/google/link' && config.method === 'delete')).toBe(true))
+    expect(await screen.findByRole('button', { name: 'Vincular Google' })).toBeTruthy()
+  })
+
+  it('oculta las acciones de Google para cuentas administrativas o de evaluación', async () => {
+    renderConfiguracion({
+      initial: '/app/configuracion?seccion=seguridad',
+      user: { ...SESSION_USER, role: 'ADMINISTRADOR' },
+      datosGoogleVinculo: { vinculado: true, proveedor: 'GOOGLE' },
+    })
+
+    expect(await screen.findByText(/las cuentas administrativas o de evaluación no pueden vincular/i)).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Vincular Google' })).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Desvincular Google' })).toBeNull()
+  })
+
+  it('explica que Google no está configurado sin deshabilitar la contraseña', async () => {
+    renderConfiguracion({
+      initial: '/app/configuracion?seccion=seguridad',
+      datosGoogleConfig: { enabled: false, loginUrl: '/oauth2/authorization/google' },
+    })
+
+    expect(await screen.findByText(/google no está configurado en este entorno/i)).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Cambiar contraseña' })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: 'Vincular Google' })).toBeNull()
   })
 })
