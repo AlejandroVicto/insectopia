@@ -43,7 +43,7 @@ El modelo incluye relaciones N:M mediante `seguidores`, `participantes_evento` y
 
 ### Diagrama ER
 
-![Diagrama ER](/insectopia/database/ER/insectopia_dev_v2.png)
+![Diagrama ER](database/ER/insectopia_dev_v2.png)
 
 ## Instalación y ejecución local
 
