@@ -5,8 +5,8 @@
 Insectopia reúne en una plataforma las observaciones y fotografías de insectos, publicaciones, comentarios, reacciones, seguimiento de usuarios, mensajería directa, eventos de observación, reportes y notificaciones. Cuenta con administración y moderación de contenido. Está dirigida a estudiantes, naturalistas y personas interesadas en la entomología.
 
 **Repositorio:** https://github.com/AlejandroVicto/insectopia  
-**Guía técnica de estudio:** [docs/GUIA_COMPLETA_INSECTOPIA.md](docs/GUIA_COMPLETA_INSECTOPIA.md)  
-**Estado:** aplicación funcional en desarrollo local; despliegue y servicios de producción todavía pendientes de verificar.
+**Documentación principal:** este README reúne los requisitos de instalación, roles, base de datos, API, evaluación y despliegue; los contratos técnicos adicionales se encuentran en `backend/INTEGRACION_*.md`.  
+**Estado:** aplicación desarrollada y probada localmente. No se ha verificado un despliegue público funcional en VPS con HTTPS, Postfix y WhatsApp.
 
 ## 1. Tecnologías utilizadas
 
@@ -60,13 +60,12 @@ insectopia/
 │   │   └── services/      # Reglas de negocio e integraciones
 │   ├── src/main/resources/db/migration/  # Flyway
 │   ├── src/test/          # Pruebas de backend
-│   └── bruno/             # Colección API que debe restaurarse localmente
+│   └── bruno/             # Colección Bruno pendiente de integrar a main (PR #39)
 ├── frontend/
 │   ├── src/              # Páginas, componentes, rutas y servicios HTTP
 │   └── public/           # Recursos públicos
 ├── database/             # Respaldos, diagramas y validaciones SQL
-├── docs/                 # Documentación técnica
-└── README.md
+└── README.md             # Documentación de entrega y enlaces verificados
 ```
 
 ## 3. Usuarios, roles y funcionalidades
@@ -90,11 +89,11 @@ El acceso se controla realmente desde Spring Security y las reglas del backend; 
 ## 4. Base de datos y diagrama entidad-relación
 
 - **Motor:** MySQL 8.4 (no MariaDB).
-- **Esquema local definitivo:** `insectopia_bd`.
+- **Esquema usado en la instalación local documentada:** `insectopia_bd` (debe establecerse explícitamente `DB_NAME=insectopia_bd`; las plantillas `backend/.env.example` y `application.properties.example` tienen por defecto `insectopia`).
 - **Usuario de MySQL:** `insectopia_user` (contraseña privada, no incluida en el repositorio).
 - **Codificación:** `utf8mb4`, collation `utf8mb4_unicode_ci`.
 - **Estructura:** 17 tablas de aplicación y `flyway_schema_history` (18 tablas físicas en total).
-- **Migraciones activas locales:** V1–V10 aplicadas; `V11__crear_identidades_oauth.sql` está creada pero **todavía no aplicada** a `insectopia_bd`.
+- **Migraciones versionadas en GitHub:** V1–V11. Según la última validación local documentada, V1–V10 se aplicaron sobre una base nueva y V11 de OAuth **no se había aplicado** a `insectopia_bd`; el estado actual de la base del VPS o de otros integrantes debe verificarse consultando `flyway_schema_history`.
 
 Las tablas son `roles`, `usuarios`, `seguidores`, `publicaciones`, `comentarios`, `reacciones`, `conversaciones`, `participantes_conversacion`, `mensajes`, `notificaciones`, `eventos`, `participantes_evento`, `reportes`, `tokens_recuperacion`, `tokens_revocados`, `auditoria_roles` y `limpieza_archivos_pendientes`.
 
@@ -217,7 +216,7 @@ erDiagram
 
 Las relaciones muchos-a-muchos incluyen usuarios/usuarios mediante `seguidores`, usuarios/eventos mediante `participantes_evento` y usuarios/conversaciones mediante `participantes_conversacion`. Algunas referencias de historial aceptan `NULL` y usan `ON DELETE SET NULL`; esto permite conservar el registro sin conservar su referencia a un recurso eliminado.
 
-### Migraciones Flyway V1–V10
+### Migraciones Flyway V1–V11
 
 | Migración | Contenido |
 |---|---|
@@ -249,7 +248,7 @@ Los cambios que antes estaban en **V11** se integraron en V4. Los de **V12** se 
 
 ## 6. Instalación y ejecución local
 
-> **Importante:** los siguientes pasos describen el estado local consolidado. Mientras los cambios recientes de Flyway y SMS no se publiquen en GitHub, un clon de `main` puede contener todavía V11/V12 y no coincidir con esta documentación. No ejecutar el clonado sobre una carpeta local con cambios sin guardar.
+> **Importante:** sigue estos pasos en una instalación nueva o una base aislada. `main` contiene V1–V11 y la V11 de Google OAuth se puede aplicar al iniciar el backend. No apuntes una instalación actualizada a una base con migraciones antiguas modificadas sin respaldo y revisión de `flyway_schema_history`. No clones encima de una carpeta con cambios sin guardar.
 
 ### 6.1 Clonar el repositorio
 
@@ -272,7 +271,7 @@ CREATE DATABASE insectopia_bd
   COLLATE utf8mb4_unicode_ci;
 ```
 
-Si `insectopia_bd` ya existe, no ejecutar un borrado ni recrearla. Para un usuario MySQL ya existente con host `localhost`:
+Si `insectopia_bd` ya existe, no ejecutar un borrado ni recrearla. **En `backend/.env`, establece explícitamente `DB_NAME=insectopia_bd`**: el nombre predeterminado de las plantillas es `insectopia`. Para un usuario MySQL ya existente con host `localhost`:
 
 ```sql
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, DROP, INDEX, REFERENCES
@@ -355,7 +354,7 @@ cd backend
 .\mvnw.cmd spring-boot:run
 ```
 
-La API se inicia normalmente en `http://localhost:8080`. En la primera ejecución sobre una base vacía, Flyway aplica V1–V10 y Hibernate valida las tablas.
+La API se inicia normalmente en `http://localhost:8080`. En la primera ejecución sobre una base vacía, Flyway aplica las migraciones versionadas V1–V11 y Hibernate valida las tablas. **Antes de arrancar sobre una base existente**, haz un respaldo verificado y revisa las migraciones pendientes.
 
 **Modo demostración** (cargar datos ficticios con `DatabaseSeeder`): detén el backend anterior con `Ctrl+C` y, desde `backend/`, ejecuta:
 
@@ -414,12 +413,12 @@ Las siguientes cuentas son **ficticias**, creadas por `DatabaseSeeder` exclusiva
 | **MODERADOR** | `demo.iker.salas@insectopia.invalid` | `Demo1234!` |
 | **USUARIO** | `demo.andres.mora@insectopia.invalid` | `Demo1234!` |
 
-El acceso se realiza mediante correo y contraseña, no mediante el nombre de usuario público. La cuenta administradora de evaluación tiene protecciones especiales en el backend. **Para la evaluación en VPS será necesario habilitar cuentas de prueba de forma controlada y comprobarlas en ese entorno, sin dejar el seeder `demo` habilitado en producción.**
+El acceso se realiza mediante correo y contraseña, no mediante el nombre de usuario público. La cuenta administradora de evaluación tiene protecciones especiales en el backend. **Estas cuentas están definidas en el código, pero su existencia y funcionamiento en el VPS no están verificados.** Para evaluar en producción se necesitan cuentas de prueba aprovisionadas de forma controlada, con contraseñas de evaluación conocidas por el docente, sin ejecutar el perfil `demo` contra una base de producción ni afectar las cuentas de usuarios reales.
 
 ## 8. API REST y seguridad
 
 **URL base local de la API:** `http://localhost:8080`  
-**URL base de producción:** pendiente de despliegue HTTPS.
+**URL base de producción:** pendiente de aportar y verificar públicamente. No sustituir por `localhost` en la entrega.
 
 Se utiliza autenticación con JWT. Las peticiones protegidas envían:
 
@@ -548,33 +547,35 @@ La preferencia `recibir_whatsapp` existe, pero **el envío automático de WhatsA
 
 ## 11. Pruebas de API con Bruno
 
-El repositorio en GitHub tiene una colección histórica en `backend/bruno/` con 23 solicitudes de publicaciones, comentarios, reacciones, mensajería y casos de error. **Actualmente aparece eliminada del árbol de trabajo local y debe restaurarse antes de la siguiente entrega.**
+**Herramienta exigida: Bruno (no Postman).** La colección existente cubre publicaciones, comentarios, reacciones, conversaciones y varios errores intencionales. Sin embargo, **la carpeta `backend/bruno/` no está presente en el árbol actual de `main`**.
 
-Para completar la rúbrica faltan solicitudes propias de login y obtención de JWT, uso de ese JWT en rutas protegidas y la ampliación a módulos más recientes. Los casos de error intencional ya tienen antecedentes en la colección, pero requieren revisión y ejecución vigentes.
+Se preparó el [pull request #39](https://github.com/AlejandroVicto/insectopia/pull/39), todavía **abierto y sin fusionar** al momento de esta revisión. Incluye `24-login-jwt.bru` (`POST /api/auth/login` con obtención del token), `25-consultar-mi-sesion-jwt.bru` (`GET /api/auth/me` con JWT), `14-sin-jwt-denegado.bru` (HTTP 401), `26-login-invalido.bru` (HTTP 400), entorno `Local` y pasos de ejecución.
 
-Una vez restaurada, la colección se abre desde Bruno seleccionando la carpeta `backend/bruno/`. Se configura el entorno `Local` y se utiliza un JWT de prueba como variable **secreta, no versionada**.
+**Antes de la entrega:** integrar la colección en `main`, actualizar el repositorio local, abrir `backend/bruno` con Bruno, seleccionar `Local` y ejecutar individualmente las peticiones 24 → 25 → 14 → 26 contra una cuenta y un backend de pruebas. Las credenciales se configuran localmente y los JWT nunca se publican. Capturar las respuestas HTTP esperadas (200, 200, 401 y 400) ocultando secretos.
+
+**Estado real:** existe la propuesta de corrección, pero **no debe marcarse este requisito como completado hasta que se integre y se pruebe en Bruno**. No ejecutar toda la colección indiscriminadamente, pues hay peticiones que crean o modifican datos de MySQL.
 
 ## 12. Diseño y prototipo de Figma
 
 **Enlace al diseño:** [Prototipo de Insectopia en Figma](https://www.figma.com/design/nWV3gxDiGdnWfG9l0IPcid/Sin-t%C3%ADtulo?node-id=0-1&p=f&t=2GK9N1Sm3fWDMwFX-0).
 
-La aplicación incluye pantallas de registro, login, inicio, publicaciones, eventos, mensajes, notificaciones, perfiles, configuración, moderación y administración. **Pendiente de verificar:** acceso público, navegación del prototipo para los tres roles y documentación de la paleta de colores fundamentada en teoría del color.
+La aplicación incluye pantallas de registro, login, inicio, publicaciones, eventos, mensajes, notificaciones, perfiles, configuración, moderación y administración. **Identidad visual:** la interfaz emplea fondos verde oscuro y acentos verde lima, asociados a naturaleza, biodiversidad y crecimiento; los tonos claros destacan controles y estados importantes sobre superficies oscuras. Esta es la justificación conceptual de la paleta, no una medición de accesibilidad. **Pendiente de verificar:** que el enlace permita ver un prototipo realmente navegable (no solo pantallas de diseño), que cubra los tres roles y que el contraste cumpla criterios de accesibilidad.
 
 ## 13. GitHub y GitHub Projects
 
 **Repositorio público:** https://github.com/AlejandroVicto/insectopia
 
-**Tablero de GitHub Projects:** **pendiente de incorporar URL pública verificable**.
+**Tablero de GitHub Projects:** **URL pública todavía no proporcionada ni verificada**. La opción `has_projects` del repositorio está habilitada, pero esto no demuestra la existencia de un tablero público activo ni sus columnas.
 
 El tablero debe ser visible públicamente y reflejar tareas reales en las columnas **Backlog, To Do, In Progress, In Review y Done**. El historial de commits debe evidenciar el trabajo de los dos integrantes del equipo.
 
-**Sincronización pendiente:** la rama `main` publicada todavía no refleja necesariamente todos los cambios locales recientes, incluyendo las migraciones consolidadas, SMS y la documentación. Antes de entregar, revisar el estado de Git y subir los cambios por grupos, sin incluir `.env`, credenciales, `target/`, `node_modules/`, `dist/` ni `uploads/`.
+**Trabajo colaborativo:** comprobar que los commits publicados reflejen aportaciones reales de los dos integrantes y que el Project público muestre `Backlog`, `To Do`, `In Progress`, `In Review` y `Done`. Para cada actualización, revisar `git status` y el historial remoto; nunca versionar `.env`, credenciales, `target/`, `node_modules/`, `dist/` ni `uploads/`.
 
 ## 14. Respaldo SQL y restauración
 
 Flyway permite construir el **esquema** de una instalación nueva; un respaldo SQL permite restaurar una **instantánea de estructura y datos**. No son equivalentes.
 
-Los archivos `database/insectopia_backup.sql` (histórico, eliminado localmente) y `database/insectopia_modelo_nuevo_backup.sql` (histórico y versionado) no representan todavía el esquema final consolidado.
+En `main` existe `database/insectopia_modelo_nuevo_backup.sql`, un respaldo histórico. **No se ha verificado** que represente fielmente el esquema actual V1–V11 ni que pueda restaurarse sobre una base aislada. El archivo `database/insectopia_backup.sql` no está publicado.
 
 **Pendiente:** generar desde `insectopia_bd` un respaldo actualizado, por ejemplo `database/insectopia_bd_backup.sql`, incluyendo estructura y datos de demostración cuando corresponda, y comprobar su restauración en otra base aislada antes de considerarlo válido. En DBeaver se puede usar **Tools → Dump database**; según los permisos, `mysqldump` puede requerir `--no-tablespaces`.
 
@@ -624,20 +625,32 @@ Procedimiento general pendiente de ejecutar y verificar:
 | Datos de demostración | Seeder implementado; comprobar conteos finales después de pruebas |
 | Mailpit / recuperación de contraseña | **Probados localmente** |
 | SMS Twilio | **Envío real desde Insectopia comprobado**; sin outbox durable |
-| WhatsApp | **Pendiente** |
-| Bruno | **Pendiente restaurar y completar** |
+| WhatsApp | **Pendiente de implementación y prueba real desde la aplicación** |
+| Bruno | Colección ausente de `main`; PR #39 abierto con login/JWT/errores; integración y ejecución en Bruno pendientes |
 | Diagrama ER Mermaid | Incluido; falta exportación gráfica actualizada |
 | Comparación exhaustiva de esquemas | Pendiente |
 | Respaldo SQL del esquema consolidado | Pendiente |
 | Figma | Enlace incluido; navegación pública por verificar |
 | GitHub Projects | URL pública pendiente |
 | VPS, HTTPS y Postfix real | Pendientes de verificación y despliegue |
-| Sincronización de GitHub con el estado local | Pendiente |
+| Sincronización de GitHub con el estado local | No verificable para cada integrante; la revisión corresponde al árbol público de `main` |
 
-## 17. Documentación complementaria
+## 17. Documentación complementaria y lista de entrega
 
-La [guía técnica completa](docs/GUIA_COMPLETA_INSECTOPIA.md) contiene arquitectura, tablas, migraciones, servicios, seguridad, flujos de frontend y backend, inventario de archivos, glosario y preguntas para la revisión docente. Algunas secciones de estado de esa guía deben actualizarse para reflejar la validación posterior de Flyway, SMS y Mailpit.
+El archivo `docs/GUIA_COMPLETA_INSECTOPIA.md` citado anteriormente **no está publicado en `main`**. La documentación de entrega principal es este README. Los detalles por módulo se pueden consultar en los contratos `backend/INTEGRACION_*.md` que sí estén versionados.
+
+**Comprobaciones imprescindibles antes de la evaluación:**
+
+- Incorporar la **URL pública verificable del tablero GitHub Projects** y comprobar sus columnas y actividad.
+- Incorporar la **URL HTTPS real del sitio** y la **URL base pública de la API**; verificar VPS, Nginx, Certbot, JAR con systemd y MySQL.
+- Verificar que el **administrador de evaluación** pueda entrar en el VPS sin activar el perfil demo sobre la base de producción.
+- Completar y probar **Postfix + SPF/DKIM**, recepción real de correo y **envío automático de WhatsApp** desde la aplicación.
+- Fusionar y ejecutar la **colección Bruno** en `main`, con evidencias de login, JWT protegido y error previsto.
+- Generar un **respaldo SQL actualizado** sin datos personales y comprobar restauración en una base aislada.
+- Verificar que el Figma compartido sea **navegable para los tres roles** y que ambos integrantes tengan commits propios.
+
+Para Classroom: informar los nombres completos de ambos integrantes, el número de equipo, el enlace al repositorio, la URL HTTPS del sitio y la URL base pública de la API. No publicar datos personales o contraseñas reales en el README.
 
 ---
 
-**Nota de entrega:** antes de la evaluación final deben incorporarse la URL pública de GitHub Projects y las URLs HTTPS del VPS, completar WhatsApp y Bruno, verificar Postfix con correo real, generar un respaldo SQL actualizado y publicar los cambios de forma segura. Los apartados pendientes no deben contarse como requisitos ya cumplidos.
+**Nota de entrega:** el README ya presenta la documentación técnica disponible, pero los requisitos marcados como pendientes requieren implementación, enlaces y evidencias reales. Ningún texto del README sustituye el despliegue, la recepción de correo, WhatsApp, la integración de Bruno ni las pruebas en vivo.
