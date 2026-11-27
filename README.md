@@ -123,7 +123,7 @@ Ejemplos: `POST /api/auth/login` obtiene el JWT; `GET /api/auth/me` requiere el 
 
 ## Pruebas de API con Bruno
 
-
+https://github.com/AlejandroVicto/insectopia/tree/main/backend/bruno
 
 ## Diseño en Figma
 
