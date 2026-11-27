@@ -1,0 +1,24 @@
+meta {
+  name: 03 - Acceso sin JWT denegado
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/conversaciones?page=0&size=20
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("Una petición protegida sin JWT devuelve HTTP 401", function () {
+    expect(res.getStatus()).to.equal(401);
+    const body = res.getBody();
+    expect(body).to.have.property("status", 401);
+    expect(body).to.have.property("path", "/api/conversaciones");
+  });
+}

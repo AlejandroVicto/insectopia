@@ -2,7 +2,9 @@
 
 **Programación Web:** Proyecto final.
 **Equipo 6:**
+
 No. Lista: 13, Jiménez Victoria Alejandro 23160968
+
 No. Lista: 7, Diego Revilla Magali Sarai 23160887
 
 **Red social para aficionados a los insectos.** Proyecto full stack de Programación Web que permite publicar fotografías y observaciones, comentar, reaccionar, seguir usuarios, intercambiar mensajes, organizar eventos y reportar contenido. Incluye funciones de moderación y administración.
@@ -37,7 +39,7 @@ El acceso se realiza con **correo electrónico y contraseña**. El registro exig
 - **Base de datos de ejemplo:** `insectopia_bd`. Configurar explícitamente `DB_NAME=insectopia_bd`; las plantillas incluidas usan `insectopia` como valor predeterminado.
 - **Migraciones:** `backend/src/main/resources/db/migration/` (Flyway, V1–V11). Hibernate valida el esquema; no lo genera mediante `ddl-auto=create`.
 - **Datos de prueba:** `backend/src/main/java/com/insectopia/seeders/DatabaseSeeder.java` (perfil `demo`; 15 usuarios, 15 publicaciones, 15 eventos y registros relacionados).
-- **Respaldo SQL versionado:** [database/insectopia_modelo_nuevo_backup.sql](/insectopia/database/insectopia_dev_v2_backup.sql) (respaldo histórico; pendiente validar/actualizar contra el esquema final).
+- **Respaldo SQL versionado:** [database/insectopia_dev_v2_backup.sql](/insectopia/database/insectopia_dev_v2_backup.sql).  
 
 El modelo incluye relaciones N:M mediante `seguidores`, `participantes_evento` y `participantes_conversacion`.
 
@@ -86,7 +88,7 @@ El modelo incluye relaciones N:M mediante `seguidores`, `participantes_evento` y
    .\mvnw.cmd spring-boot:run
    ```
 
-   **Precaución:** Flyway aplica migraciones pendientes al iniciar; primero comprobar respaldos e historial de migraciones si no es una base nueva. Para datos ficticios puede utilizarse el perfil `demo` **solo en una base aislada**, nunca en producción.
+   **Precaución:** Flyway aplica migraciones pendientes al iniciar; primero comprobar respaldos e historial de migraciones si no es una base nueva. Para datos ficticios puede utilizarse el perfil `demo`.
 
 5. Abrir otra terminal desde la raíz del repositorio y ejecutar React:
 
@@ -115,29 +117,28 @@ Cuentas **ficticias** definidas en el seeder de demostración:
 |---|---|
 | Desarrollo local | `http://localhost:8080` |
 | Salud de la API | `http://localhost:8080/api/health` |
-| **API pública del VPS** | **Pendiente de URL HTTPS real y verificada** |
+| **API pública del VPS** | **https://insectopia.tech/api** |
 
 Ejemplos: `POST /api/auth/login` obtiene el JWT; `GET /api/auth/me` requiere el JWT; `GET /api/publicaciones` consulta publicaciones paginadas. Los filtros y la paginación se envían al backend.
 
 ## Pruebas de API con Bruno
 
-La colección debe estar versionada en `backend/bruno/`. Al momento de esta revisión **no está integrada en `main`**: [PR #39 — colección Bruno, login JWT, petición protegida y errores 400/401](https://github.com/AlejandroVicto/insectopia/pull/39). Debe fusionarse y ejecutarse desde Bruno (no Postman) para aportar evidencias de login, uso del token y error intencional. No ejecutar sin revisar las peticiones que modifican datos.
+
 
 ## Diseño en Figma
 
 [**Prototipo de Insectopia en Figma**](https://www.figma.com/design/nWV3gxDiGdnWfG9l0IPcid/Sin-t%C3%ADtulo?node-id=0-1&p=f&t=2GK9N1Sm3fWDMwFX-0)
 
-La paleta utiliza verde oscuro como base (naturaleza y estabilidad) y verde lima para resaltar acciones e información relevante (crecimiento y biodiversidad). **Pendiente de verificar:** acceso público y navegación funcional del prototipo para los tres roles.
+La paleta utiliza verde oscuro como base (naturaleza y estabilidad) y verde lima para resaltar acciones e información relevante (crecimiento y biodiversidad).
 
 ## GitHub Projects
 
-**Enlace al tablero público:** **pendiente de agregar URL verificada**.
+**Enlace al tablero público:** **https://github.com/users/AlejandroVicto/projects/2**.
 
-La rúbrica requiere un Project público y activo con columnas **Backlog, To Do, In Progress, In Review y Done**, además de commits descriptivos de ambos integrantes.
 
 ## Despliegue en VPS
 
 | Requisito | Estado documentado |
 |---|---|
-| **URL HTTPS pública de Insectopia** | **Pendiente de agregar y verificar** |
-| **URL base HTTPS pública de la API** | **Pendiente de agregar y verificar** |
+| **URL HTTPS pública de Insectopia** | **https://insectopia.tech** |
+| **URL base HTTPS pública de la API** | **https://insectopia.tech/api** |

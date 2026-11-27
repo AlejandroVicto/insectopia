@@ -1,0 +1,39 @@
+meta {
+  name: 09 - Crear comentario
+  type: http
+  seq: 9
+}
+
+post {
+  url: {{baseUrl}}/api/publicaciones/{{publicacionId}}/comentarios
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "contenido": "Comentario de verificación de la actividad 060"
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+}
+
+tests {
+  test("La creación devuelve HTTP 201", function () {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property("id");
+  });
+}

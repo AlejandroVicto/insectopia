@@ -1,0 +1,58 @@
+meta {
+  name: 01 - Login y obtención de JWT
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+  const correo = bru.getEnvVar("loginCorreo");
+  const contrasena = bru.getEnvVar("loginContrasena");
+  if (!correo || !contrasena) throw new Error("Configure loginCorreo y loginContrasena en Secrets de Local.");
+  req.setBody({ correo, contrasena });
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    if (body && typeof body.token === "string" &&
+        /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(body.token)) {
+      bru.setVar("token", body.token);
+      if (body.user && Number.isSafeInteger(body.user.id)) bru.setVar("yoId", body.user.id);
+    } else {
+      bru.deleteVar("token");
+    }
+  } else {
+    bru.deleteVar("token");
+  }
+}
+
+tests {
+  test("Login válido devuelve HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("Login devuelve un JWT de tres segmentos y un usuario", function () {
+    const body = res.getBody();
+    expect(body).to.have.property("token").that.is.a("string");
+    expect(body.token).to.match(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
+    expect(body).to.have.property("user").that.is.an("object");
+    expect(body.user).to.have.property("role").that.is.a("string");
+  });
+}

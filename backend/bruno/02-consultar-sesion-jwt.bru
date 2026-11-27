@@ -1,0 +1,59 @@
+meta {
+  name: 02 - Consultar sesión utilizando JWT
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/auth/me
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+script:pre-request {
+  if (!bru.getVar("token")) {
+    if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+      throw new Error("Solo se permite login automático en Local (localhost).");
+    }
+    const correo = bru.getEnvVar("loginCorreo");
+    const contrasena = bru.getEnvVar("loginContrasena");
+    if (!correo || !contrasena) throw new Error("Configure los secretos de Local y ejecute 01.");
+    const axios = require("axios");
+    const login = await axios.post(bru.getEnvVar("baseUrl") + "/api/auth/login",
+      { correo, contrasena }, { headers: { "Content-Type": "application/json", Accept: "application/json" }, timeout: 10000 });
+    const jwt = login.data && login.data.token;
+    if (login.status !== 200 || typeof jwt !== "string" ||
+        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt)) {
+      throw new Error("El login local no devolvió un JWT válido.");
+    }
+    bru.setVar("token", jwt);
+  }
+  req.setHeader("Authorization", "Bearer " + bru.getVar("token"));
+}
+
+script:post-response {
+  if (res.getStatus() === 200) {
+    const body = res.getBody();
+    if (body && Number.isSafeInteger(body.id)) bru.setVar("yoId", body.id);
+  }
+}
+
+tests {
+  test("El JWT permite consultar /api/auth/me", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+  test("La API devuelve el usuario autenticado", function () {
+    const body = res.getBody();
+    expect(body).to.have.property("id");
+    expect(body).to.have.property("email").that.is.a("string");
+    expect(body).to.have.property("role").that.is.a("string");
+  });
+}

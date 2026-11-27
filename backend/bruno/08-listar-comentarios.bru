@@ -1,0 +1,26 @@
+meta {
+  name: 08 - Listar comentarios
+  type: http
+  seq: 8
+}
+
+get {
+  url: {{baseUrl}}/api/publicaciones/{{publicacionId}}/comentarios?page=0&size=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("La consulta devuelve HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property("content").that.is.an("array");
+  });
+}

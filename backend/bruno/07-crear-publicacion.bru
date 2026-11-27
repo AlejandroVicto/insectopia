@@ -1,0 +1,48 @@
+meta {
+  name: 07 - Crear publicación
+  type: http
+  seq: 7
+}
+
+post {
+  url: {{baseUrl}}/api/publicaciones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+  Accept: application/json
+}
+
+body:json {
+  {
+    "contenido": "Observación de campo para verificar la actividad 060",
+    "imagen": null
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200 || res.getStatus() === 201) {
+    const body = res.getBody();
+    const id = body && body.id;
+    if (Number.isSafeInteger(id) && id > 0) bru.setVar("publicacionId", id);
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+}
+
+tests {
+  test("La creación devuelve HTTP 201", function () {
+    expect(res.getStatus()).to.equal(201);
+    expect(res.getBody()).to.have.property("id");
+  });
+}

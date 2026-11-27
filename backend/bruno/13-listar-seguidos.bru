@@ -1,0 +1,34 @@
+meta {
+  name: 13 - Listar usuarios seguidos
+  type: http
+  seq: 13
+}
+
+get {
+  url: {{baseUrl}}/api/usuarios/seguidos?page=0&size=20
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+script:post-response {
+  if (res.getStatus() === 200 || res.getStatus() === 201) {
+    const body = res.getBody();
+    const id = body && Array.isArray(body.content) && body.content[0] && body.content[0].id;
+    if (Number.isSafeInteger(id) && id > 0) bru.setVar("seguidoId", id);
+  }
+}
+
+tests {
+  test("La consulta devuelve HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property("content").that.is.an("array");
+  });
+}

@@ -1,0 +1,42 @@
+meta {
+  name: 04 - Login con datos inválidos
+  type: http
+  seq: 4
+}
+
+post {
+  url: {{baseUrl}}/api/auth/login
+  body: json
+  auth: none
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "correo": "correo-invalido",
+    "contrasena": "valor-de-prueba-no-real"
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+}
+
+tests {
+  test("El backend rechaza un correo inválido con HTTP 400", function () {
+    expect(res.getStatus()).to.equal(400);
+  });
+  test("El error es JSON y contiene status 400", function () {
+    const body = res.getBody();
+    expect(body).to.have.property("status", 400);
+    expect(body).to.have.property("path", "/api/auth/login");
+    expect(body).to.have.property("details").that.is.an("array");
+    expect(body.details.some(detail => detail.field === "correo")).to.equal(true);
+  });
+}

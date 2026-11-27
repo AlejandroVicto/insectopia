@@ -1,0 +1,25 @@
+meta {
+  name: 10 - Consultar reacción
+  type: http
+  seq: 10
+}
+
+get {
+  url: {{baseUrl}}/api/publicaciones/{{publicacionId}}/reaccion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("La operación devuelve HTTP 200", function () {
+    expect(res.getStatus()).to.equal(200);
+  });
+}

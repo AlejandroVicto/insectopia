@@ -1,0 +1,34 @@
+meta {
+  name: 11 - Registrar reacción
+  type: http
+  seq: 11
+}
+
+post {
+  url: {{baseUrl}}/api/publicaciones/{{publicacionId}}/reaccion
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+}
+
+tests {
+  test("La primera reacción devuelve 200; repetirla devuelve 409", function () {
+    expect([200, 409]).to.include(res.getStatus());
+    if (res.getStatus() === 409) {
+      expect(res.getBody().details.some(detail => detail.field === "publicacionId")).to.equal(true);
+    }
+  });
+}

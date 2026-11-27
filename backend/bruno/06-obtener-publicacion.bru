@@ -1,0 +1,26 @@
+meta {
+  name: 06 - Obtener publicación
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/publicaciones/{{publicacionId}}
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+}
+
+tests {
+  test("La publicación existe", function () {
+    expect(res.getStatus()).to.equal(200);
+    expect(res.getBody()).to.have.property("id");
+  });
+}

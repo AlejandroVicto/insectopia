@@ -1,0 +1,47 @@
+meta {
+  name: 16 - Crear conversación directa
+  type: http
+  seq: 16
+}
+
+post {
+  url: {{baseUrl}}/api/conversaciones
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Accept: application/json
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "destinatarioId": {{seguidoId}}
+  }
+}
+
+script:post-response {
+  if (res.getStatus() === 200 || res.getStatus() === 201) {
+    const body = res.getBody();
+    const id = body && body.id;
+    if (Number.isSafeInteger(id) && id > 0) bru.setVar("conversacionId", id);
+  }
+}
+
+script:pre-request {
+  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
+    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  }
+}
+
+tests {
+  test("Crear devuelve 201; si ya existía, reutilizar devuelve 200", function () {
+    expect([200, 201]).to.include(res.getStatus());
+    expect(res.getBody()).to.have.property("id");
+  });
+}
