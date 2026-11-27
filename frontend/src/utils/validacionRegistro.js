@@ -31,7 +31,7 @@ const CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 const NOMBRE_USUARIO = /^[a-z0-9._]{3,30}$/
 const CODIGO_PAIS = /^[A-Z]{2}$/
 const NOMBRE_COMPLETO = /^[\p{L}\p{M}]+(?: +[\p{L}\p{M}]+)*$/u
-const TELEFONO = /^\+?[0-9][0-9 ()-]*$/
+const TELEFONO_10_DIGITOS = /^\d{10}$/
 
 function fechaValidaYNoFutura(valor) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false
@@ -113,12 +113,10 @@ export function validarCampo(campo, valores, catalogo = {}) {
     case 'telefono': {
       const telefono = String(valores.telefono ?? '').trim()
       if (!telefono) {
-        return valores.recibirSms || valores.recibirWhatsapp
+        return valores.recibirSms
           ? 'Se requiere un teléfono para recibir comunicaciones.' : undefined
       }
-      if (telefono.length > 20 || !TELEFONO.test(telefono)) return 'Ingresa un teléfono válido.'
-      const digitos = (telefono.match(/\d/g) ?? []).length
-      if (digitos < 7 || digitos > 15) return 'El teléfono debe contener entre 7 y 15 dígitos.'
+      if (!TELEFONO_10_DIGITOS.test(telefono)) return 'Ingresa un teléfono de 10 dígitos.'
       return undefined
     }
     case 'contrasena': {

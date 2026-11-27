@@ -24,8 +24,8 @@ public record GoogleRegisterRequestDTO(
         @NotBlank(message = "El país es obligatorio.")
         @Pattern(regexp = "[A-Z]{2}", message = "Usa un código ISO de dos letras.") String paisCodigo,
         @NotBlank(message = "La región es obligatoria.") @Size(max = 100) String estadoRegion,
-        @Size(max = 20) @TelefonoValido
-        @Pattern(regexp = "\\+?[0-9][0-9 ()-]*", message = "Ingresa un teléfono válido.") String telefono,
+        @Size(max = 13) @TelefonoValido
+        @Pattern(regexp = "\\+52\\d{10}", message = "Ingresa un teléfono de 10 dígitos.") String telefono,
         Boolean recibirSms,
         Boolean recibirWhatsapp,
         @NotNull(message = "Debes aceptar los términos y el aviso de privacidad.") Boolean aceptarTerminos) {

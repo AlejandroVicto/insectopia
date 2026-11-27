@@ -227,7 +227,7 @@ describe('pantalla de registro', () => {
     expect(screen.queryByText(/no coinciden/i)).toBeNull()
   })
 
-  it('valida que el nombre contenga solo letras y el teléfono tenga 7 a 15 dígitos', () => {
+  it('valida que el nombre contenga solo letras y el teléfono tenga 10 dígitos', () => {
     renderRegistro()
     const nombre = screen.getByLabelText(/^nombre completo$/i)
     fireEvent.change(nombre, { target: { value: 'María 123' } })
@@ -237,11 +237,10 @@ describe('pantalla de registro', () => {
 
     const telefono = screen.getByLabelText(/^teléfono \(opcional\)$/i)
     fireEvent.change(telefono, { target: { value: '123456' } })
-    expect(screen.getByText(/entre 7 y 15 dígitos\./i)).toBeTruthy()
-    fireEvent.change(telefono, { target: { value: '+52 951 123 4567' } })
-    expect(screen.queryByText(/debe contener entre 7 y 15 dígitos/i)).toBeNull()
-    fireEvent.change(telefono, { target: { value: 'abc1234567' } })
-    expect(screen.getByText('Ingresa un teléfono válido.')).toBeTruthy()
+    expect(screen.getByText(/teléfono de 10 dígitos/i)).toBeTruthy()
+    fireEvent.change(telefono, { target: { value: '9516430789' } })
+    expect(screen.queryByText(/teléfono de 10 dígitos/i)).toBeNull()
+    expect(telefono.value).toBe('9516430789')
   })
 
   it('requiere teléfono si se activa SMS y muestra error cuando no carga el catálogo', async () => {
@@ -335,17 +334,15 @@ describe('pantalla de registro', () => {
     expect(screen.queryByText('Pantalla de inicio de sesión')).toBeNull()
   })
 
-  it('mantiene SMS y WhatsApp desmarcados por defecto y permite marcarlos', () => {
+  it('mantiene SMS desmarcado por defecto y no muestra WhatsApp', () => {
     renderRegistro()
     const sms = screen.getByLabelText(/recibir sms/i)
-    const whatsapp = screen.getByLabelText(/recibir whatsapp/i)
 
     expect(sms.checked).toBe(false)
-    expect(whatsapp.checked).toBe(false)
+    expect(screen.queryByLabelText(/recibir whatsapp/i)).toBeNull()
 
     fireEvent.click(sms)
     expect(sms.checked).toBe(true)
-    expect(whatsapp.checked).toBe(false)
   })
 
   it('envía el payload previsto, deshabilita el botón y navega a /login', async () => {

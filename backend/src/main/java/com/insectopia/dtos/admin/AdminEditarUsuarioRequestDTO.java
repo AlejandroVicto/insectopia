@@ -23,7 +23,7 @@ public record AdminEditarUsuarioRequestDTO(
         @Size(max = 30) @Pattern(regexp = "Femenino|Masculino|Otro|Prefiero no decirlo") String genero,
         @NotBlank @Pattern(regexp = "[A-Z]{2}") String paisCodigo,
         @NotBlank @Size(max = 100) String estadoRegion,
-        @Size(max = 20) @TelefonoValido @Pattern(regexp = "\\+?[0-9][0-9 ()-]*") String telefono,
+        @Size(max = 13) @TelefonoValido @Pattern(regexp = "\\+52\\d{10}", message = "Ingresa un teléfono de 10 dígitos.") String telefono,
         @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres.")
         @Pattern(regexp = "(?s).*[A-Z].*", message = "La contraseña debe incluir una mayúscula.")
         @Pattern(regexp = "(?s).*[0-9].*", message = "La contraseña debe incluir un número.")

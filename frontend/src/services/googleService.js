@@ -106,7 +106,10 @@ export function construirPayloadRegistroGoogle(valores) {
     return max ? valor.slice(0, max) : valor
   }
   const genero = texto('genero')
-  const telefono = texto('telefono', 20)
+  const telefonoDigitos = String(valores?.telefono ?? '').trim().replace(/\D/g, '')
+  const telefono = telefonoDigitos.length === 10 ? `+52${telefonoDigitos}`
+    : telefonoDigitos.length === 12 && telefonoDigitos.startsWith('52') ? `+${telefonoDigitos}`
+    : texto('telefono', 20)
   return {
     nombre: texto('nombre', 100),
     nombreUsuario: texto('nombreUsuario', 30).toLowerCase(),

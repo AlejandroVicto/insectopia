@@ -34,6 +34,21 @@ function normalizarNombreCampo(campo) {
     .replace(/[^a-z0-9]/g, '')
 }
 
+export function normalizarTelefonoRegistro(valor) {
+  const telefono = String(valor ?? '').trim().replace(/\D/g, '')
+  if (!telefono) return null
+  if (telefono.length === 10) return `+52${telefono}`
+  if (telefono.length === 12 && telefono.startsWith('52')) return `+${telefono}`
+  return String(valor ?? '').trim() || null
+}
+
+export function telefonoInputRegistro(valor) {
+  const telefono = String(valor ?? '').trim()
+  if (/^\+52\d{10}$/.test(telefono)) return telefono.slice(3)
+  if (/^\d{10}$/.test(telefono)) return telefono
+  return telefono.replace(/\D/g, '').slice(-10)
+}
+
 export function construirPayloadRegistro(valores) {
   return {
     nombre: String(valores.nombre ?? '').trim(),
@@ -43,7 +58,7 @@ export function construirPayloadRegistro(valores) {
     genero: String(valores.genero ?? '').trim() || null,
     paisCodigo: String(valores.paisCodigo ?? '').trim().toUpperCase(),
     estadoRegion: String(valores.estadoRegion ?? '').trim(),
-    telefono: String(valores.telefono ?? '').trim() || null,
+    telefono: normalizarTelefonoRegistro(valores.telefono),
     contrasena: valores.contrasena,
     recibirSms: Boolean(valores.recibirSms),
     recibirWhatsapp: Boolean(valores.recibirWhatsapp),

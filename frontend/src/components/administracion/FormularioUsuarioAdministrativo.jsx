@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import ModalContainer from '../modales/ModalContainer'
 import { obtenerPaises, obtenerRegiones } from '../../services/catalogoService'
-import { construirPayloadRegistro, normalizarErrorRegistro } from '../../services/authService'
+import { construirPayloadRegistro, normalizarErrorRegistro, telefonoInputRegistro } from '../../services/authService'
 import { mensajeErrorApi } from '../../services/erroresApi'
 import { VALORES_INICIALES, CAMPOS_VALIDABLES, validarCampo } from '../../utils/validacionRegistro'
 
@@ -15,7 +15,7 @@ const clase = 'mt-1 h-10 w-full rounded-xl border border-[#35483a] bg-[#141d17] 
 
 export default function FormularioUsuarioAdministrativo({ usuario, onClose, onSave }) {
   const edicion = Boolean(usuario)
-  const [valores, setValores] = useState(() => ({ ...VALORES_INICIALES, ...usuario, contrasena: '', confirmarContrasena: '', genero: usuario?.genero ?? '', telefono: usuario?.telefono ?? '' }))
+  const [valores, setValores] = useState(() => ({ ...VALORES_INICIALES, ...usuario, contrasena: '', confirmarContrasena: '', genero: usuario?.genero ?? '', telefono: telefonoInputRegistro(usuario?.telefono ?? '') }))
   const [paises, setPaises] = useState([])
   const [regiones, setRegiones] = useState([])
   const [errorCatalogo, setErrorCatalogo] = useState('')
@@ -41,7 +41,9 @@ export default function FormularioUsuarioAdministrativo({ usuario, onClose, onSa
   }, [intento])
 
   function cambiar(campo, valor) {
-    const siguiente = { ...valores, [campo]: campo === 'nombreUsuario' ? valor.toLowerCase() : valor }
+    let siguienteValor = campo === 'nombreUsuario' ? valor.toLowerCase() : valor
+    if (campo === 'telefono') siguienteValor = String(valor).replace(/\D/g, '').slice(0, 10)
+    const siguiente = { ...valores, [campo]: siguienteValor }
     if (campo === 'paisCodigo') {
       siguiente.estadoRegion = ''
       setRegiones([])
@@ -95,12 +97,16 @@ export default function FormularioUsuarioAdministrativo({ usuario, onClose, onSa
           <option value="">Selecciona una región</option>{regiones.map((item) => <option key={item.nombre} value={item.nombre}>{item.nombre}</option>)}
         </select> : campo === 'genero' ? <select id={`admin-form-${campo}`} value={valores[campo] ?? ''} onChange={(e) => cambiar(campo, e.target.value)} className={clase}>
           <option value="">No indicado</option>{['Femenino', 'Masculino', 'Otro', 'Prefiero no decirlo'].map((item) => <option key={item}>{item}</option>)}
-        </select> : <input id={`admin-form-${campo}`} type={campo.includes('contrasena') || campo === 'confirmarContrasena' ? 'password' : campo === 'fechaNacimiento' ? 'date' : campo === 'correo' ? 'email' : 'text'}
+        </select> : campo === 'telefono' ? <div className="relative mt-1">
+          <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-[#a5b7a7]">+52</span>
+          <input id={`admin-form-${campo}`} type="tel" inputMode="numeric" autoComplete="off" maxLength={10} placeholder="(Ej. 9516430789)"
+            value={valores[campo] ?? ''} onChange={(e) => cambiar(campo, e.target.value)} className={`${clase} mt-0 pl-12`} />
+        </div> : <input id={`admin-form-${campo}`} type={campo.includes('contrasena') || campo === 'confirmarContrasena' ? 'password' : campo === 'fechaNacimiento' ? 'date' : campo === 'correo' ? 'email' : 'text'}
           autoComplete="off" value={valores[campo] ?? ''} onChange={(e) => cambiar(campo, e.target.value)} className={clase} />}
         {errores[campo] && <p role="alert" className="mt-1 text-red-300">{errores[campo]}</p>}
       </div>)}</div>
-      <div className="flex gap-5">{[['recibirSms', 'Recibir SMS'], ['recibirWhatsapp', 'Recibir WhatsApp']].map(([clave, etiqueta]) => <label key={clave} className="flex items-center gap-2">
-        <input type="checkbox" checked={Boolean(valores[clave])} onChange={(e) => cambiar(clave, e.target.checked)} />{etiqueta}</label>)}</div>
+      <div className="flex gap-5"><label className="flex items-center gap-2">
+        <input type="checkbox" checked={Boolean(valores.recibirSms)} onChange={(e) => cambiar('recibirSms', e.target.checked)} />Recibir SMS</label></div>
       {error && <p role="alert" className="rounded-xl bg-red-950/40 p-3 text-red-200">{error}</p>}
       <div className="flex gap-3"><button type="button" disabled={enviando} onClick={onClose} className="admin-boton-secundario flex-1">Cancelar</button>
         <button type="submit" disabled={enviando || cargandoCatalogo || Boolean(errorCatalogo)} className="admin-boton-primario flex-1">{enviando ? 'Guardando…' : edicion ? 'Guardar usuario' : 'Crear usuario'}</button></div>

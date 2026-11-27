@@ -51,6 +51,7 @@ import com.insectopia.security.JwtService;
 import com.insectopia.security.SecurityConfig;
 import com.insectopia.services.AuthService;
 import com.insectopia.services.CatalogoUbicacionesService;
+import com.insectopia.services.PasswordRecoveryService;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -72,6 +73,7 @@ class LoginFlujoMvcTests {
     @MockitoBean RolRepository roles;
     @MockitoBean TokenRevocadoRepository revoked;
     @MockitoBean CatalogoUbicacionesService catalogo;
+    @MockitoBean PasswordRecoveryService passwordRecovery;
 
     private Usuario user;
     private final Set<String> revokedJtis = ConcurrentHashMap.newKeySet();

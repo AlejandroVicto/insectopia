@@ -290,7 +290,8 @@ export default function Registro({ modo = 'normal' }) {
 
   function actualizarCampo(evento) {
     const { name, type, checked, value } = evento.target
-    const valor = normalizarValor(name, type === 'checkbox' ? checked : value)
+    let valor = normalizarValor(name, type === 'checkbox' ? checked : value)
+    if (name === 'telefono') valor = String(valor).replace(/\D/g, '').slice(0, 10)
     const siguientes = { ...valores, [name]: valor }
 
     if (name === 'paisCodigo' && valor !== valores.paisCodigo) {
@@ -307,7 +308,7 @@ export default function Registro({ modo = 'normal' }) {
       if (name === 'paisCodigo') {
         proximos.estadoRegion = validar('estadoRegion', siguientes)
       }
-      if (name === 'recibirSms' || name === 'recibirWhatsapp' || (esGoogle && name === 'telefono')) {
+      if (name === 'recibirSms' || (esGoogle && name === 'telefono')) {
         proximos.telefono = validar('telefono', siguientes)
       }
       if (name === 'contrasena') {
@@ -606,21 +607,25 @@ export default function Registro({ modo = 'normal' }) {
 
             <div className="flex min-w-0 flex-col gap-1.5">
               <Etiqueta htmlFor={idDe('telefono')}>Teléfono (opcional)</Etiqueta>
-              <input
-                id={idDe('telefono')}
-                name="telefono"
-                type="tel"
-                autoComplete="tel"
-                maxLength={20}
-                value={valores.telefono}
-                onChange={actualizarCampo}
-                onBlur={validarAlSalir}
+              <div className="relative">
+                <span aria-hidden="true" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold text-gray-300">+52</span>
+                <input
+                  id={idDe('telefono')}
+                  name="telefono"
+                  type="tel"
+                  autoComplete="tel-national"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={valores.telefono}
+                  onChange={actualizarCampo}
+                  onBlur={validarAlSalir}
                   aria-invalid={Boolean(errores.telefono)}
                   aria-describedby={describir('telefono', errores)}
-                className={claseInput(Boolean(errores.telefono))}
-                  placeholder="Ej. +52 951 123 4567"
+                  className={claseInput(Boolean(errores.telefono), 'pl-12')}
+                  placeholder="(Ej. 9516430789)"
                 />
-                <MensajeError campo="telefono" errores={errores} />
+              </div>
+              <MensajeError campo="telefono" errores={errores} />
             </div>
 
             <div className="flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-300">
@@ -634,17 +639,6 @@ export default function Registro({ modo = 'normal' }) {
                   className="size-4 rounded accent-lime-400"
                 />
                 Recibir SMS
-              </label>
-              <label htmlFor={idDe('recibirWhatsapp')} className="flex cursor-pointer items-center gap-2">
-                <input
-                  id={idDe('recibirWhatsapp')}
-                  name="recibirWhatsapp"
-                  type="checkbox"
-                  checked={valores.recibirWhatsapp}
-                  onChange={actualizarCampo}
-                  className="size-4 rounded accent-lime-400"
-                />
-                Recibir WhatsApp
               </label>
             </div>
 

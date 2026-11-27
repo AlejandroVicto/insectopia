@@ -23,13 +23,7 @@ export const CAMPOS_VALIDABLES_GOOGLE = [
   'aceptarTerminos',
 ]
 
-const E164 = /^\+[1-9]\d{1,14}$/
-
 export function validarCampoGoogle(campo, valores, catalogo = {}) {
-  if (campo === 'telefono' && valores.recibirSms && String(valores.telefono ?? '').trim()
-      && !E164.test(String(valores.telefono).trim())) {
-    return 'Para recibir SMS usa el formato internacional E.164, por ejemplo +529511234567.'
-  }
   return validarCampoBase(campo, valores, catalogo)
 }
 

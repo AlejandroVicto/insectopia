@@ -30,6 +30,7 @@ import com.insectopia.services.AuthService;
 import com.insectopia.services.CatalogoUbicacionesService;
 import com.insectopia.services.CountriesNowClient;
 import com.insectopia.services.CountriesNowFixtures;
+import com.insectopia.services.PasswordRecoveryService;
 
 @WebMvcTest({AuthController.class, CatalogosController.class})
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, CatalogoUbicacionesService.class})
@@ -40,6 +41,7 @@ class RegistroMvcTests {
     @MockitoBean CustomUserDetailsService users;
     @MockitoBean TokenRevocadoRepository revoked;
     @MockitoBean CountriesNowClient provider;
+    @MockitoBean PasswordRecoveryService passwordRecovery;
 
     @BeforeEach void setup() {
         CountriesNowFixtures.stub(provider);

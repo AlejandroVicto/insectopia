@@ -54,6 +54,7 @@ import com.insectopia.security.JwtAuthenticationFilter;
 import com.insectopia.security.JwtService;
 import com.insectopia.security.Permissions;
 import com.insectopia.security.SecurityConfig;
+import com.insectopia.services.ConfiguracionCuentaService;
 import com.insectopia.services.UsuarioService;
 
 /** Actividad 074: contrato HTTP, autenticación, privacidad y paginación. */
@@ -79,6 +80,7 @@ class UsuarioControllerMvcTests {
     @Autowired private JwtService jwt;
 
     @MockitoBean private UsuarioService service;
+    @MockitoBean private ConfiguracionCuentaService configuracion;
     @MockitoBean private UsuarioRepository usuarios;
     @MockitoBean private TokenRevocadoRepository revocados;
 
