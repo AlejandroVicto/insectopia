@@ -20,12 +20,20 @@ body:json {
 }
 
 script:pre-request {
-  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
-    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  if (bru.getEnvName() !== "Produccion" || bru.getEnvVar("baseUrl") !== "https://insectopia.tech") {
+    throw new Error("Seleccione Produccion con baseUrl=https://insectopia.tech.");
   }
   const correo = bru.getEnvVar("loginCorreo");
   const contrasena = bru.getEnvVar("loginContrasena");
-  if (!correo || !contrasena) throw new Error("Configure loginCorreo y loginContrasena en Secrets de Local.");
+  if (!correo || !contrasena) throw new Error("Configure loginCorreo y loginContrasena en los secretos de Produccion.");
+  bru.deleteVar("token");
+  bru.deleteVar("publicacionId");
+  bru.deleteVar("publicacionPropiaId");
+  bru.deleteVar("seguidoId");
+  bru.deleteVar("conversacionId");
+  bru.deleteVar("conversacionDemoId");
+  bru.deleteVar("cuentaDemo");
+  bru.deleteVar("yoNombreUsuario");
   req.setBody({ correo, contrasena });
 }
 
@@ -36,6 +44,8 @@ script:post-response {
         /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(body.token)) {
       bru.setVar("token", body.token);
       if (body.user && Number.isSafeInteger(body.user.id)) bru.setVar("yoId", body.user.id);
+      if (body.user && typeof body.user.nombreUsuario === "string") bru.setVar("yoNombreUsuario", body.user.nombreUsuario);
+      bru.setVar("cuentaDemo", !!(body.user && /^demo\./.test(body.user.nombreUsuario || "")));
     } else {
       bru.deleteVar("token");
     }

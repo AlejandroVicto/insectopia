@@ -21,7 +21,7 @@ headers {
 
 body:json {
   {
-    "contenido": "Observación de campo para verificar la actividad 060",
+    "contenido": "[BRUNO-VPS-PRUEBA] Observación de campo de una cuenta demo",
     "imagen": null
   }
 }
@@ -30,14 +30,18 @@ script:post-response {
   if (res.getStatus() === 200 || res.getStatus() === 201) {
     const body = res.getBody();
     const id = body && body.id;
-    if (Number.isSafeInteger(id) && id > 0) bru.setVar("publicacionId", id);
+    if (Number.isSafeInteger(id) && id > 0) {
+      bru.setVar("publicacionId", id);
+      bru.setVar("publicacionPropiaId", id);
+    }
   }
 }
 
 script:pre-request {
-  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
-    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  if (bru.getEnvName() !== "Produccion" || bru.getEnvVar("baseUrl") !== "https://insectopia.tech") {
+    throw new Error("Seleccione Produccion con baseUrl=https://insectopia.tech.");
   }
+  if (bru.getVar("cuentaDemo") !== true) throw new Error("Las escrituras exigen una cuenta demo; ejecute 01 con una cuenta demo autorizada.");
 }
 
 tests {

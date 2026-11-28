@@ -23,6 +23,7 @@ script:post-response {
     const body = res.getBody();
     const id = body && Array.isArray(body.content) && body.content[0] && body.content[0].id;
     if (Number.isSafeInteger(id) && id > 0) bru.setVar("publicacionId", id);
+    else bru.deleteVar("publicacionId");
   }
 }
 

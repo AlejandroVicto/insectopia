@@ -19,23 +19,7 @@ headers {
 }
 
 script:pre-request {
-  if (!bru.getVar("token")) {
-    if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
-      throw new Error("Solo se permite login automático en Local (localhost).");
-    }
-    const correo = bru.getEnvVar("loginCorreo");
-    const contrasena = bru.getEnvVar("loginContrasena");
-    if (!correo || !contrasena) throw new Error("Configure los secretos de Local y ejecute 01.");
-    const axios = require("axios");
-    const login = await axios.post(bru.getEnvVar("baseUrl") + "/api/auth/login",
-      { correo, contrasena }, { headers: { "Content-Type": "application/json", Accept: "application/json" }, timeout: 10000 });
-    const jwt = login.data && login.data.token;
-    if (login.status !== 200 || typeof jwt !== "string" ||
-        !/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(jwt)) {
-      throw new Error("El login local no devolvió un JWT válido.");
-    }
-    bru.setVar("token", jwt);
-  }
+  if (!bru.getVar("token")) throw new Error("Falta el JWT: ejecute primero 01-login-jwt.bru en Produccion.");
   req.setHeader("Authorization", "Bearer " + bru.getVar("token"));
 }
 

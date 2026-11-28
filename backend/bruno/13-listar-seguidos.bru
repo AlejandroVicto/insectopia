@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/usuarios/seguidos?page=0&size=20
+  url: {{baseUrl}}/api/usuarios/seguidos?page=0&size=50
   body: none
   auth: bearer
 }
@@ -21,8 +21,10 @@ headers {
 script:post-response {
   if (res.getStatus() === 200 || res.getStatus() === 201) {
     const body = res.getBody();
-    const id = body && Array.isArray(body.content) && body.content[0] && body.content[0].id;
-    if (Number.isSafeInteger(id) && id > 0) bru.setVar("seguidoId", id);
+    const seguido = body && Array.isArray(body.content) &&
+      body.content.find(usuario => /^demo\./.test(usuario.nombreUsuario || ""));
+    if (seguido && Number.isSafeInteger(seguido.id) && seguido.id > 0) bru.setVar("seguidoId", seguido.id);
+    else bru.deleteVar("seguidoId");
   }
 }
 

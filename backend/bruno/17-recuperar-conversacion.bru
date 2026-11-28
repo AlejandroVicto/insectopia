@@ -29,13 +29,20 @@ script:post-response {
   if (res.getStatus() === 200 || res.getStatus() === 201) {
     const body = res.getBody();
     const id = body && body.id;
-    if (Number.isSafeInteger(id) && id > 0) bru.setVar("conversacionId", id);
+    if (Number.isSafeInteger(id) && id > 0) {
+      bru.setVar("conversacionId", id);
+      bru.setVar("conversacionDemoId", id);
+    }
   }
 }
 
 script:pre-request {
-  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
-    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  if (bru.getEnvName() !== "Produccion" || bru.getEnvVar("baseUrl") !== "https://insectopia.tech") {
+    throw new Error("Seleccione Produccion con baseUrl=https://insectopia.tech.");
+  }
+  if (bru.getVar("cuentaDemo") !== true || !bru.getVar("seguidoId") ||
+      bru.getVar("conversacionId") !== bru.getVar("conversacionDemoId")) {
+    throw new Error("Ejecute primero 13 y 16: se reutiliza únicamente la conversación demo.");
   }
 }
 

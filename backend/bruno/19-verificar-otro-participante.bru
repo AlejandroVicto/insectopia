@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/conversaciones?page=0&size=20
+  url: {{baseUrl}}/api/conversaciones?page=0&size=20&q={{yoNombreUsuario}}
   body: none
   auth: bearer
 }
@@ -18,9 +18,19 @@ headers {
   Accept: application/json
 }
 
+script:pre-request {
+  if (!bru.getEnvVar("tokenInterlocutor")) {
+    throw new Error("Configure tokenInterlocutor como secreto de Produccion: JWT del seguido demo de 13.");
+  }
+  if (!bru.getVar("conversacionDemoId") || !bru.getVar("yoNombreUsuario")) {
+    throw new Error("Ejecute 01 y 16 para identificar la conversación demo.");
+  }
+}
+
 tests {
   test("La consulta devuelve HTTP 200", function () {
     expect(res.getStatus()).to.equal(200);
     expect(res.getBody()).to.have.property("content").that.is.an("array");
+    expect(res.getBody().content.some(item => item.id === bru.getVar("conversacionDemoId"))).to.equal(true);
   });
 }

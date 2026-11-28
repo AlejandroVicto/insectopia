@@ -5,7 +5,7 @@ meta {
 }
 
 get {
-  url: {{baseUrl}}/api/conversaciones?page=0&size=20&q=&noLeidos=false
+  url: {{baseUrl}}/api/conversaciones?page=0&size=50&q=&noLeidos=false
   body: none
   auth: bearer
 }
@@ -21,8 +21,16 @@ headers {
 script:post-response {
   if (res.getStatus() === 200 || res.getStatus() === 201) {
     const body = res.getBody();
-    const id = body && Array.isArray(body.content) && body.content[0] && body.content[0].id;
-    if (Number.isSafeInteger(id) && id > 0) bru.setVar("conversacionId", id);
+    const conversacion = body && Array.isArray(body.content) &&
+      body.content.find(item => item.interlocutor && item.interlocutor.id === bru.getVar("seguidoId") &&
+        /^demo\./.test(item.interlocutor.nombreUsuario || ""));
+    if (conversacion && Number.isSafeInteger(conversacion.id) && conversacion.id > 0) {
+      bru.setVar("conversacionId", conversacion.id);
+      bru.setVar("conversacionDemoId", conversacion.id);
+    } else {
+      bru.deleteVar("conversacionId");
+      bru.deleteVar("conversacionDemoId");
+    }
   }
 }
 

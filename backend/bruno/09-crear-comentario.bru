@@ -21,13 +21,17 @@ headers {
 
 body:json {
   {
-    "contenido": "Comentario de verificación de la actividad 060"
+    "contenido": "[BRUNO-VPS-PRUEBA] Comentario de una cuenta demo"
   }
 }
 
 script:pre-request {
-  if (bru.getEnvName() !== "Local" || !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(bru.getEnvVar("baseUrl"))) {
-    throw new Error("Solo se permiten pruebas de escritura/login en Local (localhost).");
+  if (bru.getEnvName() !== "Produccion" || bru.getEnvVar("baseUrl") !== "https://insectopia.tech") {
+    throw new Error("Seleccione Produccion con baseUrl=https://insectopia.tech.");
+  }
+  if (bru.getVar("cuentaDemo") !== true || !bru.getVar("publicacionPropiaId") ||
+      bru.getVar("publicacionId") !== bru.getVar("publicacionPropiaId")) {
+    throw new Error("Ejecute 07 antes: solo se comenta la publicación propia de prueba.");
   }
 }
 
